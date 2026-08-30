@@ -4,10 +4,49 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ATLAS — Animation Production &amp; Asset Approval System</title>
+
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+
 <link rel="stylesheet" href="css/style.css">
+
+<style>
+  .login-enter-btn {
+    width: 100%;
+    justify-content: center;
+    padding: 12px;
+  }
+
+  .login-note {
+    color: var(--text-faint);
+    font-size: 11.5px;
+    margin-top: 10px;
+  }
+
+  .quick-signin-label {
+    margin-bottom: 10px;
+  }
+
+  .topbar-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .top-title {
+    font-family: var(--font-display);
+    font-size: 22px;
+    letter-spacing: .02em;
+  }
+
+  .topbar-right {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+  }
+</style>
 </head>
+
 <body>
 
 <!-- ============ LOGIN ============ -->
@@ -17,6 +56,7 @@
       <h1>ATLAS</h1>
       <div class="tag">Animation Production &amp; Asset Approval System</div>
     </div>
+
     <div class="slate-body">
       <div>
         <div class="slate-fields">
@@ -25,12 +65,14 @@
           <div><b>Modules</b>Assets · Review · Reports</div>
           <div><b>Status</b>Ready</div>
         </div>
+
         <div class="field">
-          <label>Your name</label>
+          <label for="loginName">Your name</label>
           <input id="loginName" type="text" placeholder="e.g. Leo Cruz">
         </div>
+
         <div class="field">
-          <label>Sign in as</label>
+          <label for="loginRole">Sign in as</label>
           <select id="loginRole">
             <option value="admin">Administrator</option>
             <option value="project_manager">Project Manager</option>
@@ -42,11 +84,25 @@
             <option value="viewer">Viewer</option>
           </select>
         </div>
-        <button class="btn btn-primary" style="width:100%;justify-content:center;padding:12px;" onclick="Studio.manualLogin()">Enter studio</button>
-        <p style="color:var(--text-faint);font-size:11.5px;margin-top:10px;">No password needed — this is a working prototype. Pick a role to see the matching permissions.</p>
+
+        <button
+          class="btn btn-primary login-enter-btn"
+          onclick="Studio.manualLogin()"
+          type="button"
+        >
+          Enter studio
+        </button>
+
+        <p class="login-note">
+          No password needed — this is a working prototype. Pick a role to see the matching permissions.
+        </p>
       </div>
+
       <div>
-        <div class="eyebrow" style="margin-bottom:10px;">Quick sign-in — demo team</div>
+        <div class="eyebrow quick-signin-label">
+          Quick sign-in — demo team
+        </div>
+
         <div class="demo-grid" id="demoUsers"></div>
       </div>
     </div>
@@ -56,32 +112,69 @@
 <!-- ============ APP ============ -->
 <div id="app">
   <div class="shell">
+
     <nav class="sidebar" id="sidebar">
       <div class="brand">
         <div class="brand-mark">A</div>
-        <div><b>ATLAS</b><small>PRODUCTION SYSTEM</small></div>
+
+        <div>
+          <b>ATLAS</b>
+          <small>PRODUCTION SYSTEM</small>
+        </div>
       </div>
+
       <div class="navlist" id="navlist"></div>
+
       <div class="side-user">
         <div class="avatar" id="sideAvatar"></div>
-        <div class="u"><b id="sideName"></b><span id="sideRole"></span></div>
-        <button title="Sign out" onclick="Studio.logout()">⏻</button>
+
+        <div class="u">
+          <b id="sideName"></b>
+          <span id="sideRole"></span>
+        </div>
+
+        <button
+          title="Sign out"
+          aria-label="Sign out"
+          onclick="Studio.logout()"
+          type="button"
+        >
+          ⏻
+        </button>
       </div>
     </nav>
+
     <div class="main">
+
       <div class="topbar">
-        <div style="display:flex;align-items:center;gap:12px;">
-          <button class="hbtn" onclick="document.getElementById('sidebar').classList.toggle('open')">☰</button>
+
+        <div class="topbar-left">
+          <button
+            class="hbtn"
+            aria-label="Open navigation menu"
+            onclick="document.getElementById('sidebar').classList.toggle('open')"
+            type="button"
+          >
+            ☰
+          </button>
+
           <div>
             <div class="eyebrow" id="topEyebrow">DASHBOARD</div>
-            <div style="font-family:var(--font-display);font-size:22px;letter-spacing:.02em;" id="topTitle">Overview</div>
+
+            <div class="top-title" id="topTitle">
+              Overview
+            </div>
           </div>
         </div>
-        <div style="display:flex;gap:10px;align-items:center;">
+
+        <div class="topbar-right">
           <span class="chip" id="clockChip"></span>
         </div>
+
       </div>
+
       <div class="page" id="pageContent"></div>
+
     </div>
   </div>
 </div>
@@ -93,5 +186,6 @@
 <script src="js/actions.js"></script>
 <script src="js/render.js"></script>
 <script src="js/main.js"></script>
+
 </body>
 </html>
