@@ -4,59 +4,25 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ATLAS — Animation Production &amp; Asset Approval System</title>
-
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
 
-<link rel="stylesheet" href="css/style.css">
-
-<style>
-  .login-enter-btn {
-    width: 100%;
-    justify-content: center;
-    padding: 12px;
-  }
-
-  .login-note {
-    color: var(--text-faint);
-    font-size: 11.5px;
-    margin-top: 10px;
-  }
-
-  .quick-signin-label {
-    margin-bottom: 10px;
-  }
-
-  .topbar-left {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-  }
-
-  .top-title {
-    font-family: var(--font-display);
-    font-size: 22px;
-    letter-spacing: .02em;
-  }
-
-  .topbar-right {
-    display: flex;
-    gap: 10px;
-    align-items: center;
-  }
-</style>
+<!-- Styles: theme (colors/fonts) -> base (generic elements) -> layout (shell/login) -> components -->
+<link rel="stylesheet" href="css/theme.css">
+<link rel="stylesheet" href="css/base.css">
+<link rel="stylesheet" href="css/layout.css">
+<link rel="stylesheet" href="css/components.css">
 </head>
-
 <body>
 
 <!-- ============ LOGIN ============ -->
 <div id="loginScreen">
   <div class="slate">
     <div class="slate-top">
+      <div class="sprockets"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
       <h1>ATLAS</h1>
       <div class="tag">Animation Production &amp; Asset Approval System</div>
     </div>
-
     <div class="slate-body">
       <div>
         <div class="slate-fields">
@@ -65,14 +31,12 @@
           <div><b>Modules</b>Assets · Review · Reports</div>
           <div><b>Status</b>Ready</div>
         </div>
-
         <div class="field">
-          <label for="loginName">Your name</label>
+          <label>Your name</label>
           <input id="loginName" type="text" placeholder="e.g. Leo Cruz">
         </div>
-
         <div class="field">
-          <label for="loginRole">Sign in as</label>
+          <label>Sign in as</label>
           <select id="loginRole">
             <option value="admin">Administrator</option>
             <option value="project_manager">Project Manager</option>
@@ -84,25 +48,11 @@
             <option value="viewer">Viewer</option>
           </select>
         </div>
-
-        <button
-          class="btn btn-primary login-enter-btn"
-          onclick="Studio.manualLogin()"
-          type="button"
-        >
-          Enter studio
-        </button>
-
-        <p class="login-note">
-          No password needed — this is a working prototype. Pick a role to see the matching permissions.
-        </p>
+        <button class="btn btn-primary" style="width:100%;justify-content:center;padding:12px;" onclick="Studio.manualLogin()">Enter studio</button>
+        <p style="color:var(--text-faint);font-size:11.5px;margin-top:10px;">No password needed — this is a working prototype. Pick a role to see the matching permissions.</p>
       </div>
-
       <div>
-        <div class="eyebrow quick-signin-label">
-          Quick sign-in — demo team
-        </div>
-
+        <div class="eyebrow" style="margin-bottom:10px;">Quick sign-in — demo team</div>
         <div class="demo-grid" id="demoUsers"></div>
       </div>
     </div>
@@ -112,80 +62,65 @@
 <!-- ============ APP ============ -->
 <div id="app">
   <div class="shell">
-
     <nav class="sidebar" id="sidebar">
       <div class="brand">
         <div class="brand-mark">A</div>
-
-        <div>
-          <b>ATLAS</b>
-          <small>PRODUCTION SYSTEM</small>
-        </div>
+        <div><b>ATLAS</b><small>PRODUCTION SYSTEM</small></div>
       </div>
-
       <div class="navlist" id="navlist"></div>
-
       <div class="side-user">
         <div class="avatar" id="sideAvatar"></div>
-
-        <div class="u">
-          <b id="sideName"></b>
-          <span id="sideRole"></span>
-        </div>
-
-        <button
-          title="Sign out"
-          aria-label="Sign out"
-          onclick="Studio.logout()"
-          type="button"
-        >
-          ⏻
-        </button>
+        <div class="u"><b id="sideName"></b><span id="sideRole"></span></div>
+        <button title="Sign out" onclick="Studio.logout()">⏻</button>
       </div>
     </nav>
-
     <div class="main">
-
       <div class="topbar">
-
-        <div class="topbar-left">
-          <button
-            class="hbtn"
-            aria-label="Open navigation menu"
-            onclick="document.getElementById('sidebar').classList.toggle('open')"
-            type="button"
-          >
-            ☰
-          </button>
-
+        <div style="display:flex;align-items:center;gap:12px;">
+          <button class="hbtn" onclick="document.getElementById('sidebar').classList.toggle('open')">☰</button>
           <div>
             <div class="eyebrow" id="topEyebrow">DASHBOARD</div>
-
-            <div class="top-title" id="topTitle">
-              Overview
-            </div>
+            <div style="font-family:var(--font-display);font-size:22px;letter-spacing:.02em;" id="topTitle">Overview</div>
           </div>
         </div>
-
-        <div class="topbar-right">
+        <div style="display:flex;gap:10px;align-items:center;">
           <span class="chip" id="clockChip"></span>
         </div>
-
       </div>
-
       <div class="page" id="pageContent"></div>
-
     </div>
   </div>
 </div>
 
 <div id="toastWrap"></div>
 
-<script src="js/data.js"></script>
-<script src="js/state.js"></script>
-<script src="js/actions.js"></script>
+<!-- Scripts load in dependency order: data -> core -> actions -> pages -> render -> main -->
+<script src="js/data/constants.js"></script>
+<script src="js/data/seed.js"></script>
+
+<script src="js/core/state.js"></script>
+<script src="js/core/nav.js"></script>
+
+<script src="js/actions/projects.js"></script>
+<script src="js/actions/assets.js"></script>
+<script src="js/actions/review.js"></script>
+<script src="js/actions/feedback.js"></script>
+<script src="js/actions/integrations.js"></script>
+<script src="js/actions/resources.js"></script>
+<script src="js/actions/users.js"></script>
+
+<script src="js/pages/dashboard.js"></script>
+<script src="js/pages/projects.js"></script>
+<script src="js/pages/assets.js"></script>
+<script src="js/pages/review.js"></script>
+<script src="js/pages/notifications.js"></script>
+<script src="js/pages/integrations.js"></script>
+<script src="js/pages/resources.js"></script>
+<script src="js/pages/audit.js"></script>
+<script src="js/pages/users.js"></script>
+<script src="js/pages/architecture.js"></script>
+
 <script src="js/render.js"></script>
 <script src="js/main.js"></script>
-
 </body>
 </html>
