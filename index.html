@@ -32,12 +32,12 @@
           <div><b>Status</b>Ready</div>
         </div>
         <div class="field">
-          <label>Your name</label>
+          <label for="loginName">Your name</label>
           <input id="loginName" type="text" placeholder="e.g. Leo Cruz">
         </div>
         <div class="field">
-          <label>Sign in as</label>
-          <select id="loginRole">
+          <label for="loginRole">Sign in as</label>
+          <select id="loginRole" aria-label="Sign in as">
             <option value="admin">Administrator</option>
             <option value="project_manager">Project Manager</option>
             <option value="artist">Artist</option>
@@ -71,13 +71,13 @@
       <div class="side-user">
         <div class="avatar" id="sideAvatar"></div>
         <div class="u"><b id="sideName"></b><span id="sideRole"></span></div>
-        <button title="Sign out" onclick="Studio.logout()">⏻</button>
+        <button title="Sign out" aria-label="Sign out" onclick="Studio.logout()">⏻</button>
       </div>
     </nav>
     <div class="main">
       <div class="topbar">
         <div style="display:flex;align-items:center;gap:12px;">
-          <button class="hbtn" onclick="document.getElementById('sidebar').classList.toggle('open')">☰</button>
+          <button class="hbtn" aria-label="Toggle Navigation Sidebar" onclick="document.getElementById('sidebar').classList.toggle('open')">☰</button>
           <div>
             <div class="eyebrow" id="topEyebrow">DASHBOARD</div>
             <div style="font-family:var(--font-display);font-size:22px;letter-spacing:.02em;" id="topTitle">Overview</div>
