@@ -1,0 +1,10 @@
+:root{
+  --ink:#f7f9fc; --ink-2:#ffffff; --panel:#ffffff; --panel-2:#f4f7fb; --panel-3:#eaf0f7;
+  --line:#dbe3ee; --line-soft:#e9eef5; --paper:#ffffff;
+  --coral:#e8758a; --coral-dim:#c95b70; --coral-glow:rgba(232,117,138,.14);
+  --cyan:#43b8b1; --cyan-glow:rgba(67,184,177,.14); --crimson:#dc6673; --crimson-glow:rgba(220,102,115,.13);
+  --violet:#8c7be8; --violet-glow:rgba(140,123,232,.13); --gold:#d79d42;
+  --text:#263449; --text-dim:#63728a; --text-faint:#8d9aab;
+  --font-display:'Bebas Neue',sans-serif; --font-body:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; --font-mono:'JetBrains Mono',monospace;
+  --radius:14px; --shadow:0 10px 30px rgba(44,62,84,.08); --shadow-lg:0 24px 60px rgba(44,62,84,.12);
+}
