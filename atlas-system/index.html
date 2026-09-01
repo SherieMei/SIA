@@ -1,127 +1,410 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ATLAS — Animation Production &amp; Asset Approval System</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<!-- Styles: theme (colors/fonts) -> base (generic elements) -> layout (shell/login) -> components -->
-<link rel="stylesheet" href="css/theme.css">
-<link rel="stylesheet" href="css/base.css">
-<link rel="stylesheet" href="css/layout.css">
-<link rel="stylesheet" href="css/components.css">
+  <title>ATLAS — Animation Production & Asset Approval System</title>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+  <link
+    href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+    rel="stylesheet"
+  >
+
+  <!-- ================================
+       GLOBAL STYLES
+  ================================= -->
+
+  <!-- Theme / Colors / Fonts -->
+  <link rel="stylesheet" href="css/theme.css">
+
+  <!-- Base HTML Elements -->
+  <link rel="stylesheet" href="css/base.css">
+
+  <!-- Main Layout -->
+  <link rel="stylesheet" href="css/layout.css">
+
+  <!-- Reusable Components -->
+  <link rel="stylesheet" href="css/components.css">
 </head>
+
 <body>
 
-<!-- ============ LOGIN ============ -->
-<div id="loginScreen">
-  <div class="slate">
-    <div class="slate-top">
-      <div class="sprockets"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
-      <h1>ATLAS</h1>
-      <div class="tag">Animation Production &amp; Asset Approval System</div>
-    </div>
-    <div class="slate-body">
-      <div>
-        <div class="slate-fields">
-          <div><b>Production</b>Skybound Chronicles, Lumen, Nightfall</div>
-          <div><b>Studio</b>Northlight Animation Co.</div>
-          <div><b>Modules</b>Assets · Review · Reports</div>
-          <div><b>Status</b>Ready</div>
-        </div>
-        <div class="field">
-          <label for="loginName">Your name</label>
-          <input id="loginName" type="text" placeholder="e.g. Leo Cruz">
-        </div>
-        <div class="field">
-          <label for="loginRole">Sign in as</label>
-          <select id="loginRole" aria-label="Sign in as">
-            <option value="admin">Administrator</option>
-            <option value="project_manager">Project Manager</option>
-            <option value="artist">Artist</option>
-            <option value="animator">Animator</option>
-            <option value="editor">Editor</option>
-            <option value="reviewer">Reviewer</option>
-            <option value="client">Client</option>
-            <option value="viewer">Viewer</option>
-          </select>
-        </div>
-        <button class="btn btn-primary" style="width:100%;justify-content:center;padding:12px;" onclick="Studio.manualLogin()">Enter studio</button>
-        <p style="color:var(--text-faint);font-size:11.5px;margin-top:10px;">No password needed — this is a working prototype. Pick a role to see the matching permissions.</p>
-      </div>
-      <div>
-        <div class="eyebrow" style="margin-bottom:10px;">Quick sign-in — demo team</div>
-        <div class="demo-grid" id="demoUsers"></div>
-      </div>
-    </div>
-  </div>
-</div>
+  <!-- =========================================================
+       LOGIN SCREEN
+  ========================================================== -->
 
-<!-- ============ APP ============ -->
-<div id="app">
-  <div class="shell">
-    <nav class="sidebar" id="sidebar">
-      <div class="brand">
-        <div class="brand-mark">A</div>
-        <div><b>ATLAS</b><small>PRODUCTION SYSTEM</small></div>
+  <div id="loginScreen">
+
+    <div class="slate">
+
+      <!-- Login Header -->
+      <div class="slate-top">
+
+        <div class="sprockets" aria-hidden="true">
+          <span></span>
+          <span></span>
+          <span></span>
+          <span></span>
+          <span></span>
+          <span></span>
+          <span></span>
+          <span></span>
+          <span></span>
+          <span></span>
+          <span></span>
+          <span></span>
+        </div>
+
+        <h1>ATLAS</h1>
+
+        <div class="tag">
+          Animation Production &amp; Asset Approval System
+        </div>
+
       </div>
-      <div class="navlist" id="navlist"></div>
-      <div class="side-user">
-        <div class="avatar" id="sideAvatar"></div>
-        <div class="u"><b id="sideName"></b><span id="sideRole"></span></div>
-        <button title="Sign out" aria-label="Sign out" onclick="Studio.logout()">⏻</button>
-      </div>
-    </nav>
-    <div class="main">
-      <div class="topbar">
-        <div style="display:flex;align-items:center;gap:12px;min-width:0;">
-          <button class="hbtn" aria-label="Toggle navigation sidebar" onclick="document.getElementById('sidebar').classList.toggle('open')">☰</button>
-          <div class="top-title-wrap">
-            <div class="eyebrow" id="topEyebrow">DASHBOARD</div>
-            <div style="font-family:var(--font-display);font-size:24px;letter-spacing:.02em;" id="topTitle">Overview</div>
+
+
+      <!-- Login Body -->
+      <div class="slate-body">
+
+        <!-- =====================================================
+             LOGIN FORM
+        ====================================================== -->
+
+        <div class="login-form-section">
+
+          <div class="slate-fields">
+
+            <div>
+              <b>Production</b>
+              <span>Skybound Chronicles, Lumen, Nightfall</span>
+            </div>
+
+            <div>
+              <b>Studio</b>
+              <span>Northlight Animation Co.</span>
+            </div>
+
+            <div>
+              <b>Modules</b>
+              <span>Assets · Review · Reports</span>
+            </div>
+
+            <div>
+              <b>Status</b>
+              <span>Ready</span>
+            </div>
+
           </div>
+
+
+          <!-- Name -->
+          <div class="field">
+
+            <label for="loginName">
+              Your name
+            </label>
+
+            <input
+              id="loginName"
+              type="text"
+              placeholder="e.g. Leo Cruz"
+              autocomplete="name"
+            >
+
+          </div>
+
+
+          <!-- Role -->
+          <div class="field">
+
+            <label for="loginRole">
+              Sign in as
+            </label>
+
+            <select
+              id="loginRole"
+              aria-label="Sign in as"
+            >
+              <option value="admin">Administrator</option>
+              <option value="project_manager">Project Manager</option>
+              <option value="artist">Artist</option>
+              <option value="animator">Animator</option>
+              <option value="editor">Editor</option>
+              <option value="reviewer">Reviewer</option>
+              <option value="client">Client</option>
+              <option value="viewer">Viewer</option>
+            </select>
+
+          </div>
+
+
+          <!-- Login Button -->
+          <button
+            type="button"
+            class="btn btn-primary login-submit-btn"
+            onclick="Studio.manualLogin()"
+          >
+            <span>Enter studio</span>
+            <span class="button-arrow" aria-hidden="true">→</span>
+          </button>
+
+
+          <!-- Login Information -->
+          <p class="login-help-text">
+            No password needed — this is a working prototype.
+            Pick a role to see the matching permissions.
+          </p>
+
         </div>
-        <div class="top-actions">
-          <button class="btn btn-ghost btn-sm" title="Notifications" aria-label="Notifications" onclick="Studio.goto('notifications')">🔔</button>
-          <span class="chip" id="clockChip"></span>
+
+
+        <!-- =====================================================
+             DEMO USERS
+        ====================================================== -->
+
+        <div class="demo-section">
+
+          <div class="eyebrow demo-heading">
+            Quick sign-in — demo team
+          </div>
+
+          <div
+            class="demo-grid"
+            id="demoUsers"
+          ></div>
+
         </div>
+
       </div>
-      <div class="page" id="pageContent"></div>
+
     </div>
+
   </div>
-</div>
 
-<div id="toastWrap"></div>
 
-<!-- Scripts load in dependency order: data -> core -> actions -> pages -> render -> main -->
-<script src="js/data/constants.js"></script>
-<script src="js/data/seed.js"></script>
+  <!-- =========================================================
+       MAIN APPLICATION
+  ========================================================== -->
 
-<script src="js/core/state.js"></script>
-<script src="js/core/nav.js"></script>
+  <div id="app">
 
-<script src="js/actions/projects.js"></script>
-<script src="js/actions/assets.js"></script>
-<script src="js/actions/review.js"></script>
-<script src="js/actions/feedback.js"></script>
-<script src="js/actions/integrations.js"></script>
-<script src="js/actions/resources.js"></script>
-<script src="js/actions/users.js"></script>
+    <div class="shell">
 
-<script src="js/pages/dashboard.js"></script>
-<script src="js/pages/projects.js"></script>
-<script src="js/pages/assets.js"></script>
-<script src="js/pages/review.js"></script>
-<script src="js/pages/notifications.js"></script>
-<script src="js/pages/integrations.js"></script>
-<script src="js/pages/resources.js"></script>
-<script src="js/pages/audit.js"></script>
-<script src="js/pages/users.js"></script>
-<script src="js/pages/architecture.js"></script>
 
-<script src="js/render.js"></script>
-<script src="js/main.js"></script>
+      <!-- =====================================================
+           SIDEBAR
+      ====================================================== -->
+
+      <nav
+        class="sidebar"
+        id="sidebar"
+        aria-label="Main navigation"
+      >
+
+        <!-- Brand -->
+        <div class="brand">
+
+          <div
+            class="brand-mark"
+            aria-hidden="true"
+          >
+            A
+          </div>
+
+          <div class="brand-text">
+
+            <b>ATLAS</b>
+
+            <small>
+              PRODUCTION SYSTEM
+            </small>
+
+          </div>
+
+        </div>
+
+
+        <!-- Navigation -->
+        <div
+          class="navlist"
+          id="navlist"
+        ></div>
+
+
+        <!-- Current User -->
+        <div class="side-user">
+
+          <div
+            class="avatar"
+            id="sideAvatar"
+            aria-hidden="true"
+          ></div>
+
+          <div class="u">
+
+            <b id="sideName"></b>
+
+            <span id="sideRole"></span>
+
+          </div>
+
+          <button
+            type="button"
+            class="logout-btn"
+            title="Sign out"
+            aria-label="Sign out"
+            onclick="Studio.logout()"
+          >
+            ⏻
+          </button>
+
+        </div>
+
+      </nav>
+
+
+      <!-- =====================================================
+           MAIN CONTENT
+      ====================================================== -->
+
+      <div class="main">
+
+
+        <!-- ===================================================
+             TOP BAR
+        ==================================================== -->
+
+        <header class="topbar">
+
+          <!-- Left Side -->
+          <div class="topbar-left">
+
+            <button
+              type="button"
+              class="hbtn"
+              aria-label="Toggle navigation sidebar"
+              onclick="document.getElementById('sidebar').classList.toggle('open')"
+            >
+              ☰
+            </button>
+
+
+            <div class="top-title-wrap">
+
+              <div
+                class="eyebrow"
+                id="topEyebrow"
+              >
+                DASHBOARD
+              </div>
+
+              <div
+                class="top-title"
+                id="topTitle"
+              >
+                Overview
+              </div>
+
+            </div>
+
+          </div>
+
+
+          <!-- Right Side -->
+          <div class="top-actions">
+
+            <button
+              type="button"
+              class="btn btn-ghost btn-sm notification-btn"
+              title="Notifications"
+              aria-label="Notifications"
+              onclick="Studio.goto('notifications')"
+            >
+              <span aria-hidden="true">🔔</span>
+            </button>
+
+            <span
+              class="chip"
+              id="clockChip"
+            ></span>
+
+          </div>
+
+        </header>
+
+
+        <!-- ===================================================
+             PAGE CONTENT
+        ==================================================== -->
+
+        <main
+          class="page"
+          id="pageContent"
+        ></main>
+
+      </div>
+
+    </div>
+
+  </div>
+
+
+  <!-- =========================================================
+       TOAST NOTIFICATIONS
+  ========================================================== -->
+
+  <div
+    id="toastWrap"
+    aria-live="polite"
+    aria-atomic="true"
+  ></div>
+
+
+  <!-- =========================================================
+       JAVASCRIPT
+       Loaded in dependency order
+  ========================================================== -->
+
+  <!-- Data -->
+  <script src="js/data/constants.js"></script>
+  <script src="js/data/seed.js"></script>
+
+  <!-- Core -->
+  <script src="js/core/state.js"></script>
+  <script src="js/core/nav.js"></script>
+
+  <!-- Actions -->
+  <script src="js/actions/projects.js"></script>
+  <script src="js/actions/assets.js"></script>
+  <script src="js/actions/review.js"></script>
+  <script src="js/actions/feedback.js"></script>
+  <script src="js/actions/integrations.js"></script>
+  <script src="js/actions/resources.js"></script>
+  <script src="js/actions/users.js"></script>
+
+  <!-- Pages -->
+  <script src="js/pages/dashboard.js"></script>
+  <script src="js/pages/projects.js"></script>
+  <script src="js/pages/assets.js"></script>
+  <script src="js/pages/review.js"></script>
+  <script src="js/pages/notifications.js"></script>
+  <script src="js/pages/integrations.js"></script>
+  <script src="js/pages/resources.js"></script>
+  <script src="js/pages/audit.js"></script>
+  <script src="js/pages/users.js"></script>
+  <script src="js/pages/architecture.js"></script>
+
+  <!-- Rendering -->
+  <script src="js/render.js"></script>
+
+  <!-- Main -->
+  <script src="js/main.js"></script>
+
 </body>
 </html>
