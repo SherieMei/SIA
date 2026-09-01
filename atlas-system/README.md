@@ -1,29 +1,26 @@
-# ATLAS — Redesigned UI
+# ATLAS — Animation Production & Asset Approval System
 
-ATLAS is a browser-based animation production and asset approval prototype.
+## Working separated-page build
 
-## What was improved
-- Reworked the visual system into a clean light UI with soft rose, teal, violet, and neutral accents.
-- Simplified sidebar navigation into Workspace, Review & Collaboration, Management, and System groups.
-- Improved buttons, cards, forms, badges, tables, modals, toasts, spacing, shadows, and hover/focus states.
-- Improved responsive navigation for smaller screens.
-- Added a cleaner top bar with notification shortcut and date chip.
-- Preserved the existing prototype functionality and data model.
+This build keeps ATLAS separated by page and stylesheet/script:
 
-## Run
-No build step is required.
+- `login/login.html` + `login.css` + `login.js`
+- `dashboard/dashboard.html` + `dashboard.css` + `dashboard.js`
+- `projects/projects.html` + `projects.css` + `projects.js`
+- `assets/assets.html` + `assets.css` + `assets.js`
+- `review/review.html` + `review.css` + `review.js`
+- `notifications/notifications.html` + `notifications.css` + `notifications.js`
+- `integrations/integrations.html` + `integrations.css` + `integrations.js`
+- `resources/resources.html` + `resources.css` + `resources.js`
+- `audit/audit.html` + `audit.css` + `audit.js`
+- `users/users.html` + `users.css` + `users.js`
+- `architecture/architecture.html` + `architecture.css` + `architecture.js`
+- `js/shared.js` contains shared data, permissions, actions, and multipage navigation.
 
-### Option 1 — open directly
-Open `index.html` in a modern browser.
+### Navigation fix
 
-### Option 2 — local server (recommended)
-From this folder run:
+The separated pages now initialize their route from each document's `data-page` attribute before rendering. Detail routes also restore their `project` or `asset` query parameter. This prevents non-dashboard pages from accidentally booting with `state.page = 'dashboard'`, which previously caused blank/frozen pages because their page-specific render function was not loaded.
 
-```bash
-python -m http.server 5500
-```
+### Run
 
-Then visit `http://localhost:5500`.
-
-## Demo login
-The login screen provides quick sign-in cards for the seeded demo users. You can also enter any name and choose a role.
+Open `index.html` or serve the `atlas-system` folder with Live Server / a local web server. The demo login stores the current user in `sessionStorage`, so navigation between separated pages remains signed in for the current browser tab/session.

@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ATLAS — Sign In</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="login.css">
+</head>
+<body data-page="login" class="page-login">
+<div id="loginScreen">
+  <div class="slate">
+    <div class="slate-top">
+      <div class="sprockets" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
+      <h1>ATLAS</h1>
+      <div class="tag">Animation Production &amp; Asset Approval System</div>
+    </div>
+    <div class="slate-body">
+      <section class="login-form-section">
+        <div class="slate-fields">
+          <div><b>Production</b><span>Skybound Chronicles, Lumen, Nightfall</span></div>
+          <div><b>Studio</b><span>Northlight Animation Co.</span></div>
+          <div><b>Modules</b><span>Assets · Review · Reports</span></div>
+          <div><b>Status</b><span>Ready</span></div>
+        </div>
+        <div class="field"><label for="loginName">Your name</label><input id="loginName" type="text" placeholder="e.g. Leo Cruz" autocomplete="name"></div>
+        <div class="field"><label for="loginRole">Sign in as</label><select id="loginRole"><option value="admin">Administrator</option><option value="project_manager">Project Manager</option><option value="artist">Artist</option><option value="animator">Animator</option><option value="editor">Editor</option><option value="reviewer">Reviewer</option><option value="client">Client</option><option value="viewer">Viewer</option></select></div>
+        <button type="button" class="btn btn-primary login-submit-btn" id="loginButton"><span>Enter studio</span><span class="button-arrow">→</span></button>
+        <p class="login-help-text">No password needed — this is a working prototype. Pick a role to see the matching permissions.</p>
+      </section>
+      <section class="demo-section">
+        <div class="eyebrow demo-heading">Quick sign-in — demo team</div>
+        <div class="demo-grid" id="demoUsers"></div>
+      </section>
+    </div>
+  </div>
+</div>
+<div id="toastWrap" aria-live="polite" aria-atomic="true"></div>
+<script src="../js/shared.js"></script>
+<script src="login.js"></script>
+</body>
+</html>

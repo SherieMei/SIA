@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ATLAS — Architecture</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="architecture.css">
+</head>
+<body data-page="architecture" class="page-architecture">
+<div id="app" class="app-page">
+<div class="shell">
+  <nav class="sidebar" id="sidebar" aria-label="Main navigation">
+    <div class="brand"><div class="brand-mark">A</div><div class="brand-text"><b>ATLAS</b><small>PRODUCTION SYSTEM</small></div></div>
+    <div class="navlist" id="navlist"></div>
+    <div class="side-user"><div class="avatar" id="sideAvatar"></div><div class="u"><b id="sideName"></b><span id="sideRole"></span></div><button type="button" class="logout-btn" title="Sign out" aria-label="Sign out" onclick="Studio.logout()">⏻</button></div>
+  </nav>
+  <div class="main">
+    <header class="topbar">
+      <div class="topbar-left"><button type="button" class="hbtn" id="menuButton" aria-label="Toggle navigation sidebar">☰</button><div class="top-title-wrap"><div class="eyebrow" id="topEyebrow"></div><div class="top-title" id="topTitle"></div></div></div>
+      <div class="top-actions"><button type="button" class="btn btn-ghost btn-sm notification-btn" title="Notifications" aria-label="Notifications" onclick="Studio.goto('notifications')">🔔</button><span class="chip" id="clockChip"></span></div>
+    </header>
+    <main class="page" id="pageContent"></main>
+  </div>
+</div>
+</div>
+<div id="toastWrap" aria-live="polite" aria-atomic="true"></div>
+<script src="../js/shared.js"></script>
+<script src="architecture.js"></script>
+</body>
+</html>
