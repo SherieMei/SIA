@@ -2,10 +2,6 @@
    PAGE — Assets (list + submission form) + Asset Detail
    ========================================================================== */
 function pageAssets(){
-  const params=new URLSearchParams(location.search);
-  const projectParam=params.get('project');
-  const newVersion=params.get('newVersion');
-  if(projectParam) state.filter.project=projectParam;
   const f = state.filter;
   let list = DB.assets.slice();
   if(f.project!=='all') list = list.filter(a=>a.project===f.project);
@@ -23,20 +19,20 @@ function pageAssets(){
     </div>
 
     ${can('submitAssets') ? `
-    <div id="newAssetForm" class="card ${projectParam||newVersion?'':'hidden'}" style="padding:20px;margin-top:6px;">
+    <div id="newAssetForm" class="card hidden" style="padding:20px;margin-top:6px;">
       <h3 style="margin-top:0;font-size:15px;">Submit an asset</h3>
       <div class="field-row">
         <div class="field"><label>Project</label>
-          <select id="saProject">${DB.projects.map(p=>`<option value="${p.id}" ${projectParam===p.id?'selected':''}>${esc(p.name)}</option>`).join('')}</select>
+          <select id="saProject">${DB.projects.map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join('')}</select>
         </div>
         <div class="field"><label>This is</label>
           <select id="saExisting" onchange="Studio.onSaExistingChange()">
-            <option value="new" ${newVersion?'':'selected'}>A new asset</option>
-            ${DB.assets.map(a=>`<option value="${a.id}" ${newVersion===a.id?'selected':''}>New version of: ${esc(a.title)}</option>`).join('')}
+            <option value="new">A new asset</option>
+            ${DB.assets.map(a=>`<option value="${a.id}">New version of: ${esc(a.title)}</option>`).join('')}
           </select>
         </div>
       </div>
-      <div id="saNewFields" style="display:${newVersion?'none':'block'}">
+      <div id="saNewFields">
         <div class="field-row">
           <div class="field"><label>Title</label><input id="saTitle" placeholder="e.g. Scene 14 — Alley Confrontation Storyboard"></div>
           <div class="field"><label>Asset type</label>
@@ -112,7 +108,7 @@ function pageAssetDetail(){
             ${a.link? `<span class="chip" title="External storage link">🔗 ${esc(a.link)}</span>`:''}
           </div>
         </div>
-        ${can('submitAssets') ? `<button class="btn btn-sm" onclick="Studio.goto('assets','asset:${a.id}');">+ New version</button>`:''}
+        ${can('submitAssets') ? `<button class="btn btn-sm" onclick="Studio.goto('assets');Studio.toggleForm('newAssetForm');document.getElementById('saExisting').value='${a.id}';Studio.onSaExistingChange();">+ New version</button>`:''}
       </div>
     </div>
 

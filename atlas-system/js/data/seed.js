@@ -120,9 +120,3 @@ pushEvent('Final Output Approved',{asset:'Bright Mornings — Final Cut',version
 DB.webhooks.push(
   {id:nid('w'), endpoint:'https://hooks.atlas.studio/asset-approved', status:200, payload:'{"asset":"Bright Mornings — Final Cut","event":"final_output_approved"}', date:'2026-08-19T16:10:02'}
 );
-
-/* Restore the prototype state when navigating between separate pages. */
-try{
-  const saved=JSON.parse(localStorage.getItem('atlas_prototype_v2')||'null');
-  if(saved&&saved.DB){Object.assign(DB,saved.DB); if(saved.idCounters) Object.assign(idCounters,saved.idCounters);}
-}catch(e){console.warn('Could not restore ATLAS state',e)}

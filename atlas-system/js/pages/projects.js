@@ -65,7 +65,7 @@ function pageProjectDetail(){
 
     <div class="panel-head" style="margin-top:24px;">
       <h3 style="margin:0;font-size:16px;">Assets &amp; scenes</h3>
-      ${can('submitAssets') ? `<button class="btn btn-primary btn-sm" onclick="Studio.goto('assets','project:${p.id}');">+ Submit asset</button>`:''}
+      ${can('submitAssets') ? `<button class="btn btn-primary btn-sm" onclick="Studio.goto('assets');Studio.toggleForm('newAssetForm');document.getElementById('saProject').value='${p.id}';">+ Submit asset</button>`:''}
     </div>
     <div class="card" style="margin-top:10px;">
       ${assets.length? assets.map(a=>{

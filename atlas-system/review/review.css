@@ -1,6 +1,0 @@
-/* Review Queue — page-specific styling. Edit this file to change only this page. */
-.page .card{transition:box-shadow .18s ease,transform .18s ease}.page .card:hover{box-shadow:0 14px 34px rgba(44,62,84,.09)}
-.topbar-left{display:flex;align-items:center;gap:12px}.top-title{font-family:var(--font-display);font-size:22px;letter-spacing:.02em}
-
-.page{animation:pageIn .28s ease both}.page .panel-head .btn{margin-top:2px}.page h3{color:var(--text)}
-@keyframes pageIn{from{opacity:.3;transform:translateY(5px)}to{opacity:1;transform:none}}

@@ -1,40 +1,29 @@
-# ATLAS — Animation Production & Asset Approval System
+# ATLAS — Redesigned UI
 
-A redesigned, light-theme prototype with each application page separated into its own HTML, CSS, and page JavaScript files.
+ATLAS is a browser-based animation production and asset approval prototype.
 
-## Run immediately
+## What was improved
+- Reworked the visual system into a clean light UI with soft rose, teal, violet, and neutral accents.
+- Simplified sidebar navigation into Workspace, Review & Collaboration, Management, and System groups.
+- Improved buttons, cards, forms, badges, tables, modals, toasts, spacing, shadows, and hover/focus states.
+- Improved responsive navigation for smaller screens.
+- Added a cleaner top bar with notification shortcut and date chip.
+- Preserved the existing prototype functionality and data model.
 
-### Easiest
-Open `index.html` in your browser. It redirects to the separate login page.
+## Run
+No build step is required.
 
-### Recommended in VS Code
-Use Live Server and open `index.html`.
+### Option 1 — open directly
+Open `index.html` in a modern browser.
 
-### Optional local server
-From the project root:
+### Option 2 — local server (recommended)
+From this folder run:
 
 ```bash
 python -m http.server 5500
 ```
 
-Then open `http://localhost:5500`.
+Then visit `http://localhost:5500`.
 
-No npm installation is required for this static prototype.
-
-## Page structure
-
-Each page is isolated:
-
-- `login/login.html`, `login/login.css`, `login/login.js`
-- `dashboard/dashboard.html`, `dashboard/dashboard.css`, `dashboard/dashboard.js`
-- `projects/projects.html`, `projects/projects.css`, `projects/projects.js`
-- `assets/assets.html`, `assets/assets.css`, `assets/assets.js`
-- `review/review.html`, `review/review.css`, `review/review.js`
-- `notifications/notifications.html`, `notifications/notifications.css`, `notifications/notifications.js`
-- `integrations/integrations.html`, `integrations/integrations.css`, `integrations/integrations.js`
-- `resources/resources.html`, `resources/resources.css`, `resources/resources.js`
-- `audit/audit.html`, `audit/audit.css`, `audit/audit.js`
-- `users/users.html`, `users/users.css`, `users/users.js`
-- `architecture/architecture.html`, `architecture/architecture.css`, `architecture/architecture.js`
-
-Shared data, actions, and utility code remain in `js/` so the application logic stays consistent while page presentation remains easy to edit.
+## Demo login
+The login screen provides quick sign-in cards for the seeded demo users. You can also enter any name and choose a role.

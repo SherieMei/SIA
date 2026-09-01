@@ -1,10 +1,10 @@
 :root{
-  --ink:#f7f9fc; --ink-2:#ffffff; --panel:#ffffff; --panel-2:#f4f7fb; --panel-3:#eaf0f7;
-  --line:#dbe3ee; --line-soft:#e9eef5; --paper:#ffffff;
-  --coral:#e8758a; --coral-dim:#c95b70; --coral-glow:rgba(232,117,138,.14);
-  --cyan:#43b8b1; --cyan-glow:rgba(67,184,177,.14); --crimson:#dc6673; --crimson-glow:rgba(220,102,115,.13);
-  --violet:#8c7be8; --violet-glow:rgba(140,123,232,.13); --gold:#d79d42;
-  --text:#263449; --text-dim:#63728a; --text-faint:#8d9aab;
-  --font-display:'Bebas Neue',sans-serif; --font-body:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; --font-mono:'JetBrains Mono',monospace;
-  --radius:14px; --shadow:0 10px 30px rgba(44,62,84,.08); --shadow-lg:0 24px 60px rgba(44,62,84,.12);
+  --ink:#f7f8fc; --ink-2:#ffffff; --panel:#ffffff; --panel-2:#f5f7fb; --panel-3:#eef2f8;
+  --line:#dfe5ef; --line-soft:#edf0f5; --paper:#ffffff;
+  --coral:#d85f78; --coral-dim:#b84a62; --coral-glow:rgba(216,95,120,.11);
+  --cyan:#42a99c; --cyan-glow:rgba(66,169,156,.12); --crimson:#d65b63; --crimson-glow:rgba(214,91,99,.11);
+  --violet:#7d70c9; --violet-glow:rgba(125,112,201,.11); --gold:#c79035;
+  --text:#253044; --text-dim:#667085; --text-faint:#98a2b3;
+  --font-display:'Bebas Neue',sans-serif; --font-body:'Inter',-apple-system,sans-serif; --font-mono:'JetBrains Mono',monospace;
+  --radius:14px; --shadow:0 8px 28px rgba(37,48,68,.07); --shadow-hover:0 16px 38px rgba(37,48,68,.11);
 }
