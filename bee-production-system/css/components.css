@@ -1,0 +1,7 @@
+/* Shared component refinements. Page-specific markup remains in js/pages/*.js. */
+.card[style*="padding:20px"]{box-shadow:var(--shadow)}
+.chip[onclick]{transition:.15s}
+.chip[onclick]:hover{background:#e7ebf1;color:var(--text)}
+.demo-card:focus-visible{border-color:var(--coral);box-shadow:0 0 0 3px var(--coral-glow)}
+.navitem:focus-visible{border-color:#efc5ce;box-shadow:0 0 0 3px var(--coral-glow)}
+.notification-btn{min-width:36px}
