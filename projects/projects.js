@@ -1,4 +1,31 @@
-/* Page-specific BEE PRODUCTION controller. Shared runtime is loaded before this file. */
+async function loadProjectsFromDB(){
+  try {
+    const response = await fetch('../api/projects.php');
+    const data = await response.json();
+
+    if(!Array.isArray(data)){
+      console.error('Invalid projects API response:', data);
+      return;
+    }
+
+    DB.projects = data.map(p => ({
+      id: String(p.id),
+      name: p.name,
+      client: p.client,
+      status: p.status,
+      deadline: p.deadline,
+      budget: Number(p.budget) || 0,
+      pm: p.project_manager_id,
+      team: []
+    }));
+
+    render();
+
+  } catch(error) {
+    console.error('Error loading projects:', error);
+  }
+}
+
 /* ==========================================================================
    PAGE — Projects (list) + Project Detail
    ========================================================================== */
@@ -129,6 +156,6 @@ document.addEventListener('DOMContentLoaded',()=>{
     });
   }
 
-  // Render the actual page after the separated HTML document loads.
-  render();
+  loadProjectsFromDB();
+
 });

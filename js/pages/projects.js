@@ -1,7 +1,7 @@
 /* ==========================================================================
    PAGE — Projects (list) + Project Detail
    ========================================================================== */
-function pageProjects(){
+  function pageProjects(){
   return `
     <div class="panel-head">
       <div><div class="section-title">Projects</div><div class="section-sub">Every production and campaign currently on the board.</div></div>
