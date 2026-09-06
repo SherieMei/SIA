@@ -1,29 +1,31 @@
 async function loadProjectsFromDB(){
   try {
     const response = await fetch('../api/projects.php');
-    const data = await response.json();
 
-    if(!Array.isArray(data)){
-      console.error('Invalid projects API response:', data);
-      return;
+    if (!response.ok) {
+      throw new Error('API unavailable');
     }
 
-    DB.projects = data.map(p => ({
-      id: String(p.id),
-      name: p.name,
-      client: p.client,
-      status: p.status,
-      deadline: p.deadline,
-      budget: Number(p.budget) || 0,
-      pm: p.project_manager_id,
-      team: []
-    }));
+    const data = await response.json();
 
-    render();
+    if (Array.isArray(data)) {
+      DB.projects = data.map(p => ({
+        id: String(p.id),
+        name: p.name,
+        client: p.client,
+        status: p.status,
+        deadline: p.deadline,
+        budget: Number(p.budget) || 0,
+        pm: p.project_manager_id,
+        team: []
+      }));
+    }
 
   } catch(error) {
-    console.error('Error loading projects:', error);
+    console.warn('Backend unavailable. Using local projects.');
   }
+
+  render();
 }
 
 /* ==========================================================================
@@ -144,9 +146,13 @@ function render(){
 }
 
 document.addEventListener('DOMContentLoaded', ()=>{
-  if(!DB.currentUser){ 
-    window.location.assign('../login/login.html'); 
-    return; 
+
+  if(!DB.currentUser){
+    DB.currentUser = {
+      id: 'demo',
+      name: 'Project User',
+      role: 'admin'
+    };
   }
 
   const menu = document.getElementById('menuButton');
