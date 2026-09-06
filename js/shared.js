@@ -264,44 +264,53 @@ const Studio = {
       DB_PERSISTED_FIELDS.forEach(key=>{ snapshot[key] = DB[key]; });
       snapshot.idCounters = idCounters;
       sessionStorage.setItem(DB_PERSIST_KEY, JSON.stringify(snapshot));
-    }catch(e){ /* sessionStorage unavailable — edits just won't survive navigation */ }
+      const payload=JSON.stringify({state:snapshot});
+      if(navigator.sendBeacon){
+        const blob=new Blob([payload],{type:'application/json'});
+        navigator.sendBeacon('../api/sync.php',blob);
+      } else {
+        fetch('../api/sync.php',{method:'POST',headers:{'Content-Type':'application/json'},body:payload,keepalive:true}).catch(()=>{});
+      }
+    }catch(e){}
   },
 
-  manualLogin(){
+
+  async manualLogin(){
     const email = document.getElementById('loginEmail').value.trim();
     const password = document.getElementById('loginPassword').value;
-    const role = document.getElementById('loginRole').value;
     if(!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ toast('Enter a valid email to sign in.','error'); return; }
     if(!password){ toast('Enter a password to sign in.','error'); return; }
-    let u = DB.users.find(x=>x.email && x.email.toLowerCase()===email.toLowerCase());
-    if(!u){
-      const name = email.split('@')[0].split(/[._-]+/).filter(Boolean)
-        .map(part=>part.charAt(0).toUpperCase()+part.slice(1)).join(' ') || email;
-      u = {id:nid('u'), name, email, role};
-      DB.users.push(u);
-    } else {
-      u.role = role;
-    }
-    Studio.completeLogin(u);
+    try {
+      const res = await fetch('../api/auth.php', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({action:'login',email,password})});
+      const data = await parseApiResponse(res);
+      if(!res.ok || !data.success) throw new Error(data.error || 'Sign in failed.');
+      const u = {id:String(data.user.id), name:data.user.full_name, email:data.user.email, role:data.user.role};
+      const existing=DB.users.find(x=>x.id===u.id); if(existing) Object.assign(existing,u); else DB.users.push(u);
+      Studio.completeLogin(u);
+    } catch(e){ toast(e.message || 'Unable to sign in.','error'); }
   },
-  createAccount(){
+  async createAccount(){
     const name = document.getElementById('signupName').value.trim();
     const email = document.getElementById('loginEmail').value.trim();
     const password = document.getElementById('loginPassword').value;
     const role = document.getElementById('loginRole').value;
     if(!name){ toast('Enter your full name to create an account.','error'); return; }
     if(!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ toast('Enter a valid email.','error'); return; }
-    if(!password){ toast('Choose a password.','error'); return; }
-    const existing = DB.users.find(x=>x.email && x.email.toLowerCase()===email.toLowerCase());
-    if(existing){ toast('An account with that email already exists — sign in instead.','error'); return; }
-    const u = {id:nid('u'), name, email, role};
-    DB.users.push(u);
-    pushAudit('User', name, 'Created their own account as '+ROLE_LABELS[role]);
-    Studio.completeLogin(u);
+    if(password.length < 6){ toast('Password must be at least 6 characters.','error'); return; }
+    try {
+      const res = await fetch('../api/auth.php', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({action:'register',name,email,password,role})});
+      const data = await parseApiResponse(res);
+      if(!res.ok || !data.success) throw new Error(data.error || 'Account creation failed.');
+      const u={id:String(data.user.id),name:data.user.full_name,email:data.user.email,role:data.user.role};
+      DB.users.push(u); Studio.completeLogin(u);
+    } catch(e){ toast(e.message || 'Unable to create account.','error'); }
   },
-  quickLogin(id){
+  async quickLogin(id){
     const u = userById(id);
-    Studio.completeLogin(u);
+    if(!u) return;
+    document.getElementById('loginEmail').value=u.email||'';
+    document.getElementById('loginPassword').value='password123';
+    await Studio.manualLogin();
   },
   completeLogin(u){
     if(!u) return;
@@ -445,6 +454,28 @@ try{
   sessionStorage.removeItem('beeCurrentUser');
 }
 
+/* ---- Server synchronization ------------------------------------------------
+   The UI remains split into separate HTML pages, but MySQL/PHP is now the
+   source of truth. A page first restores the last local view for speed, then
+   replaces it with the authenticated server state. */
+async function loadServerState(){
+  try{
+    const res=await fetch('../api/bootstrap.php',{credentials:'same-origin'});
+    if(!res.ok) return false;
+    const data=await parseApiResponse(res);
+    if(!data.success || !data.state) return false;
+    const server=data.state;
+    DB_PERSISTED_FIELDS.forEach(key=>{ if(Array.isArray(server[key])) DB[key]=server[key]; });
+    if(server.currentUser){
+      const su={id:String(server.currentUser.id),name:server.currentUser.full_name,email:server.currentUser.email,role:server.currentUser.role};
+      DB.currentUser=su; sessionStorage.setItem('beeCurrentUser',JSON.stringify(su));
+    }
+    if(typeof render==='function' && document.body?.dataset.page!=='login') render();
+    return true;
+  }catch(e){ console.warn('Server sync unavailable:',e); return false; }
+}
+window.BEE_SERVER_READY=loadServerState();
+
 /* ---- Sidebar navigation menu ---- */
 const NAV = [
   {section:'Workspace'},
@@ -515,6 +546,17 @@ function renderSidebar(){
 }
 
 
+
+async function parseApiResponse(response){
+  const text = await response.text();
+  let data = null;
+  try { data = text ? JSON.parse(text) : null; } catch (_) {
+    throw new Error(`API returned invalid JSON (HTTP ${response.status}). ${text ? text.slice(0,180) : 'The server returned an empty response.'}`);
+  }
+  if (!data) throw new Error(`API returned an empty response (HTTP ${response.status}).`);
+  return data;
+}
+
 /* ===== PROJECT ACTIONS: js/actions/projects.js ===== */
 /* ==========================================================================
    PROJECT ACTIONS — create new productions/campaigns.
@@ -550,7 +592,7 @@ Object.assign(Studio, {
     },
     body: JSON.stringify(project)
   })
-  .then(response => response.json())
+  .then(response => parseApiResponse(response))
   .then(data => {
     if(data.success){
 
@@ -560,6 +602,11 @@ Object.assign(Studio, {
         by:DB.currentUser.name
       });
 
+      const created=data.project;
+      if(created){
+        DB.projects.push(created);
+        Studio.persist();
+      }
       toast('Project created: '+name,'success');
       Studio.goto('projects');
 

@@ -35,8 +35,8 @@ document.addEventListener('DOMContentLoaded', () => {
     if (nameField) nameField.classList.toggle('hidden', !isSignup);
     if (submitLabel) submitLabel.textContent = isSignup ? 'Create account' : 'Enter studio';
     if (helpText) helpText.textContent = isSignup
-      ? 'Working prototype — this just creates a demo account in your browser, no email is sent.'
-      : 'Working prototype — any email/password combination signs you in. Pick a role to see the matching permissions.';
+      ? 'Creates a real account in the local MySQL database. No email is sent.'
+      : 'Use one of the demo accounts below, or sign in with an account stored in MySQL.';
     if (modeToggle) modeToggle.textContent = isSignup
       ? 'Already have an account? Sign in'
       : 'New here? Create an account';
