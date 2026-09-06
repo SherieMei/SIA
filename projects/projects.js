@@ -143,13 +143,14 @@ function render(){
   }
 }
 
-document.addEventListener('DOMContentLoaded',()=>{
+document.addEventListener('DOMContentLoaded', ()=>{
   if(!DB.currentUser){ 
     window.location.assign('../login/login.html'); 
     return; 
   }
 
-  const menu=document.getElementById('menuButton');
+  const menu = document.getElementById('menuButton');
+
   if(menu) {
     menu.addEventListener('click',()=>{
       document.getElementById('sidebar')?.classList.toggle('open');
@@ -157,5 +158,4 @@ document.addEventListener('DOMContentLoaded',()=>{
   }
 
   loadProjectsFromDB();
-
 });
