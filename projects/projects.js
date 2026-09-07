@@ -109,8 +109,10 @@ function pageProjectDetail(){
       <h3 style="margin:0;font-size:16px;">Team</h3>
     </div>
     <div class="pill-row">
-      ${p.team.map(uid=>{ const u=userById(uid); return u? `<span class="chip">${esc(u.name)} · ${ROLE_LABELS[u.role]}</span>`:''; }).join('')}
-    </div>
+    ${(p.team || []).map(uid=>{ 
+        const u = userById(uid); 
+        return u ? `<span class="chip">${esc(u.name)} · ${ROLE_LABELS[u.role]}</span>` : '';
+    }).join('')}    </div>
   `;
 }
 
