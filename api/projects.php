@@ -37,9 +37,16 @@ if($_SERVER['REQUEST_METHOD']==='GET'){
     $projects = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     echo json_encode([
-        'success' => true,
-        'projects' => $projects
-    ], JSON_UNESCAPED_UNICODE);
+    'success' => true,
+    'projects' => array_map(function($p) {
+
+        $p['pm'] = $p['project_manager_id'];
+        $p['team'] = [];
+
+        return $p;
+
+    }, $projects)
+], JSON_UNESCAPED_UNICODE);
 
     exit;
 }

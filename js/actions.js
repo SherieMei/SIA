@@ -59,7 +59,7 @@ const Studio = {
   },
 
   /* ---- Assets / Submission ---- */
-  submitAsset(){
+    async submitAsset(){
     if(!can('submitAssets')){ toast('Your role cannot submit assets.','error'); return; }
     const project = document.getElementById('saProject').value;
     const existingId = document.getElementById('saExisting').value;
@@ -83,16 +83,62 @@ const Studio = {
       return;
     }
     if(!title || !project){ toast('Title and project are required.','error'); return; }
-    const a = {id:nid('a'), project, title, type, link, versions:[
-      {id:nid('v'), n:1, status:'For Review', notes: notes||('File: '+(fileName||'no file attached')), by:DB.currentUser.id, date:new Date().toISOString().slice(0,10)}
-    ]};
-    DB.assets.push(a);
-    pushAudit('Upload', title, 'Submitted v1 (auto-status: For Review)');
-    pushEvent('Asset Uploaded',{asset:title, version:'v1', by:DB.currentUser.name});
-    pushNotif('submission', 'New submission: “'+title+'” is awaiting review.', a.id);
-    toast('Asset submitted — workflow set status to “For Review”.','success');
-    Studio.goto('assetDetail', a.id);
-  },
+    try {
+  const response = await fetch('/SIA/api/assets.php', {
+    method: 'POST',
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      project_id: project,
+      title: title,
+      type: type,
+      external_link: link,
+      notes: notes
+    })
+  });
+
+  const data = await response.json();
+
+  if(!response.ok || !data.success){
+    toast(data.error || 'Failed to save asset.', 'error');
+    return;
+  }
+
+  DB.assets.push(data.asset);
+
+  pushAudit(
+    'Upload',
+    title,
+    'Submitted v1 (auto-status: For Review)'
+  );
+
+  pushEvent('Asset Uploaded', {
+    asset: title,
+    version: 'v1',
+    by: DB.currentUser.name
+  });
+
+  pushNotif(
+    'submission',
+    'New submission: “' + title + '” is awaiting review.',
+    data.asset.id
+  );
+
+  toast(
+    'Asset submitted — workflow set status to “For Review”.',
+    'success'
+  );
+
+  Studio.goto('assetDetail', data.asset.id);
+
+} catch(error) {
+  console.error('submitAsset error:', error);
+  toast('Could not connect to the server.', 'error');
+}
+
+},
 
   onSaExistingChange(){
     const v = document.getElementById('saExisting').value;
