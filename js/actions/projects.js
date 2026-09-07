@@ -22,12 +22,13 @@ Object.assign(Studio, {
         client: client,
         status: 'Pre-Production',
         deadline: deadline,
-        project_manager_id: parseInt(DB.currentUser.id.replace('u', '')),
+        project_manager_id: DB.currentUser.id,
         budget: budget
     };
 
-    fetch('../api/projects.php', {
+    fetch('http://127.0.0.1/SIA/api/projects.php', {
         method: 'POST',
+        credentials: 'include',
         headers: {
             'Content-Type': 'application/json'
         },

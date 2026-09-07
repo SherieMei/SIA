@@ -1,6 +1,18 @@
 async function loadProjectsFromDB(){
-  // Data is loaded centrally by js/shared.js from the PHP/MySQL bootstrap API.
-  return true;
+  try {
+    const response = await fetch('http://127.0.0.1/SIA/api/projects.php', {
+      credentials: 'include'
+    });
+
+    const data = await parseApiResponse(response);
+
+    if(data.success && Array.isArray(data.projects)){
+      DB.projects = data.projects;
+      render();
+    }
+  } catch(error) {
+    console.error('Error loading projects:', error);
+  }
 }
 
 /* ==========================================================================
