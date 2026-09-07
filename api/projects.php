@@ -1,7 +1,11 @@
 <?php
 header('Content-Type: application/json; charset=utf-8');
 $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
-if ($origin === 'http://127.0.0.1:5501' || $origin === 'http://localhost:5501') {
+if (
+    $origin === 'http://127.0.0.1:5501' ||
+    $origin === 'http://localhost:5501' ||
+    $origin === 'http://localhost'
+) {
     header("Access-Control-Allow-Origin: $origin");
     header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
     header('Access-Control-Allow-Headers: Content-Type');

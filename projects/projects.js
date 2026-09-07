@@ -1,6 +1,6 @@
 async function loadProjectsFromDB(){
   try {
-    const response = await fetch('http://127.0.0.1/SIA/api/projects.php', {
+    const response = await fetch('http://localhost/SIA/api/projects.php', {
       credentials: 'include'
     });
 
@@ -9,9 +9,14 @@ async function loadProjectsFromDB(){
     if(data.success && Array.isArray(data.projects)){
       DB.projects = data.projects;
       render();
+    } else {
+      console.error('Invalid projects response:', data);
+      render();
     }
+
   } catch(error) {
     console.error('Error loading projects:', error);
+    render();
   }
 }
 

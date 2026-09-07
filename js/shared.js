@@ -281,7 +281,7 @@ const Studio = {
     if(!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ toast('Enter a valid email to sign in.','error'); return; }
     if(!password){ toast('Enter a password to sign in.','error'); return; }
     try {
-      const res = await fetch('http://127.0.0.1/SIA/api/auth.php', {method:'POST', credentials:'include', headers:{'Content-Type':'application/json'}, body:JSON.stringify({action:'login',email,password})});
+      const res = await fetch('http://localhost/SIA/api/auth.php', {method:'POST', credentials:'include', headers:{'Content-Type':'application/json'}, body:JSON.stringify({action:'login',email,password})});
       const data = await parseApiResponse(res);
       if(!res.ok || !data.success) throw new Error(data.error || 'Sign in failed.');
       const u = {id:String(data.user.id), name:data.user.full_name, email:data.user.email, role:data.user.role};
@@ -460,7 +460,9 @@ try{
    replaces it with the authenticated server state. */
 async function loadServerState(){
   try{
-    const res=await fetch('http://127.0.0.1/SIA/api/bootstrap.php',{credentials:'include'});    if(!res.ok) return false;
+    const res = await fetch(`${window.location.origin}/SIA/api/bootstrap.php`, {
+      credentials: 'include'
+    });
     const data=await parseApiResponse(res);
     if(!data.success || !data.state) return false;
     const server=data.state;
@@ -584,7 +586,7 @@ Object.assign(Studio, {
   budget: budget
   };
 
-  fetch('http://127.0.0.1/SIA/api/projects.php', {
+  fetch('/SIA/api/projects.php', {
     method: 'POST',
     credentials: 'include',
     headers: {

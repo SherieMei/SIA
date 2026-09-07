@@ -26,7 +26,7 @@ Object.assign(Studio, {
         budget: budget
     };
 
-    fetch('http://127.0.0.1/SIA/api/projects.php', {
+    fetch('/SIA/api/projects.php', {
         method: 'POST',
         credentials: 'include',
         headers: {
