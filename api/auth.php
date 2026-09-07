@@ -1,7 +1,15 @@
 <?php
+header('Access-Control-Allow-Origin: http://127.0.0.1:5501');
+header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
+header('Access-Control-Allow-Headers: Content-Type');
 header('Content-Type: application/json; charset=utf-8');
+
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    http_response_code(200);
+    exit;
+}
+
 require_once __DIR__ . '/../config/db.php';
-if (session_status() === PHP_SESSION_NONE) session_start();
 $method=$_SERVER['REQUEST_METHOD'];
 $input=json_decode(file_get_contents('php://input'), true) ?? $_POST;
 if ($method==='GET') { echo json_encode(['authenticated'=>isset($_SESSION['user']),'user'=>$_SESSION['user']??null]); exit; }

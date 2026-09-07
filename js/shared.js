@@ -281,7 +281,7 @@ const Studio = {
     if(!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ toast('Enter a valid email to sign in.','error'); return; }
     if(!password){ toast('Enter a password to sign in.','error'); return; }
     try {
-      const res = await fetch('../api/auth.php', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({action:'login',email,password})});
+      const res = await fetch('http://localhost/SIA/api/auth.php', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({action:'login',email,password})});
       const data = await parseApiResponse(res);
       if(!res.ok || !data.success) throw new Error(data.error || 'Sign in failed.');
       const u = {id:String(data.user.id), name:data.user.full_name, email:data.user.email, role:data.user.role};
@@ -298,7 +298,7 @@ const Studio = {
     if(!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ toast('Enter a valid email.','error'); return; }
     if(password.length < 6){ toast('Password must be at least 6 characters.','error'); return; }
     try {
-      const res = await fetch('../api/auth.php', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({action:'register',name,email,password,role})});
+      const res = await fetch('http://localhost/SIA/api/auth.php', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({action:'register',name,email,password,role})});
       const data = await parseApiResponse(res);
       if(!res.ok || !data.success) throw new Error(data.error || 'Account creation failed.');
       const u={id:String(data.user.id),name:data.user.full_name,email:data.user.email,role:data.user.role};
@@ -310,7 +310,7 @@ const Studio = {
     if(!u) return;
     document.getElementById('loginEmail').value=u.email||'';
     document.getElementById('loginPassword').value='password123';
-    await Studio.manualLogin();
+    await Studio.manualLogin(); 
   },
   completeLogin(u){
     if(!u) return;
@@ -460,8 +460,7 @@ try{
    replaces it with the authenticated server state. */
 async function loadServerState(){
   try{
-    const res=await fetch('../api/bootstrap.php',{credentials:'same-origin'});
-    if(!res.ok) return false;
+    const res=await fetch('http://localhost/SIA/api/bootstrap.php',{credentials:'include'});    if(!res.ok) return false;
     const data=await parseApiResponse(res);
     if(!data.success || !data.state) return false;
     const server=data.state;
