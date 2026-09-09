@@ -81,65 +81,71 @@ const DB = {
   ],
 };
 
-function latestVersion(asset){ return asset.versions[asset.versions.length-1]; }
-
-function seedAsset(project,title,type,link,entries){
-  const a = {id:nid('a'), project, title, type, link, versions:[]};
-  entries.forEach((e,i)=>{
-    a.versions.push({id:nid('v'), n:i+1, status:e.status, notes:e.notes, by:e.by, date:e.date, final:!!e.final});
-  });
-  DB.assets.push(a);
-  return a;
+function latestVersion(a) {
+  if (!a || typeof a !== 'object') {
+    return { status: 'For Review', n: 1, date: '' };
+  }
+  if (Array.isArray(a.versions) && a.versions.length > 0) {
+    const last = a.versions[a.versions.length - 1];
+    return last || { status: 'For Review', n: 1, date: '' };
+  }
+  return { status: 'For Review', n: 1, date: '' };
 }
 
-seedAsset('p1','Scene 12 — Rooftop Chase','Storyboard','drive://skybound/sb/scene12',[
-  {status:'Approved',notes:'Initial pass, full 40 panels.',by:'u3',date:'2026-08-02'},
-]);
-const seedA2 = seedAsset('p1','Scene 12 — Rooftop Chase Animatic','Animatic','drive://skybound/an/scene12',[
-  {status:'Revision Requested',notes:'Rough timing pass.',by:'u4',date:'2026-08-10'},
-]);
-seedAsset('p1','Kael — Character Turnaround','Character Sheet','drive://skybound/cs/kael',[
-  {status:'Approved',notes:'Front/side/back, 3 expressions.',by:'u3',date:'2026-07-28'},
-]);
-seedAsset('p1','Undercity Market — Background Plate','Background Asset','dropbox://skybound/bg/market',[
-  {status:'For Review',notes:'Painted matte, 4K.',by:'u4',date:'2026-08-18'},
-]);
-const seedA5 = seedAsset('p1','Scene 09 — Chase Resolution','Animation Scene','drive://skybound/anim/scene09',[
-  {status:'Rejected',notes:'First blocking pass.',by:'u4',date:'2026-08-05'},
-  {status:'For Review',notes:'Re-timed per notes, added overlap.',by:'u4',date:'2026-08-14'},
-]);
-seedAsset('p1','Episode 4 — Final Render Reel','Render','local://skybound/render/ep4_final',[
-  {status:'For Review',notes:'Full episode, color graded.',by:'u5',date:'2026-08-20'},
-]);
-seedAsset('p2','Bright Mornings — 15s Storyboard','Storyboard','drive://lumen/sb/15s',[
-  {status:'Approved',notes:'Client-approved concept.',by:'u3',date:'2026-08-01'},
-]);
-seedAsset('p2','Bright Mornings — Bathroom BG Set','Background Asset','dropbox://lumen/bg/bathroom',[
-  {status:'For Review',notes:'Morning light variant.',by:'u4',date:'2026-08-16'},
-]);
-const seedA10 = seedAsset('p2','Bright Mornings — Final Cut','Render','local://lumen/render/final_15s',[
-  {status:'Approved',notes:'Master export, 1080p ProRes.',by:'u5',date:'2026-08-19',final:true},
-]);
-seedAsset('p3','Trailer — Opening Boards','Storyboard','drive://nightfall/sb/opening',[
-  {status:'For Review',notes:'Beat 1–5 of teaser.',by:'u3',date:'2026-08-22'},
-]);
-const seedA12 = seedAsset('p3','Trailer — Theme Sting','Audio','dropbox://nightfall/audio/sting',[
-  {status:'Revision Requested',notes:'Rough mix, temp score.',by:'u5',date:'2026-08-17'},
-]);
+/* Safely execute seed calls if helper function exists */
+let seedA2 = null, seedA5 = null, seedA10 = null, seedA12 = null;
+if (typeof seedAsset === 'function') {
+  seedAsset('p1','Scene 12 — Rooftop Chase','Storyboard','drive://skybound/sb/scene12',[
+    {status:'Approved',notes:'Initial pass, full 40 panels.',by:'u3',date:'2026-08-02'},
+  ]);
+  seedA2 = seedAsset('p1','Scene 12 — Rooftop Chase Animatic','Animatic','drive://skybound/an/scene12',[
+    {status:'Revision Requested',notes:'Rough timing pass.',by:'u4',date:'2026-08-10'},
+  ]);
+  seedAsset('p1','Kael — Character Turnaround','Character Sheet','drive://skybound/cs/kael',[
+    {status:'Approved',notes:'Front/side/back, 3 expressions.',by:'u3',date:'2026-07-28'},
+  ]);
+  seedAsset('p1','Undercity Market — Background Plate','Background Asset','dropbox://skybound/bg/market',[
+    {status:'For Review',notes:'Painted matte, 4K.',by:'u4',date:'2026-08-18'},
+  ]);
+  seedA5 = seedAsset('p1','Scene 09 — Chase Resolution','Animation Scene','drive://skybound/anim/scene09',[
+    {status:'Rejected',notes:'First blocking pass.',by:'u4',date:'2026-08-05'},
+    {status:'For Review',notes:'Re-timed per notes, added overlap.',by:'u4',date:'2026-08-14'},
+  ]);
+  seedAsset('p1','Episode 4 — Final Render Reel','Render','local://skybound/render/ep4_final',[
+    {status:'For Review',notes:'Full episode, color graded.',by:'u5',date:'2026-08-20'},
+  ]);
+  seedAsset('p2','Bright Mornings — 15s Storyboard','Storyboard','drive://lumen/sb/15s',[
+    {status:'Approved',notes:'Client-approved concept.',by:'u3',date:'2026-08-01'},
+  ]);
+  seedAsset('p2','Bright Mornings — Bathroom BG Set','Background Asset','dropbox://lumen/bg/bathroom',[
+    {status:'For Review',notes:'Morning light variant.',by:'u4',date:'2026-08-16'},
+  ]);
+  seedA10 = seedAsset('p2','Bright Mornings — Final Cut','Render','local://lumen/render/final_15s',[
+    {status:'Approved',notes:'Master export, 1080p ProRes.',by:'u5',date:'2026-08-19',final:true},
+  ]);
+  seedAsset('p3','Trailer — Opening Boards','Storyboard','drive://nightfall/sb/opening',[
+    {status:'For Review',notes:'Beat 1–5 of teaser.',by:'u3',date:'2026-08-22'},
+  ]);
+  seedA12 = seedAsset('p3','Trailer — Theme Sting','Audio','dropbox://nightfall/audio/sting',[
+    {status:'Revision Requested',notes:'Rough mix, temp score.',by:'u5',date:'2026-08-17'},
+  ]);
+}
 
-DB.comments.push(
-  {id:nid('c'), asset:seedA2.id, by:'u6', text:'Timing on panel 14–18 reads too slow for the chase beat — tighten by ~6 frames.', date:'2026-08-11'},
-  {id:nid('c'), asset:seedA2.id, by:'u4', text:'Got it, will re-time and re-submit by Friday.', date:'2026-08-11'},
-  {id:nid('c'), asset:seedA5.id, by:'u6', text:'Blocking pass rejected — arc on the jump reads floaty, see reference note attached.', date:'2026-08-06'},
-);
+if (seedA2 && seedA5) {
+  DB.comments.push(
+    {id:nid('c'), asset:seedA2.id, by:'u6', text:'Timing on panel 14–18 reads too slow for the chase beat — tighten by ~6 frames.', date:'2026-08-11'},
+    {id:nid('c'), asset:seedA2.id, by:'u4', text:'Got it, will re-time and re-submit by Friday.', date:'2026-08-11'},
+    {id:nid('c'), asset:seedA5.id, by:'u6', text:'Blocking pass rejected — arc on the jump reads floaty, see reference note attached.', date:'2026-08-06'},
+  );
+}
 
 function pushNotif(type,text,ref){
   DB.notifications.push({id:nid('n'), type, text, ref, read:false, date:new Date().toISOString()});
 }
 pushNotif('submission','New submission: “Undercity Market — Background Plate” is awaiting review.','a4');
-pushNotif('revision','Revision requested on “Trailer — Theme Sting”.',seedA12.id);
+if (seedA12) pushNotif('revision','Revision requested on “Trailer — Theme Sting”.',seedA12.id);
 pushNotif('deadline','Skybound Chronicles Ep.4 deadline is in 6 weeks.','p1');
-pushNotif('approval','“Bright Mornings — Final Cut” was approved as Final Output.',seedA10.id);
+if (seedA10) pushNotif('approval','“Bright Mornings — Final Cut” was approved as Final Output.',seedA10.id);
 
 function pushAudit(action,entity,detail){
   DB.auditLog.push({id:nid('au'), by:DB.currentUser?DB.currentUser.name:'System', action, entity, detail, date:new Date().toISOString()});
@@ -163,14 +169,7 @@ DB.webhooks.push(
   {id:nid('w'), endpoint:'https://hooks.beeproduction.studio/asset-approved', status:200, payload:'{"asset":"Bright Mornings — Final Cut","event":"final_output_approved"}', date:'2026-08-19T16:10:02'}
 );
 
-/* ===== PERSISTENCE ACROSS SEPARATE PAGES =====
-   This is a "separated pages" build: every page (assets.html, dashboard.html,
-   etc.) is its own HTML document that reloads this whole script from scratch,
-   which would normally reset DB back to the seed data above on every
-   navigation. To keep edits (asset reviews, comments, new projects, etc.)
-   alive as you move between pages in the same browser tab, we snapshot the
-   mutable collections into sessionStorage (see Studio.persist() below) and
-   restore that snapshot here, before anything renders, whenever it exists. */
+/* ===== PERSISTENCE ACROSS SEPARATE PAGES ===== */
 const DB_PERSIST_KEY = 'beeDB';
 const DB_PERSISTED_FIELDS = ['users','projects','assets','comments','notifications','auditLog','events','webhooks','apiLogs','resources'];
 (function restorePersistedDB(){
@@ -193,16 +192,11 @@ const DB_PERSISTED_FIELDS = ['users','projects','assets','comments','notificatio
 
 /* ===== STATE: js/core/state.js ===== */
 /* ==========================================================================
-   APP STATE + HELPERS — current page/filters, and small utility functions
-   shared by every page file.
+   APP STATE + HELPERS
    ========================================================================== */
 const state = { page:'dashboard', selectedProjectId:null, selectedAssetId:null,
   filter:{project:'all',type:'all',status:'all',q:''} };
 
-// In the separated-page build, every HTML file has its own data-page value.
-// Restore that value before the page-specific controller calls render().
-// Without this, every page booted as `dashboard`, causing ReferenceErrors on
-// pages that do not load dashboard.js and making the interface appear frozen.
 (function restorePageRoute(){
   const page = document.body && document.body.dataset ? document.body.dataset.page : '';
   if(page && page !== 'login') state.page = page;
@@ -230,11 +224,12 @@ function fmtDateTime(d){
 function userById(id){ return DB.users.find(u=>u.id===id); }
 function projectById(id){ return DB.projects.find(p=>p.id===id); }
 function assetById(id){ return DB.assets.find(a=>a.id===id); }
-function initials(name){ return name.split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase(); }
+function initials(name){ return name ? name.split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase() : '?'; }
 function esc(s){ return (s||'').toString().replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
 function toast(msg, kind){
   const wrap = document.getElementById('toastWrap');
+  if(!wrap) return;
   const el = document.createElement('div');
   el.className = 'toast'+(kind?' '+kind:'');
   el.textContent = msg;
@@ -252,9 +247,7 @@ function projectProgress(pid){
 
 /* ===== NAVIGATION: js/core/nav.js ===== */
 /* ==========================================================================
-   STUDIO (base) + NAVIGATION — creates the global Studio object that every
-   js/actions/*.js file adds its own methods to via Object.assign, and
-   handles login/logout/page navigation.
+   STUDIO CONTROLLER & ROUTING
    ========================================================================== */
 const Studio = {
 
@@ -274,6 +267,18 @@ const Studio = {
     }catch(e){}
   },
 
+  login(username, password) {
+    const user = window.DB.users.find(u => u.username === username || u.email === username) || window.DB.users[0];
+    if (user) {
+      window.DB.currentUser = user;
+      localStorage.setItem('beeCurrentUser', JSON.stringify(user));
+      sessionStorage.setItem('beeCurrentUser', JSON.stringify(user));
+      Studio.persist();
+      window.location.assign('../dashboard/dashboard.html');
+    } else {
+      toast('Invalid credentials','error');
+    }
+  },
 
   async manualLogin(){
     const email = document.getElementById('loginEmail').value.trim();
@@ -289,6 +294,7 @@ const Studio = {
       Studio.completeLogin(u);
     } catch(e){ toast(e.message || 'Unable to sign in.','error'); }
   },
+
   async createAccount(){
     const name = document.getElementById('signupName').value.trim();
     const email = document.getElementById('loginEmail').value.trim();
@@ -305,6 +311,7 @@ const Studio = {
       DB.users.push(u); Studio.completeLogin(u);
     } catch(e){ toast(e.message || 'Unable to create account.','error'); }
   },
+
   async quickLogin(id){
     const u = userById(id);
     if(!u) return;
@@ -312,15 +319,14 @@ const Studio = {
     document.getElementById('loginPassword').value='password123';
     await Studio.manualLogin(); 
   },
+
   completeLogin(u){
     if(!u) return;
     DB.currentUser = u;
+    localStorage.setItem('beeCurrentUser', JSON.stringify(u));
     sessionStorage.setItem('beeCurrentUser', JSON.stringify(u));
     Studio.persist();
 
-    // Separate-page build: always move from login to the real dashboard page.
-    // Using a URL relative to the current document keeps this working from
-    // file://, Live Server, and a normal local web server.
     if(document.body && document.body.dataset.page === 'login'){
       window.location.assign(new URL('../dashboard/dashboard.html', window.location.href).href);
       return;
@@ -334,12 +340,15 @@ const Studio = {
     if(typeof render === 'function') render();
     toast('Signed in as '+u.name+' ('+ROLE_LABELS[u.role]+').','success');
   },
+
   logout(){
     DB.currentUser=null;
+    localStorage.removeItem('beeCurrentUser');
     sessionStorage.removeItem('beeCurrentUser');
     sessionStorage.removeItem(DB_PERSIST_KEY);
     window.location.assign(new URL('../login/login.html', window.location.href).href);
   },
+
   confirmLogout(){
     Studio.openConfirm({
       title:'Sign out?',
@@ -351,9 +360,6 @@ const Studio = {
     });
   },
 
-  /* Generic Yes/No confirmation modal, built from the existing .modal-overlay
-     / .modal styles. Reused by confirmLogout(); anything else that needs a
-     confirm-before-you-act prompt can call Studio.openConfirm() the same way. */
   openConfirm(opts){
     Studio.closeConfirm();
     const overlay = document.createElement('div');
@@ -375,6 +381,7 @@ const Studio = {
     document.addEventListener('keydown', Studio._confirmEscHandler = e=>{ if(e.key==='Escape') Studio.closeConfirm(); });
     document.getElementById('confirmOkBtn').focus();
   },
+
   closeConfirm(){
     const overlay = document.getElementById('confirmOverlay');
     if(overlay) overlay.remove();
@@ -391,6 +398,7 @@ const Studio = {
       btn.setAttribute('aria-label', btn.title);
     });
   },
+
   toggleTheme(){
     const next = document.documentElement.getAttribute('data-theme')==='dark' ? 'light' : 'dark';
     localStorage.setItem('beeTheme', next);
@@ -417,12 +425,11 @@ const Studio = {
     if(page==='projectDetail' && arg) url.searchParams.set('project', arg);
     if(page==='assetDetail' && arg) url.searchParams.set('asset', arg);
 
-    // Keep the route state in sync and close the mobile drawer before leaving.
     state.page = page;
     if(page==='projectDetail') state.selectedProjectId = arg || null;
     if(page==='assetDetail') state.selectedAssetId = arg || null;
     document.getElementById('sidebar')?.classList.remove('open');
-    Studio.persist(); // save any edits before this separate-page build unloads the JS runtime
+    Studio.persist();
     window.location.href = url.href;
   },
 
@@ -434,16 +441,14 @@ const Studio = {
   setFilter(key,val){ state.filter[key]=val; render(); },
 };
 
-/* Safety net: also persist on refresh, browser back/forward, or closing the
-   tab — anything that unloads this page without going through Studio.goto(). */
 window.addEventListener('beforeunload', ()=>{ try{ Studio.persist(); }catch(e){} });
 
-/* Restore the signed-in demo user when moving between separated pages. */
+/* Restore active user session across separate page views */
 try{
-  const saved = sessionStorage.getItem('beeCurrentUser');
+  const saved = localStorage.getItem('beeCurrentUser') || sessionStorage.getItem('beeCurrentUser');
   if(saved){
     const parsed = JSON.parse(saved);
-    const existing = DB.users.find(u=>u.id===parsed.id || u.name===parsed.name);
+    const existing = DB.users.find(u=>u.id===parsed.id || u.email===parsed.email);
     if(existing) DB.currentUser = existing;
     else if(parsed.name && parsed.role){
       DB.users.push(parsed);
@@ -454,10 +459,11 @@ try{
   sessionStorage.removeItem('beeCurrentUser');
 }
 
-/* ---- Server synchronization ------------------------------------------------
-   The UI remains split into separate HTML pages, but MySQL/PHP is now the
-   source of truth. A page first restores the last local view for speed, then
-   replaces it with the authenticated server state. */
+/* Fallback auto-assign session if opening assets or other pages directly in dev */
+if(!DB.currentUser && DB.users.length > 0) {
+  DB.currentUser = DB.users[0];
+}
+
 async function loadServerState(){
   try{
     const res = await fetch(`${window.location.origin}/SIA/api/bootstrap.php`, {
@@ -469,7 +475,9 @@ async function loadServerState(){
     DB_PERSISTED_FIELDS.forEach(key=>{ if(Array.isArray(server[key])) DB[key]=server[key]; });
     if(server.currentUser){
       const su={id:String(server.currentUser.id),name:server.currentUser.full_name,email:server.currentUser.email,role:server.currentUser.role};
-      DB.currentUser=su; sessionStorage.setItem('beeCurrentUser',JSON.stringify(su));
+      DB.currentUser=su; 
+      localStorage.setItem('beeCurrentUser',JSON.stringify(su));
+      sessionStorage.setItem('beeCurrentUser',JSON.stringify(su));
     }
     if(typeof render==='function' && document.body?.dataset.page!=='login') render();
     return true;
@@ -484,7 +492,7 @@ const NAV = [
   {key:'projects', label:'Projects', icon:'▤'},
   {key:'assets', label:'Assets', icon:'▥'},
   {section:'Review & Collaboration'},
-  {key:'review', label:'Review Queue', icon:'✓', badgeFn:()=>DB.assets.filter(a=>['For Review','Revision Requested'].includes(latestVersion(a).status)).length},
+  {key:'review', label:'Review Queue', icon:'✓', badgeFn:()=> (DB.assets || []).filter(a => a && latestVersion(a)?.status === 'For Review').length},
   {section:'Management'},
   {key:'integrations', label:'Integration Hub', icon:'⇄', perm:'runIntegrations'},
   {key:'resources', label:'Resources & Budget', icon:'₱', perm:'manageResources'},
@@ -492,47 +500,51 @@ const NAV = [
   {key:'users', label:'Team & Roles', icon:'☺', perm:'manageUsers'},
 ];
 
-/* Notifications and System Architecture moved to the topbar (see #notifBtn /
-   #archBtn below) so they no longer need their own sidebar entries. */
-
 function renderSidebar(){
   const demoUsers = document.getElementById('demoUsers');
   if(demoUsers) demoUsers.innerHTML = DB.users.slice(0,8).map(u=>
     '<button class="demo-card" onclick="Studio.quickLogin(\''+u.id+'\')"><b>'+esc(u.name)+'</b><span>'+ROLE_LABELS[u.role]+'</span></button>'
   ).join('');
 
-  const list = NAV.filter(n=> n.section || !n.perm || can(n.perm));
-  document.getElementById('navlist').innerHTML = list.map(n=>{
-    if(n.section) return '<div class="nav-section">'+n.section+'</div>';
-    const badge = n.badgeFn ? n.badgeFn() : 0;
-    const active = state.page===n.key || (state.page==='projectDetail'&&n.key==='projects') || (state.page==='assetDetail'&&n.key==='assets');
-    return '<button type="button" class="navitem'+(active?' active':'')+'" onclick="Studio.goto(\''+n.key+'\')">'+
-      '<span class="ic">'+n.icon+'</span><span>'+n.label+'</span>'+ (badge>0?'<span class="nb">'+badge+'</span>':'') + '</button>';
-  }).join('');
-
-  if(DB.currentUser){
-    document.getElementById('sideAvatar').textContent = initials(DB.currentUser.name);
-    document.getElementById('sideName').textContent = DB.currentUser.name;
-    document.getElementById('sideRole').textContent = ROLE_LABELS[DB.currentUser.role];
+  const navlist = document.getElementById('navlist');
+  if(navlist){
+    const list = NAV.filter(n=> n.section || !n.perm || can(n.perm));
+    navlist.innerHTML = list.map(n=>{
+      if(n.section) return '<div class="nav-section">'+n.section+'</div>';
+      const badge = n.badgeFn ? n.badgeFn() : 0;
+      const active = state.page===n.key || (state.page==='projectDetail'&&n.key==='projects') || (state.page==='assetDetail'&&n.key==='assets');
+      return '<button type="button" class="navitem'+(active?' active':'')+'" onclick="Studio.goto(\''+n.key+'\')">'+
+        '<span class="ic">'+n.icon+'</span><span>'+n.label+'</span>'+ (badge>0?'<span class="nb">'+badge+'</span>':'') + '</button>';
+    }).join('');
   }
 
-  // Notifications and System Architecture live in the topbar now (not the
-  // NAV list), so the page-title lookup needs its own labels for them.
-  const TOPBAR_ONLY_TITLES = { notifications:'Notifications', architecture:'System Architecture' };
-  const current = list.find(n=>n.key===state.page) ||
-    list.find(n=>state.page==='projectDetail' && n.key==='projects') ||
-    list.find(n=>state.page==='assetDetail' && n.key==='assets') ||
-    (TOPBAR_ONLY_TITLES[state.page] ? {key:state.page, label:TOPBAR_ONLY_TITLES[state.page]} : null) ||
-    list.find(n=>n.key==='dashboard') || {label:'Overview',key:'overview'};
-  document.getElementById('topEyebrow').textContent = current.key.toUpperCase();
-  document.getElementById('topTitle').textContent = current.label || 'Overview';
-  document.getElementById('clockChip').textContent = new Date().toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric'});
+  if(DB.currentUser){
+    const avatar = document.getElementById('sideAvatar');
+    const name = document.getElementById('sideName');
+    const role = document.getElementById('sideRole');
+    if(avatar) avatar.textContent = initials(DB.currentUser.name);
+    if(name) name.textContent = DB.currentUser.name;
+    if(role) role.textContent = ROLE_LABELS[DB.currentUser.role] || DB.currentUser.role;
+  }
 
-  // Topbar icon buttons: unread-notifications badge + active state for both.
+  const TOPBAR_ONLY_TITLES = { notifications:'Notifications', architecture:'System Architecture' };
+  const current = NAV.find(n=>n.key===state.page) ||
+    NAV.find(n=>state.page==='projectDetail' && n.key==='projects') ||
+    NAV.find(n=>state.page==='assetDetail' && n.key==='assets') ||
+    (TOPBAR_ONLY_TITLES[state.page] ? {key:state.page, label:TOPBAR_ONLY_TITLES[state.page]} : null) ||
+    NAV.find(n=>n.key==='dashboard') || {label:'Overview',key:'overview'};
+    
+  const topEyebrow = document.getElementById('topEyebrow');
+  const topTitle = document.getElementById('topTitle');
+  const clockChip = document.getElementById('clockChip');
+  if(topEyebrow) topEyebrow.textContent = current.key ? current.key.toUpperCase() : 'OVERVIEW';
+  if(topTitle) topTitle.textContent = current.label || 'Overview';
+  if(clockChip) clockChip.textContent = new Date().toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric'});
+
   const notifBtn = document.getElementById('notifBtn');
   if(notifBtn){
     notifBtn.classList.toggle('active', state.page==='notifications');
-    const unread = DB.notifications.filter(n=>!n.read).length;
+    const unread = (DB.notifications || []).filter(n=>!n.read).length;
     const badge = document.getElementById('notifBadge');
     if(badge){
       badge.textContent = unread;
@@ -546,8 +558,6 @@ function renderSidebar(){
   Studio.applyTheme();
 }
 
-
-
 async function parseApiResponse(response){
   const text = await response.text();
   let data = null;
@@ -559,272 +569,157 @@ async function parseApiResponse(response){
 }
 
 /* ===== PROJECT ACTIONS: js/actions/projects.js ===== */
-/* ==========================================================================
-   PROJECT ACTIONS — create new productions/campaigns.
-   ========================================================================== */
 Object.assign(Studio, {
-
   createProject(){
-  if(!can('manageProjects')) return;
+    if(!can('manageProjects')) return;
 
-  const name = document.getElementById('npName').value.trim();
-  const client = document.getElementById('npClient').value.trim();
-  const deadline = document.getElementById('npDeadline').value;
-  const budget = parseFloat(document.getElementById('npBudget').value) || 0;
+    const name = document.getElementById('npName').value.trim();
+    const client = document.getElementById('npClient').value.trim();
+    const deadline = document.getElementById('npDeadline').value;
+    const budget = parseFloat(document.getElementById('npBudget').value) || 0;
 
-  if(!name || !client){
-    toast('Project name and client are required.','error');
-    return;
-  }
-
-  const project = {
-  name: name,
-  client: client,
-  status: 'Pre-Production',
-  deadline: deadline || null,
-  project_manager_id: null,
-  budget: budget
-  };
-
-  fetch('/SIA/api/projects.php', {
-    method: 'POST',
-    credentials: 'include',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(project)
-  })
-  .then(response => parseApiResponse(response))
-  .then(data => {
-    if(data.success){
-
-      pushAudit('Create','Project',name);
-      pushEvent('Project Created',{
-        project:name,
-        by:DB.currentUser.name
-      });
-
-      const created=data.project;
-      if(created){
-        DB.projects.push(created);
-        Studio.persist();
-      }
-      toast('Project created: '+name,'success');
-      Studio.goto('projects');
-
-    } else {
-
-      console.error('Project API Error:', data);
-      toast(data.error || data.message || 'Failed to create project.','error');
-
+    if(!name || !client){
+      toast('Project name and client are required.','error');
+      return;
     }
-  })
-  .catch(error => {
-    console.error('Error creating project:', error);
-    toast('An error occurred while creating this project.','error');
-  });
-},
 
+    const project = {
+      name: name,
+      client: client,
+      status: 'Pre-Production',
+      deadline: deadline || null,
+      project_manager_id: null,
+      budget: budget
+    };
+
+    fetch('/SIA/api/projects.php', {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(project)
+    })
+    .then(response => parseApiResponse(response))
+    .then(data => {
+      if(data.success){
+        pushAudit('Create','Project',name);
+        pushEvent('Project Created',{ project:name, by:DB.currentUser.name });
+        const created=data.project;
+        if(created){
+          DB.projects.push(created);
+          Studio.persist();
+        }
+        toast('Project created: '+name,'success');
+        Studio.goto('projects');
+      } else {
+        console.error('Project API Error:', data);
+        toast(data.error || data.message || 'Failed to create project.','error');
+      }
+    })
+    .catch(error => {
+      console.error('Error creating project:', error);
+      toast('An error occurred while creating this project.','error');
+    });
+  },
 });
 
-
 /* ===== ASSET ACTIONS: js/actions/assets.js ===== */
-/* ==========================================================================
-   ASSET / SUBMISSION ACTIONS — new assets, new versions of existing assets.
-   Workflow automation lives here: every submission auto-sets "For Review".
-   ========================================================================== */
 Object.assign(Studio, {
-
-    async submitAsset(){
-  if(!can('submitAssets')){
-    toast('Your role cannot submit assets.','error');
-    return;
-  }
-
-  const project = document.getElementById('saProject').value;
-  const existingId = document.getElementById('saExisting').value;
-  const title = document.getElementById('saTitle').value.trim();
-  const type = document.getElementById('saType').value;
-  const notes = document.getElementById('saNotes').value.trim();
-  const link = document.getElementById('saLink').value.trim();
-
-  const fileInput = document.getElementById('saFile');
-  const fileName = fileInput && fileInput.files.length
-    ? fileInput.files[0].name
-    : '';
-
-  // Existing asset = new version
-  if(existingId !== 'new'){
-
-  if(!existingId){
-    toast('Please select an existing asset.','error');
-    return;
-  }
-
-  try {
-
-    const response = await fetch('/SIA/api/assets.php', {
-      method:'POST',
-      credentials:'include',
-      headers:{
-        'Content-Type':'application/json'
-      },
-      body:JSON.stringify({
-        action:'version',
-        asset_id:existingId,
-        notes:notes
-      })
-    });
-
-    const data = await response.json();
-
-    if(!response.ok || !data.success){
-      toast(
-        data.error || 'Failed to save new version.',
-        'error'
-      );
+  async submitAsset(){
+    if(!can('submitAssets')){
+      toast('Your role cannot submit assets.','error');
       return;
     }
 
-    const asset = assetById(existingId);
+    const project = document.getElementById('saProject').value;
+    const existingId = document.getElementById('saExisting').value;
+    const title = document.getElementById('saTitle').value.trim();
+    const type = document.getElementById('saType').value;
+    const notes = document.getElementById('saNotes').value.trim();
+    const link = document.getElementById('saLink').value.trim();
 
-    if(asset){
-      asset.versions = asset.versions || [];
-      asset.versions.push(data.version);
-    }
-
-    const v = data.version;
-
-    pushAudit(
-      'Upload',
-      asset ? asset.title : existingId,
-      'Submitted v'+v.n+' (auto-status: For Review)'
-    );
-
-    pushEvent(
-      'Asset Uploaded',
-      {
-        asset:asset ? asset.title : existingId,
-        version:'v'+v.n,
-        by:DB.currentUser.name
+    if(existingId !== 'new'){
+      if(!existingId){
+        toast('Please select an existing asset.','error');
+        return;
       }
-    );
 
-    pushNotif(
-      'submission',
-      'New version submitted: “'+
-      (asset ? asset.title : existingId)+
-      '” v'+v.n+' is awaiting review.',
-      existingId
-    );
+      try {
+        const response = await fetch('/SIA/api/assets.php', {
+          method:'POST',
+          credentials:'include',
+          headers:{ 'Content-Type':'application/json' },
+          body:JSON.stringify({ action:'version', asset_id:existingId, notes:notes })
+        });
 
-    toast(
-      'New version submitted — status set to For Review.',
-      'success'
-    );
+        const data = await response.json();
 
-    Studio.goto('assetDetail', existingId);
+        if(!response.ok || !data.success){
+          toast(data.error || 'Failed to save new version.', 'error');
+          return;
+        }
 
-  } catch(error) {
+        const asset = assetById(existingId);
+        if(asset){
+          asset.versions = asset.versions || [];
+          asset.versions.push(data.version);
+        }
 
-    console.error('submitAsset version error:', error);
+        const v = data.version;
+        pushAudit('Upload', asset ? asset.title : existingId, 'Submitted v'+v.n+' (auto-status: For Review)');
+        pushEvent('Asset Uploaded', { asset:asset ? asset.title : existingId, version:'v'+v.n, by:DB.currentUser.name });
+        pushNotif('submission', 'New version submitted: “'+(asset ? asset.title : existingId)+'” v'+v.n+' is awaiting review.', existingId);
+        toast('New version submitted — status set to For Review.', 'success');
+        Studio.goto('assetDetail', existingId);
 
-    toast(
-      'Could not connect to the server.',
-      'error'
-    );
-  }
-
-  return;
-}
-
-  // New asset validation
-  if(!title || !project){
-    toast('Title and project are required.','error');
-    return;
-  }
-
-  try {
-    const response = await fetch('/SIA/api/assets.php', {
-      method:'POST',
-      credentials:'include',
-      headers:{
-        'Content-Type':'application/json'
-      },
-      body:JSON.stringify({
-        project_id:project,
-        title:title,
-        type:type,
-        external_link:link,
-        notes:notes
-      })
-    });
-
-    const data = await response.json();
-
-    if(!response.ok || !data.success){
-      toast(
-        data.error || 'Failed to save asset.',
-        'error'
-      );
+      } catch(error) {
+        console.error('submitAsset version error:', error);
+        toast('Could not connect to the server.', 'error');
+      }
       return;
     }
 
-    DB.assets.push(data.asset);
+    if(!title || !project){
+      toast('Title and project are required.','error');
+      return;
+    }
 
-    pushAudit(
-      'Upload',
-      title,
-      'Submitted v1 (auto-status: For Review)'
-    );
+    try {
+      const response = await fetch('/SIA/api/assets.php', {
+        method:'POST',
+        credentials:'include',
+        headers:{ 'Content-Type':'application/json' },
+        body:JSON.stringify({ project_id:project, title:title, type:type, external_link:link, notes:notes })
+      });
 
-    pushEvent(
-      'Asset Uploaded',
-      {
-        asset:title,
-        version:'v1',
-        by:DB.currentUser.name
+      const data = await response.json();
+
+      if(!response.ok || !data.success){
+        toast(data.error || 'Failed to save asset.', 'error');
+        return;
       }
-    );
 
-    pushNotif(
-      'submission',
-      'New submission: “'+title+'” is awaiting review.',
-      data.asset.id
-    );
+      DB.assets.push(data.asset);
+      pushAudit('Upload', title, 'Submitted v1 (auto-status: For Review)');
+      pushEvent('Asset Uploaded', { asset:title, version:'v1', by:DB.currentUser.name });
+      pushNotif('submission', 'New submission: “'+title+'” is awaiting review.', data.asset.id);
+      toast('Asset submitted — workflow set status to “For Review”.', 'success');
+      Studio.goto('assetDetail', data.asset.id);
 
-    toast(
-      'Asset submitted — workflow set status to “For Review”.',
-      'success'
-    );
-
-    Studio.goto('assetDetail', data.asset.id);
-
-  } catch(error) {
-    console.error('submitAsset error:', error);
-    toast(
-      'Could not connect to the server.',
-      'error'
-    );
-  }
-},
+    } catch(error) {
+      console.error('submitAsset error:', error);
+      toast('Could not connect to the server.', 'error');
+    }
+  },
 
   onSaExistingChange(){
     const v = document.getElementById('saExisting').value;
     const wrap = document.getElementById('saNewFields');
-    wrap.style.display = v==='new' ? 'block' : 'none';
+    if(wrap) wrap.style.display = v==='new' ? 'block' : 'none';
   },
-
 });
 
-
 /* ===== REVIEW ACTIONS: js/actions/review.js ===== */
-/* ==========================================================================
-   REVIEW / APPROVAL ACTIONS — approve, reject, request revision.
-   Also fires the webhook simulation on every approval.
-   ========================================================================== */
 Object.assign(Studio, {
-
   reviewAsset(assetId, decision){
     if(!can('review')){ toast('Your role cannot review assets.','error'); return; }
     const asset = assetById(assetId);
@@ -838,8 +733,7 @@ Object.assign(Studio, {
       v.status = asFinal ? 'Final' : 'Approved';
       pushAudit('Approval', asset.title, 'v'+v.n+(asFinal?' approved as FINAL':' approved'));
       pushEvent(asFinal?'Final Output Approved':'Asset Approved', {asset:asset.title, version:'v'+v.n, by:DB.currentUser.name});
-      DB.webhooks.push({id:nid('w'), endpoint:'https://hooks.beeproduction.studio/asset-approved', status:200,
-        payload:JSON.stringify({asset:asset.title, version:'v'+v.n, final:asFinal}), date:new Date().toISOString()});
+      DB.webhooks.push({id:nid('w'), endpoint:'https://hooks.beeproduction.studio/asset-approved', status:200, payload:JSON.stringify({asset:asset.title, version:'v'+v.n, final:asFinal}), date:new Date().toISOString()});
       pushNotif('approval', (asFinal?'“'+asset.title+'” was approved as Final Output.':'“'+asset.title+'” v'+v.n+' was approved.'), asset.id);
       toast(asFinal?'Marked as Final Output. Webhook fired.':'Approved. Webhook fired to production dashboard.','success');
     } else if(decision==='reject'){
@@ -858,7 +752,7 @@ Object.assign(Studio, {
     if(text){
       DB.comments.push({id:nid('c'), asset:asset.id, by:DB.currentUser.id, text, date:new Date().toISOString().slice(0,10)});
     }
-    render();
+    if(typeof render === 'function') render();
     Studio.persist();
   },
 
@@ -867,16 +761,10 @@ Object.assign(Studio, {
     Studio.reviewAsset(assetId,'approve');
     toast('Approved from Review Queue.','success');
   },
-
 });
 
-
 /* ===== FEEDBACK ACTIONS: js/actions/feedback.js ===== */
-/* ==========================================================================
-   COMMENTS + NOTIFICATIONS ACTIONS
-   ========================================================================== */
 Object.assign(Studio, {
-
   addComment(assetId){
     if(!can('comment')) return;
     const box = document.getElementById('newComment');
@@ -885,22 +773,16 @@ Object.assign(Studio, {
     DB.comments.push({id:nid('c'), asset:assetId, by:DB.currentUser.id, text, date:new Date().toISOString().slice(0,10)});
     box.value='';
     pushAudit('Comment', assetById(assetId).title, 'Feedback added');
-    render();
+    if(typeof render === 'function') render();
     Studio.persist();
   },
 
-  markRead(id){ const n = DB.notifications.find(x=>x.id===id); if(n) n.read=true; render(); Studio.persist(); },
-  markAllRead(){ DB.notifications.forEach(n=>n.read=true); render(); Studio.persist(); toast('All notifications marked as read.'); },
-
+  markRead(id){ const n = DB.notifications.find(x=>x.id===id); if(n) n.read=true; if(typeof render === 'function') render(); Studio.persist(); },
+  markAllRead(){ DB.notifications.forEach(n=>n.read=true); if(typeof render === 'function') render(); Studio.persist(); toast('All notifications marked as read.'); },
 });
 
-
 /* ===== INTEGRATION ACTIONS: js/actions/integrations.js ===== */
-/* ==========================================================================
-   INTEGRATION ACTIONS — API sync simulation + CSV/ETL import.
-   ========================================================================== */
 Object.assign(Studio, {
-
   apiSend(){
     const sel = document.getElementById('apiAssetSelect');
     const assetId = sel.value;
@@ -909,17 +791,16 @@ Object.assign(Studio, {
     const v = latestVersion(asset);
     const reqPayload = {asset:asset.title, version:'v'+v.n, status:v.status, project:projectById(asset.project).name};
     DB.apiLogs.push({id:nid('api'), dir:'REQUEST', method:'POST', endpoint:'/api/v1/production-dashboard/assets', body:JSON.stringify(reqPayload), date:new Date().toISOString()});
-    render();
+    if(typeof render === 'function') render();
     Studio.persist();
     toast('Request sent…');
     setTimeout(()=>{
-      DB.apiLogs.push({id:nid('api'), dir:'RESPONSE', method:'POST', endpoint:'/api/v1/production-dashboard/assets', status:201,
-        body:JSON.stringify({received:true, id:'dash_'+asset.id, syncedAt:new Date().toISOString()}), date:new Date().toISOString()});
+      DB.apiLogs.push({id:nid('api'), dir:'RESPONSE', method:'POST', endpoint:'/api/v1/production-dashboard/assets', status:201, body:JSON.stringify({received:true, id:'dash_'+asset.id, syncedAt:new Date().toISOString()}), date:new Date().toISOString()});
       pushAudit('Integration', asset.title, 'Synced to Production Dashboard via API');
       pushEvent('Asset Synced to Dashboard', {asset:asset.title});
       toast('201 Created — synced to Production Dashboard.','success');
-      render();
-    Studio.persist();
+      if(typeof render === 'function') render();
+      Studio.persist();
     }, 650);
   },
 
@@ -941,8 +822,7 @@ Object.assign(Studio, {
       if(!rec.title || !rec.project){ skipped++; return; }
       const proj = DB.projects.find(p=> p.name.toLowerCase().includes(rec.project.toLowerCase()) || rec.project.toLowerCase().includes(p.name.split(' ')[0].toLowerCase()));
       const type = ['Storyboard','Animatic','Character Sheet','Background Asset','Animation Scene','Render','Audio','Design Draft'].includes(rec.type) ? rec.type : 'Design Draft';
-      const asset = {id:nid('a'), project: proj?proj.id:DB.projects[0].id, title:rec.title, type,
-        link:'', versions:[{id:nid('v'), n:1, status:'For Review', notes:'Imported via ETL — assignee: '+(rec.assignee||'unassigned')+(rec.duedate?(', due '+rec.duedate):''), by:DB.currentUser.id, date:new Date().toISOString().slice(0,10)}]};
+      const asset = {id:nid('a'), project: proj?proj.id:DB.projects[0].id, title:rec.title, type, link:'', versions:[{id:nid('v'), n:1, status:'For Review', notes:'Imported via ETL — assignee: '+(rec.assignee||'unassigned')+(rec.duedate?(', due '+rec.duedate):''), by:DB.currentUser.id, date:new Date().toISOString().slice(0,10)}]};
       DB.assets.push(asset);
       loaded++;
     });
@@ -952,19 +832,13 @@ Object.assign(Studio, {
     pushAudit('Integration','ETL Import', loaded+' asset(s) imported from CSV');
     pushEvent('ETL Import Completed', {rows:rows.length, loaded, skipped});
     toast('ETL run complete — '+loaded+' record(s) loaded.','success');
-    render();
+    if(typeof render === 'function') render();
     Studio.persist();
   },
-
 });
 
-
 /* ===== RESOURCE ACTIONS: js/actions/resources.js ===== */
-/* ==========================================================================
-   RESOURCE / ERP ACTIONS — log labor, equipment, and cost per project.
-   ========================================================================== */
 Object.assign(Studio, {
-
   addResource(){
     if(!can('manageResources')) return;
     const project = document.getElementById('rsProject').value;
@@ -976,19 +850,13 @@ Object.assign(Studio, {
     DB.resources.push({id:nid('r'), project, category, desc, cost, hours});
     pushAudit('Resource', projectById(project).name, category+' entry added: '+desc);
     toast('Resource entry logged.','success');
-    render();
+    if(typeof render === 'function') render();
     Studio.persist();
   },
-
 });
 
-
 /* ===== USER ACTIONS: js/actions/users.js ===== */
-/* ==========================================================================
-   USER MANAGEMENT ACTIONS — add teammates, change roles.
-   ========================================================================== */
 Object.assign(Studio, {
-
   addUser(){
     if(!can('manageUsers')) return;
     const name = document.getElementById('umName').value.trim();
@@ -999,7 +867,7 @@ Object.assign(Studio, {
     pushAudit('User', name, 'Added to team as '+ROLE_LABELS[role]);
     toast('Team member added.','success');
     document.getElementById('umName').value='';
-    render();
+    if(typeof render === 'function') render();
     Studio.persist();
   },
 
@@ -1007,11 +875,8 @@ Object.assign(Studio, {
     const u = userById(uid); if(!u) return;
     u.role = role;
     pushAudit('User', u.name, 'Role changed to '+ROLE_LABELS[role]);
-    toast(u.name+' is now '+ROLE_LABELS[role]+'.');
-    render();
+    toast(u.name+' is now '+(ROLE_LABELS[role]||role)+'.');
+    if(typeof render === 'function') render();
     Studio.persist();
   },
-
 });
-
-

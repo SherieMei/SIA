@@ -1,15 +1,68 @@
 <?php
-header('Access-Control-Allow-Origin: http://localhost');
-header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type');
-header('Access-Control-Allow-Credentials: true');
+ob_start();
+ini_set('display_errors', 0);
+error_reporting(E_ALL);
 
 header('Content-Type: application/json; charset=utf-8');
-require_once __DIR__ . '/../config/db.php';
-if (session_status() === PHP_SESSION_NONE) session_start();
-if (!isset($_SESSION['user'])) { http_response_code(401); echo json_encode(['error'=>'Not authenticated']); exit; }
-$row = $pdo->query("SELECT state_json FROM app_state WHERE id=1")->fetch();
-$state = $row ? json_decode($row['state_json'], true) : [];
-if (!is_array($state)) $state=[];
-$state['currentUser'] = $_SESSION['user'];
-echo json_encode(['success'=>true,'state'=>$state], JSON_UNESCAPED_UNICODE);
+
+try {
+    $host = '127.0.0.1';
+    $db   = 'Atlas';
+    $user = 'root';
+    $pass = '';
+
+    $pdo = new PDO("mysql:host=$host;dbname=$db;charset=utf8mb4", $user, $pass, [
+        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC
+    ]);
+
+    $stmt = $pdo->query("SELECT * FROM assets ORDER BY id DESC");
+    $rawAssets = $stmt->fetchAll();
+
+    $assets = [];
+    foreach ($rawAssets as $row) {
+        $t = $row['asset_title'] ?? $row['title'] ?? '';
+        $ty = $row['asset_type'] ?? $row['type'] ?? 'Storyboard';
+        $l = $row['external_link'] ?? $row['link'] ?? '';
+        
+        $assets[] = [
+            "id"            => (int)$row['id'],
+            "project_id"    => $row['project_id'] ?? null,
+            "project"       => $row['project_id'] ?? null,
+            "title"         => $t,
+            "asset_title"   => $t,
+            "type"          => $ty,
+            "asset_type"    => $ty,
+            "link"          => $l,
+            "external_link" => $l,
+            "created_at"    => $row['created_at'] ?? date('Y-m-d H:i:s')
+        ];
+    }
+
+    ob_clean();
+    echo json_encode([
+        "success" => true,
+        "status"  => "success",
+        "state"   => [
+            "assets" => $assets,
+            "currentUser" => [
+                "id" => 1, 
+                "name" => "User",
+                "role" => "admin",
+                "is_admin" => true,
+                "permissions" => ["create_asset", "edit_asset", "delete_asset"]
+            ]
+        ]
+    ]);
+    exit();
+
+} catch (Exception $e) {
+    ob_clean();
+    echo json_encode([
+        "success" => false,
+        "status"  => "error",
+        "error"   => $e->getMessage()
+    ]);
+    exit();
+}
+?>

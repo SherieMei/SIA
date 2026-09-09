@@ -1,44 +1,38 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>BEE PRODUCTION — Assets</title>
-  <link rel="stylesheet" href="../css/shared.css">
-  <link rel="stylesheet" href="assets.css">
+<meta charset="UTF-8">
+<script>(function(){try{if(localStorage.getItem('beeTheme')==='dark')document.documentElement.setAttribute('data-theme','dark');}catch(e){}})();</script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BEE PRODUCTION — Assets</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="./assets.css">
 </head>
-<body class="bg-gray-50 text-gray-800">
-
-  <div class="app-layout" style="display: flex; min-height: 100vh;">
-    <!-- Sidebar -->
-    <aside id="sidebar" style="width: 240px; background: #ffffff; border-right: 1px solid #e2e8f0; padding: 20px 16px; flex-shrink: 0;">
-      <div style="margin-bottom: 24px; padding-left: 8px;">
-        <h2 style="font-size: 16px; font-weight: 700; color: #0f172a; margin: 0; tracking: wide;">BEE PRODUCTION</h2>
-        <span style="font-size: 10px; color: #94a3b8; font-weight: 600; text-transform: uppercase;">Studio System</span>
-      </div>
-
-      <nav id="navlist" style="display: flex; flex-direction: column; gap: 4px;"></nav>
-
-      <div style="margin-top: auto; padding-top: 20px; border-top: 1px solid #f1f5f9; display: flex; align-items: center; gap: 10px;">
-        <div id="sideAvatar" style="width: 32px; height: 32px; border-radius: 50%; background: #e2e8f0; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; color: #475569;">JR</div>
-        <div>
-          <div id="sideName" style="font-size: 13px; font-weight: 600; color: #1e293b;">Jordan Reyes</div>
-          <div id="sideRole" style="font-size: 10px; color: #94a3b8; text-transform: uppercase;">Administrator</div>
-        </div>
-      </div>
-    </aside>
-
-    <!-- Main Content Area -->
-    <main style="flex: 1; padding: 32px; max-width: 1200px; margin: 0 auto;">
-      <header style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
-        <div id="topTitle" style="font-size: 12px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em;">Assets</div>
-        <button onclick="Studio.confirmLogout()" style="background: none; border: 1px solid #cbd5e1; padding: 6px 12px; border-radius: 6px; font-size: 12px; font-weight: 500; cursor: pointer; color: #475569;">Log out</button>
-      </header>
-
-      <div id="pageContent"></div>
-    </main>
+<body data-page="assets" class="page-assets">
+<div id="app" class="app-page">
+<div class="shell">
+  <div class="sidebar-spacer" aria-hidden="true"></div>
+  <nav class="sidebar" id="sidebar" aria-label="Main navigation">
+    <div class="brand"><div class="brand-mark">B</div><div class="brand-text"><b>BEE PRODUCTION</b><small>STUDIO SYSTEM</small></div></div>
+    <div class="navlist" id="navlist"></div>
+    <div class="side-user"><div class="avatar" id="sideAvatar"></div><div class="u"><b id="sideName"></b><span id="sideRole"></span></div></div>
+  </nav>
+  <div class="main">
+    <header class="topbar">
+      <div class="topbar-left"><button type="button" class="hbtn" id="menuButton" aria-label="Toggle navigation sidebar">☰</button><div class="top-title-wrap"><div class="eyebrow" id="topEyebrow"></div><div class="top-title" id="topTitle"></div></div></div>
+      <div class="top-actions"><button type="button" class="btn btn-ghost btn-sm icon-action notification-btn" id="notifBtn" title="Notifications" aria-label="Notifications" onclick="Studio.goto('notifications')">🔔<span class="nb" id="notifBadge" style="display:none;"></span></button><button type="button" class="btn btn-ghost btn-sm icon-action" id="archBtn" title="System Architecture" aria-label="System Architecture" onclick="Studio.goto('architecture')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><circle cx="12" cy="12" r="9.25" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="7.6" r="1.15" fill="currentColor"/><rect x="10.85" y="10.6" width="2.3" height="7" rx="1" fill="currentColor"/></svg></button><button type="button" class="theme-toggle-btn" title="Switch to dark mode" aria-label="Switch to dark mode">🌙</button><span class="chip" id="clockChip"></span><button type="button" class="logout-btn" title="Sign out" aria-label="Sign out" onclick="Studio.confirmLogout()">Log out</button></div>
+    </header>
+    <main class="page" id="pageContent"></main>
   </div>
+</div>
+</div>
+<div id="toastWrap" aria-live="polite" aria-atomic="true"></div>
 
-  <script src="assets.js"></script>
+<!-- Load runtime core data first -->
+<script src="../js/shared.js"></script>
+<!-- Page Controller -->
+<script src="assets.js"></script>
 </body>
 </html>
