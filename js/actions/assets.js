@@ -26,18 +26,37 @@ Object.assign(Studio, {
      EXISTING ASSET → NEW VERSION
      ============================================================ */
   if(existingId !== 'new'){
-    const asset = assetById(existingId);
+  const asset = assetById(existingId);
 
-    const v = {
-      id: nid('v'),
-      n: asset.versions.length + 1,
-      status: 'For Review',
-      notes: notes || ('Revised file: ' + (fileName || 'no file attached')),
-      by: DB.currentUser.id,
-      date: new Date().toISOString().slice(0,10)
-    };
+  if(!asset){
+    toast('Asset not found.','error');
+    return;
+  }
 
-    asset.versions.push(v);
+  try {
+    const response = await fetch('/SIA/api/assets.php', {
+      method: 'POST',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        action: 'version',
+        asset_id: asset.id,
+        external_link: link,
+        notes: notes || ('Revised file: ' + (fileName || 'no file attached'))
+      })
+    });
+
+    const data = await response.json();
+
+    if(!response.ok || !data.success){
+      toast(data.error || 'Failed to save new version.', 'error');
+      return;
+    }
+
+    /* Use the version returned by PHP/MySQL */
+    asset.versions.push(data.version);
 
     if(link){
       asset.link = link;
@@ -46,18 +65,18 @@ Object.assign(Studio, {
     pushAudit(
       'Upload',
       asset.title,
-      'Submitted v' + v.n + ' (auto-status: For Review)'
+      'Submitted v' + data.version.n + ' (auto-status: For Review)'
     );
 
     pushEvent('Asset Uploaded', {
       asset: asset.title,
-      version: 'v' + v.n,
+      version: 'v' + data.version.n,
       by: DB.currentUser.name
     });
 
     pushNotif(
       'submission',
-      'New version submitted: “' + asset.title + '” v' + v.n + ' is awaiting review.',
+      'New version submitted: “' + asset.title + '” v' + data.version.n + ' is awaiting review.',
       asset.id
     );
 
@@ -67,9 +86,13 @@ Object.assign(Studio, {
     );
 
     Studio.goto('assetDetail', asset.id);
-    return;
+
+  } catch(error) {
+    toast('Could not connect to the server.', 'error');
   }
 
+  return;
+}
   /* ============================================================
      NEW ASSET
      ============================================================ */

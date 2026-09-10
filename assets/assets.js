@@ -4,7 +4,7 @@
    ========================================================================== */
 function pageAssets(){
   const f = state.filter;
-  let list = DB.assets.slice();
+  let list = DB.assets.filter(a => latestVersion(a).status === 'Approved');
   if(f.project!=='all') list = list.filter(a=>a.project===f.project);
   if(f.type!=='all') list = list.filter(a=>a.type===f.type);
   if(f.status!=='all') list = list.filter(a=>latestVersion(a).status===f.status);
