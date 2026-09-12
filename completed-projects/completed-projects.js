@@ -1,23 +1,29 @@
 /* Page-specific BEE PRODUCTION controller. Shared runtime is loaded before this file. */
 /* ==========================================================================
-   PAGE — Audit Log
+   PAGE — Completed Projects
+   Shows only projects where every asset is Approved/Final (projectProgress === 100).
+   A project moves here automatically the moment its last asset gets approved —
+   there is no manual "mark as completed" step and nothing to keep in sync.
    ========================================================================== */
-function pageAudit(){
+function pageCompletedProjects(){
+  const completed = DB.projects.filter(p=>projectProgress(p.id)===100);
   return `
-    <div class="section-title">Audit log</div>
-    <div class="card" style="margin-top:16px;">
-      <table>
-        <thead><tr><th>Time</th><th>User</th><th>Action</th><th>Entity</th><th>Detail</th></tr></thead>
-        <tbody>
-          ${DB.auditLog.slice().reverse().map(a=>`<tr>
-            <td class="mono" style="color:var(--text-faint);">${fmtDateTime(a.date)}</td>
-            <td>${esc(a.by)}</td>
-            <td><span class="chip">${esc(a.action)}</span></td>
-            <td>${esc(a.entity)}</td>
-            <td style="color:var(--text-dim);">${esc(a.detail)}</td>
-          </tr>`).join('')}
-        </tbody>
-      </table>
+    <div class="panel-head">
+      <div><div class="section-title">Completed projects</div></div>
+    </div>
+    <div class="proj-grid">
+      ${completed.length ? completed.map(p=>{
+        const assetCount = DB.assets.filter(a=>a.project===p.id).length;
+        return `<div class="card proj-card" onclick="Studio.goto('projectDetail','${p.id}')">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;">
+            <h3>${esc(p.name)}</h3>
+            <span class="badge b-approved">✓ Completed</span>
+          </div>
+          <div class="client">${esc(p.client)}</div>
+          <div class="progress-track"><div class="progress-fill" style="width:100%"></div></div>
+          <div class="proj-meta"><span>${assetCount} asset(s)</span><span>Due ${fmtDate(p.deadline)}</span></div>
+        </div>`;
+      }).join('') : `<div class="empty">No completed projects yet — a project shows up here automatically once every one of its assets is approved or finalized.</div>`}
     </div>
   `;
 }
@@ -42,17 +48,13 @@ function render(){
     case 'audit': el.innerHTML=pageAudit(); break;
     case 'users': el.innerHTML=pageUsers(); break;
     case 'architecture': el.innerHTML=pageArchitecture(); break;
-    default: el.innerHTML=pageDashboard();
+    default: el.innerHTML=pageCompletedProjects();
   }
 }
 
 document.addEventListener('DOMContentLoaded',()=>{
   if(!DB.currentUser){
     window.location.assign('../login/login.html');
-    return;
-  }
-  if(!can('viewAudit')){
-    window.location.assign('../dashboard/dashboard.html');
     return;
   }
 

@@ -1,4 +1,4 @@
-/* BEE PRODUCTION PROJECTS — page stylesheet */
+/* BEE PRODUCTION COMPLETED PROJECTS — page stylesheet */
 
 :root{
   --ink:#f6f7fb;
@@ -169,8 +169,8 @@ table{width:100%;border-collapse:collapse;font-size:13px}th{text-align:left;font
 .brand-text{min-width:0}.topbar-left{display:flex;align-items:center;gap:12px;min-width:0}.top-title{font-family:var(--font-display);font-size:24px;letter-spacing:.02em;line-height:1.1}.logout-btn{border:1px solid var(--line);background:#fff;cursor:pointer;color:var(--text-dim);font-size:12.5px;font-weight:700;padding:9px 14px;display:inline-flex;align-items:center;justify-content:center;border-radius:9px;transition:.16s;flex-shrink:0;white-space:nowrap}.logout-btn:hover{background:var(--crimson-glow);border-color:#efc9cd;color:var(--crimson);transform:translateY(-1px)}.notification-btn{display:inline-flex;align-items:center;justify-content:center}.login-form-section{width:100%}.slate-fields>div{display:flex;flex-direction:column;gap:3px}.slate-fields span{color:var(--text-muted)}.login-submit-btn{width:100%;justify-content:center;padding:12px 18px;gap:10px}.login-submit-btn .button-arrow{font-size:18px;transition:transform .2s ease}.login-submit-btn:hover .button-arrow{transform:translateX(4px)}.login-help-text{color:var(--text-faint);font-size:11.5px;line-height:1.6;margin:10px 0 0}.demo-section{width:100%}.demo-heading{margin-bottom:10px}@media(max-width:768px){.top-title{font-size:20px}.top-actions{gap:6px}}
 
 
-/* Page-specific hook: .page-projects */
-.page-projects { }
+/* Page-specific hook: .page-completed-projects */
+.page-completed-projects { }
 
 .app-page{display:block;}
 
@@ -269,9 +269,3 @@ table{width:100%;border-collapse:collapse;font-size:13px}th{text-align:left;font
 [data-theme="dark"] .b-role-admin{color:#d7747c}
 [data-theme="dark"] .b-role-project_manager{color:#8b81cc}
 [data-theme="dark"] .b-role-client{color:#608ece}
-[data-theme="dark"] .slate-top{background:linear-gradient(135deg,var(--panel),#1b2233 58%,#182530);border-bottom-color:var(--line-soft)}
-[data-theme="dark"] .slate-fields div{background:var(--panel-2);border-left:3px solid var(--line)}
-[data-theme="dark"] .slate-fields div:nth-child(1){border-left-color:var(--coral)}
-[data-theme="dark"] .slate-fields div:nth-child(2){border-left-color:var(--cyan)}
-[data-theme="dark"] .slate-fields div:nth-child(3){border-left-color:var(--violet)}
-[data-theme="dark"] .slate-fields div:nth-child(4){border-left-color:var(--gold)}

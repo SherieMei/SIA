@@ -2,29 +2,26 @@
 /* ==========================================================================
    PAGE — Dashboard / Reports
    ========================================================================== */
-function pageDashboard(){
-  const totalProjects = DB.projects.length;
-  const allV = DB.assets.map(a=>({a, v:latestVersion(a)}));
-  const pending = allV.filter(x=>['For Review','Revision Requested'].includes(x.v.status)).length;
-  const approved = allV.filter(x=>x.v.status==='Approved'||x.v.status==='Final').length;
-  const rejected = allV.filter(x=>x.v.status==='Rejected').length;
-  const overdue = DB.projects.filter(p=> new Date(p.deadline) < new Date('2026-08-29') && projectProgress(p.id)<100).length;
+const STATUS_STAT_COLOR = {
+  'For Review':'coral', 'Approved':'cyan', 'Rejected':'crimson', 'Revision Requested':'violet', 'Final':'gold'
+};
 
-  const stats = [
-    {n:totalProjects, l:'Active Projects', c:'var(--coral)'},
-    {n:pending, l:'Pending Review', c:'var(--violet)'},
-    {n:approved, l:'Approved Assets', c:'var(--cyan)'},
-    {n:rejected, l:'Rejected Outputs', c:'var(--crimson)'},
-    {n:overdue, l:'Overdue Deadlines', c:'var(--crimson)'},
-  ];
+function pageDashboard(){
+  const allV = DB.assets.map(a=>({a, v:latestVersion(a)}));
+
+  const stats = Object.keys(STATUS_CLASS).map(status=>({
+    n: allV.filter(x=>x.v.status===status).length,
+    l: status,
+    c: `var(--${STATUS_STAT_COLOR[status]})`
+  }));
 
   return `
     <div class="section-title">Welcome back, ${esc(DB.currentUser.name.split(' ')[0])}</div>
-    <div class="section-sub">Signed in as ${ROLE_LABELS[DB.currentUser.role]} · here's where production stands today.</div>
+    <div class="section-sub">Signed in as <span class="badge b-role b-role-${DB.currentUser.role}">${ROLE_LABELS[DB.currentUser.role]}</span></div>
     <div class="stat-grid">
-      ${stats.map(s=>`<div class="card stat"><div class="bar" style="background:${s.c}"></div><div class="n">${s.n}</div><div class="l">${s.l}</div></div>`).join('')}
+      ${stats.map(s=>`<div class="card stat" style="cursor:pointer;" title="View ${esc(s.l)} assets" onclick="Studio.goto('assets','${s.l}')"><div class="bar" style="background:${s.c}"></div><div class="n">${s.n}</div><div class="l">${s.l}</div></div>`).join('')}
     </div>
-    <div class="grid-2">
+    <div class="grid-2"${can('viewAudit') ? '' : ' style="grid-template-columns:1fr;"'}>
       <div class="card" style="padding:20px;">
         <div class="panel-head"><h3 style="margin:0;font-size:15px;">Production progress</h3><span class="chip" onclick="Studio.goto('projects')" style="cursor:pointer;">View all →</span></div>
         <div style="display:flex;flex-direction:column;gap:16px;margin-top:14px;">
@@ -40,6 +37,7 @@ function pageDashboard(){
           }).join('')}
         </div>
       </div>
+      ${can('viewAudit') ? `
       <div class="card" style="padding:20px;">
         <div class="panel-head"><h3 style="margin:0;font-size:15px;">Recent activity</h3><span class="chip" onclick="Studio.goto('audit')" style="cursor:pointer;">Full log →</span></div>
         <div style="margin-top:8px;">
@@ -47,7 +45,7 @@ function pageDashboard(){
             <div class="log-line"><span class="t">${fmtDateTime(a.date)}</span><span><b>${esc(a.by)}</b> — ${esc(a.action)}: ${esc(a.entity)}</span></div>
           `).join('') || '<div class="empty">No activity yet.</div>'}
         </div>
-      </div>
+      </div>` : ''}
     </div>
   `;
 }
@@ -62,6 +60,7 @@ function render(){
     case 'dashboard': el.innerHTML=pageDashboard(); break;
     case 'projects': el.innerHTML=pageProjects(); break;
     case 'projectDetail': el.innerHTML=pageProjectDetail(); break;
+    case 'completedProjects': el.innerHTML=pageCompletedProjects(); break;
     case 'assets': el.innerHTML=pageAssets(); break;
     case 'assetDetail': el.innerHTML=pageAssetDetail(); break;
     case 'review': el.innerHTML=pageReview(); break;

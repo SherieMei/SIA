@@ -5,7 +5,6 @@
 function pageResources(){
   return `
     <div class="section-title">Resources &amp; budget</div>
-    <div class="section-sub">Links production work to cost, hours, equipment, and client billing per project.</div>
 
     <div class="proj-grid" style="margin-top:18px;">
       ${DB.projects.map(p=>{
@@ -64,6 +63,7 @@ function render(){
     case 'dashboard': el.innerHTML=pageDashboard(); break;
     case 'projects': el.innerHTML=pageProjects(); break;
     case 'projectDetail': el.innerHTML=pageProjectDetail(); break;
+    case 'completedProjects': el.innerHTML=pageCompletedProjects(); break;
     case 'assets': el.innerHTML=pageAssets(); break;
     case 'assetDetail': el.innerHTML=pageAssetDetail(); break;
     case 'review': el.innerHTML=pageReview(); break;

@@ -9,12 +9,11 @@ function pageIntegrations(){
 "Hero Pose Turnaround",Nightfall,Character Sheet,Leo Cruz,2026-10-01`;
   return `
     <div class="section-title">Integration hub</div>
-    <div class="section-sub" style="max-width:720px;">This is where BEE PRODUCTION talks to the rest of the studio's systems: production data goes out through an API, spreadsheet handoffs come in through ETL, and every upload or approval fires an event other tools can react to.</div>
 
     <div class="grid-2" style="margin-top:22px;">
       <div class="card" style="padding:20px;">
         <h3 style="margin-top:0;font-size:15px;">API integration — Production Dashboard</h3>
-        <div class="section-sub" style="margin-bottom:14px;">Send the latest version of an asset to the studio's external production dashboard.</div>
+        <div class="section-sub" style="margin-bottom:14px;">Sends the latest asset version to the external production dashboard.</div>
         <div class="field-row">
           <div class="field" style="grid-column:1/3;"><label>Asset</label>
             <select id="apiAssetSelect">${DB.assets.map(a=>`<option value="${a.id}">${esc(a.title)}</option>`).join('')}</select>
@@ -36,7 +35,7 @@ function pageIntegrations(){
 
       <div class="card" style="padding:20px;">
         <h3 style="margin-top:0;font-size:15px;">ETL integration — bulk import</h3>
-        <div class="section-sub" style="margin-bottom:14px;">Paste a CSV of tasks or assets. BEE PRODUCTION extracts the rows, validates and transforms them, then loads them as new assets.</div>
+        <div class="section-sub" style="margin-bottom:14px;">Paste a CSV of tasks or assets — each row is validated and loaded as a new asset.</div>
         <div class="field"><textarea id="etlInput" style="min-height:120px;font-family:var(--font-mono);font-size:12px;">${sampleCSV}</textarea></div>
         ${can('runIntegrations') ? `<button class="btn btn-primary btn-sm" onclick="Studio.runETL()">Run ETL import</button>` : `<div class="empty">Your role can't run imports.</div>`}
         <div class="divider"></div>
@@ -47,7 +46,7 @@ function pageIntegrations(){
     <div class="grid-2" style="margin-top:20px;">
       <div class="card" style="padding:20px;">
         <h3 style="margin-top:0;font-size:15px;">Event stream — messaging simulation</h3>
-        <div class="section-sub" style="margin-bottom:10px;">Every upload, approval, rejection and revision publishes an event that other services could subscribe to.</div>
+        <div class="section-sub" style="margin-bottom:10px;">Every upload, approval, rejection, and revision publishes an event other services can subscribe to.</div>
         <div class="console">
           ${DB.events.slice(0,12).map(e=>`
             <div class="log-line">
@@ -60,7 +59,7 @@ function pageIntegrations(){
       </div>
       <div class="card" style="padding:20px;">
         <h3 style="margin-top:0;font-size:15px;">Webhook log — approval triggers</h3>
-        <div class="section-sub" style="margin-bottom:10px;">Fires whenever a reviewer approves an asset, notifying the production dashboard endpoint.</div>
+        <div class="section-sub" style="margin-bottom:10px;">Fires on every approval, notifying the production dashboard endpoint.</div>
         <div class="console">
           ${DB.webhooks.slice().reverse().map(w=>`
             <div class="log-line">
@@ -95,6 +94,7 @@ function render(){
     case 'dashboard': el.innerHTML=pageDashboard(); break;
     case 'projects': el.innerHTML=pageProjects(); break;
     case 'projectDetail': el.innerHTML=pageProjectDetail(); break;
+    case 'completedProjects': el.innerHTML=pageCompletedProjects(); break;
     case 'assets': el.innerHTML=pageAssets(); break;
     case 'assetDetail': el.innerHTML=pageAssetDetail(); break;
     case 'review': el.innerHTML=pageReview(); break;

@@ -12,10 +12,10 @@ function pageNotifications(){
     <div class="card" style="margin-top:14px;">
       ${list.length? list.map(n=>`
         <div class="list-row" style="cursor:pointer;${n.read?'opacity:.55;':''}" onclick="Studio.markRead('${n.id}')">
+          <span class="mono" style="color:var(--text-faint);font-size:11px;flex-shrink:0;">${fmtDateTime(n.date)}</span>
           <div class="type-tag" style="background:var(--panel-3);color:var(--coral);font-size:14px;">${NOTIF_ICON[n.type]||'●'}</div>
           <div style="flex:1;">
             <div class="row-title">${esc(n.text)}</div>
-            <div class="row-sub">${fmtDateTime(n.date)}</div>
           </div>
           ${!n.read? '<span class="badge b-review">New</span>' : ''}
         </div>
@@ -34,6 +34,7 @@ function render(){
     case 'dashboard': el.innerHTML=pageDashboard(); break;
     case 'projects': el.innerHTML=pageProjects(); break;
     case 'projectDetail': el.innerHTML=pageProjectDetail(); break;
+    case 'completedProjects': el.innerHTML=pageCompletedProjects(); break;
     case 'assets': el.innerHTML=pageAssets(); break;
     case 'assetDetail': el.innerHTML=pageAssetDetail(); break;
     case 'review': el.innerHTML=pageReview(); break;

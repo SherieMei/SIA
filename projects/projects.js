@@ -26,7 +26,7 @@ async function loadProjectsFromDB(){
 function pageProjects(){
   return `
     <div class="panel-head">
-      <div><div class="section-title">Projects</div><div class="section-sub">Every production and campaign currently on the board.</div></div>
+      <div><div class="section-title">Projects</div></div>
       ${can('manageProjects') ? `<button class="btn btn-primary" onclick="Studio.toggleForm('newProjectForm')">+ Create project</button>` : ''}
     </div>
     ${can('manageProjects') ? `
@@ -37,13 +37,13 @@ function pageProjects(){
         <div class="field"><label>Client</label><input id="npClient" placeholder="e.g. Meridian Animation Network"></div>
       </div>
       <div class="field-row">
-        <div class="field"><label>Deadline</label><input id="npDeadline" type="date" value="2026-12-01"></div>
-        <div class="field"><label>Budget (PHP)</label><input id="npBudget" type="number" placeholder="30000"></div>
+        <div class="field"><label>Deadline</label><input id="npDeadline" type="date" value="2026-12-01" min="${new Date().toISOString().slice(0,10)}"></div>
+        <div class="field"><label>Budget (PHP)</label><input id="npBudget" type="number" step="500" min="0" placeholder="30000"></div>
       </div>
       <button class="btn btn-primary" onclick="Studio.createProject()">Create project</button>
     </div>` : ''}
     <div class="proj-grid">
-      ${DB.projects.map(p=>{
+      ${DB.projects.filter(p=>projectProgress(p.id)<100).map(p=>{
         const pct = projectProgress(p.id);
         const assetCount = DB.assets.filter(a=>a.project===p.id).length;
         return `<div class="card proj-card" onclick="Studio.goto('projectDetail','${p.id}')">
@@ -67,8 +67,7 @@ function pageProjectDetail(){
   const pct = projectProgress(p.id);
   const pm = userById(p.pm);
   return `
-    <button class="btn btn-ghost btn-sm" onclick="Studio.goto('projects')">← All projects</button>
-    <div class="card" style="margin-top:14px;overflow:hidden;">
+    <div class="card" style="overflow:hidden;">
       <div class="slate-top" style="padding:20px 24px;">
         <h1 style="font-size:30px;">${esc(p.name)}</h1>
         <div class="tag">${esc(p.client)}</div>
@@ -97,7 +96,7 @@ function pageProjectDetail(){
           <div class="type-tag" style="background:${meta.color}22;color:${meta.color};">${meta.tag}</div>
           <div style="flex:1;">
             <div class="row-title">${esc(a.title)}</div>
-            <div class="row-sub">${a.type} · ${a.versions.length} version(s) · updated ${fmtDate(v.date)}</div>
+            <div class="row-sub">${a.type} · ${(a.versions||[]).length} version(s) · updated ${fmtDate(v.date)}</div>
           </div>
           <span class="vtag">v${String(v.n).padStart(2,'0')}</span>
           <span class="badge ${STATUS_CLASS[v.status]}">${v.status}</span>
@@ -111,7 +110,7 @@ function pageProjectDetail(){
     <div class="pill-row">
     ${(p.team || []).map(uid=>{ 
         const u = userById(uid); 
-        return u ? `<span class="chip">${esc(u.name)} · ${ROLE_LABELS[u.role]}</span>` : '';
+        return u ? `<span class="chip">${esc(u.name)} · <b style="color:var(--${ROLE_COLOR_VAR[u.role]||'text-dim'});">${ROLE_LABELS[u.role]}</b></span>` : '';
     }).join('')}    </div>
   `;
 }
@@ -126,6 +125,7 @@ function render(){
     case 'dashboard': el.innerHTML=pageDashboard(); break;
     case 'projects': el.innerHTML=pageProjects(); break;
     case 'projectDetail': el.innerHTML=pageProjectDetail(); break;
+    case 'completedProjects': el.innerHTML=pageCompletedProjects(); break;
     case 'assets': el.innerHTML=pageAssets(); break;
     case 'assetDetail': el.innerHTML=pageAssetDetail(); break;
     case 'review': el.innerHTML=pageReview(); break;

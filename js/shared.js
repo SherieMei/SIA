@@ -6,16 +6,26 @@
    Edit permissions here to change who can do what.
    ========================================================================== */
 const ROLE_LABELS = {
-  admin:'Administrator', project_manager:'Project Manager', artist:'Artist',
-  animator:'Animator', editor:'Editor', reviewer:'Reviewer', client:'Client', viewer:'Viewer'
+  admin:'Administrator', project_manager:'Project Manager',
+  animator:'Animator', editor:'Editor', client:'Client'
 };
+
+/* Distinct, theme-safe accent color per role (used for badges and inline role tags) */
+const ROLE_COLOR_VAR = {
+  admin:'crimson', project_manager:'violet', animator:'cyan', editor:'gold', client:'azure'
+};
+
+/* Letters (incl. accented), spaces, apostrophes, hyphens, and periods only — for name-type
+   fields (person names, client names). Rejects digits and other symbols. Fields that
+   legitimately need numbers/symbols (email, password, IDs) must not use this. */
+const NAME_RE = /^[A-Za-zÀ-ÖØ-öø-ÿ' .-]+$/;
 
 const PERMISSIONS = {
   manageUsers:['admin'],
   manageProjects:['admin','project_manager'],
-  submitAssets:['admin','artist','animator','editor','project_manager'],
-  review:['admin','reviewer','project_manager','client'],
-  comment:['admin','project_manager','artist','animator','editor','reviewer','client'],
+  submitAssets:['admin','animator','editor','project_manager'],
+  review:['admin','project_manager','client'],
+  comment:['admin','project_manager','animator','editor','client'],
   viewAudit:['admin','project_manager'],
   manageResources:['admin','project_manager'],
   runIntegrations:['admin','project_manager','editor'],
@@ -52,12 +62,11 @@ const DB = {
   users:[
     {id:'u1',name:'Jordan Reyes',email:'jordan.reyes@beeproduction.studio',role:'admin'},
     {id:'u2',name:'Mika Santos',email:'mika.santos@beeproduction.studio',role:'project_manager'},
-    {id:'u3',name:'Leo Cruz',email:'leo.cruz@beeproduction.studio',role:'artist'},
+    {id:'u3',name:'Leo Cruz',email:'leo.cruz@beeproduction.studio',role:'animator'},
     {id:'u4',name:'Ava Domingo',email:'ava.domingo@beeproduction.studio',role:'animator'},
     {id:'u5',name:'Noah Bautista',email:'noah.bautista@beeproduction.studio',role:'editor'},
-    {id:'u6',name:'Priya Fernandez',email:'priya.fernandez@beeproduction.studio',role:'reviewer'},
+    {id:'u6',name:'Priya Fernandez',email:'priya.fernandez@beeproduction.studio',role:'project_manager'},
     {id:'u7',name:'Skyline Media (Client)',email:'client@skylinemedia.com',role:'client'},
-    {id:'u8',name:'Guest',email:'guest@beeproduction.studio',role:'viewer'},
   ],
   projects:[
     {id:'p1',name:"Skybound Chronicles — Ep.4 “The Hollow Reach”",client:'Meridian Animation Network',
@@ -90,6 +99,14 @@ function latestVersion(a) {
     return last || { status: 'For Review', n: 1, date: '' };
   }
   return { status: 'For Review', n: 1, date: '' };
+}
+
+/* The PHP backend (api/assets.php, api/bootstrap.php) doesn't nest asset_versions into
+   its asset rows, so anything sourced from the server is missing `.versions`. Every asset
+   entering DB.assets must go through this so the rest of the app's `a.versions.length`
+   assumptions never crash. */
+function withVersions(a){
+  return Array.isArray(a && a.versions) ? a : { ...a, versions: [] };
 }
 
 /* Safely execute seed calls if helper function exists */
@@ -189,6 +206,41 @@ const DB_PERSISTED_FIELDS = ['users','projects','assets','comments','notificatio
   }
 })();
 
+/* ===== ROLE MIGRATION: clean up data persisted under roles removed in the 5-role reduction ===== */
+(function migrateLegacyRoles(){
+  const ROLE_MIGRATION = { artist:'animator', reviewer:'project_manager' };
+  const REMOVED_ROLES = ['viewer'];
+  let changed = false;
+
+  DB.users = DB.users.filter(u=>{
+    if(REMOVED_ROLES.includes(u.role)){ changed = true; return false; }
+    return true;
+  });
+  DB.users.forEach(u=>{
+    if(ROLE_MIGRATION[u.role]){ u.role = ROLE_MIGRATION[u.role]; changed = true; }
+  });
+
+  [window.localStorage, window.sessionStorage].forEach(store=>{
+    try{
+      const raw = store.getItem('beeCurrentUser');
+      if(!raw) return;
+      const u = JSON.parse(raw);
+      if(!u || typeof u !== 'object') return;
+      if(REMOVED_ROLES.includes(u.role)){ store.removeItem('beeCurrentUser'); changed = true; return; }
+      if(ROLE_MIGRATION[u.role]){ u.role = ROLE_MIGRATION[u.role]; store.setItem('beeCurrentUser', JSON.stringify(u)); changed = true; }
+    }catch(e){}
+  });
+
+  if(changed){
+    try{
+      const raw = sessionStorage.getItem(DB_PERSIST_KEY);
+      const saved = raw ? JSON.parse(raw) : {};
+      saved.users = DB.users;
+      sessionStorage.setItem(DB_PERSIST_KEY, JSON.stringify(saved));
+    }catch(e){}
+  }
+})();
+
 
 /* ===== STATE: js/core/state.js ===== */
 /* ==========================================================================
@@ -205,8 +257,10 @@ const state = { page:'dashboard', selectedProjectId:null, selectedAssetId:null,
     const params = new URLSearchParams(window.location.search);
     const project = params.get('project');
     const asset = params.get('asset');
+    const status = params.get('status');
     if(project){ state.page='projectDetail'; state.selectedProjectId=project; }
     if(asset){ state.page='assetDetail'; state.selectedAssetId=asset; }
+    if(status && STATUS_CLASS[status]) state.filter.status = status;
   } catch(e) {}
 })();
 
@@ -301,6 +355,7 @@ const Studio = {
     const password = document.getElementById('loginPassword').value;
     const role = document.getElementById('loginRole').value;
     if(!name){ toast('Enter your full name to create an account.','error'); return; }
+    if(!NAME_RE.test(name)){ toast('Name can only contain letters, spaces, hyphens, and apostrophes.','error'); return; }
     if(!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ toast('Enter a valid email.','error'); return; }
     if(password.length < 6){ toast('Password must be at least 6 characters.','error'); return; }
     try {
@@ -308,7 +363,25 @@ const Studio = {
       const data = await parseApiResponse(res);
       if(!res.ok || !data.success) throw new Error(data.error || 'Account creation failed.');
       const u={id:String(data.user.id),name:data.user.full_name,email:data.user.email,role:data.user.role};
-      DB.users.push(u); Studio.completeLogin(u);
+      DB.users.push(u);
+      Studio.openConfirm({
+        title:'Account created!',
+        body:'Welcome, '+esc(u.name)+'. Sign in with your new account to continue.',
+        confirmLabel:'Continue to sign in',
+        hideCancel:true,
+        onConfirm: async ()=>{
+          // The register call already authenticated a session server-side — end it so
+          // signing in below is a real, deliberate login, not a leftover session.
+          try{
+            await fetch('/SIA/api/auth.php', {method:'POST', credentials:'include', headers:{'Content-Type':'application/json'}, body:JSON.stringify({action:'logout'})});
+          }catch(e){}
+          const passwordInput = document.getElementById('loginPassword');
+          if(passwordInput) passwordInput.value = '';
+          document.getElementById('authModeToggle')?.click();
+          const emailInput = document.getElementById('loginEmail');
+          if(emailInput){ emailInput.value = email; emailInput.focus(); }
+        }
+      });
     } catch(e){ toast(e.message || 'Unable to create account.','error'); }
   },
 
@@ -341,7 +414,15 @@ const Studio = {
     toast('Signed in as '+u.name+' ('+ROLE_LABELS[u.role]+').','success');
   },
 
-  logout(){
+  async logout(){
+    try{
+      await fetch('/SIA/api/auth.php', {
+        method:'POST',
+        credentials:'include',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({action:'logout'})
+      });
+    }catch(e){}
     DB.currentUser=null;
     localStorage.removeItem('beeCurrentUser');
     sessionStorage.removeItem('beeCurrentUser');
@@ -370,13 +451,14 @@ const Studio = {
         '<div class="modal-head"><h3 id="confirmTitle">'+esc(opts.title||'Are you sure?')+'</h3></div>' +
         '<p class="confirm-body">'+ (opts.body||'') +'</p>' +
         '<div class="confirm-actions">' +
-          '<button type="button" class="btn" id="confirmCancelBtn">'+esc(opts.cancelLabel||'Cancel')+'</button>' +
+          (opts.hideCancel ? '' : '<button type="button" class="btn" id="confirmCancelBtn">'+esc(opts.cancelLabel||'Cancel')+'</button>') +
           '<button type="button" class="btn '+(opts.danger?'btn-danger':'btn-primary')+'" id="confirmOkBtn">'+esc(opts.confirmLabel||'Yes')+'</button>' +
         '</div>' +
       '</div>';
     document.body.appendChild(overlay);
     overlay.addEventListener('click', e=>{ if(e.target===overlay) Studio.closeConfirm(); });
-    document.getElementById('confirmCancelBtn').onclick = ()=>Studio.closeConfirm();
+    const cancelBtn = document.getElementById('confirmCancelBtn');
+    if(cancelBtn) cancelBtn.onclick = ()=>Studio.closeConfirm();
     document.getElementById('confirmOkBtn').onclick = ()=>{ Studio.closeConfirm(); if(opts.onConfirm) opts.onConfirm(); };
     document.addEventListener('keydown', Studio._confirmEscHandler = e=>{ if(e.key==='Escape') Studio.closeConfirm(); });
     document.getElementById('confirmOkBtn').focus();
@@ -405,11 +487,22 @@ const Studio = {
     Studio.applyTheme();
   },
 
+  goBack(fallback){
+    try{
+      if(document.referrer && new URL(document.referrer).origin === window.location.origin && window.history.length > 1){
+        window.history.back();
+        return;
+      }
+    }catch(e){}
+    Studio.goto(fallback || 'dashboard');
+  },
+
   goto(page, arg){
     const routes = {
       dashboard:'../dashboard/dashboard.html',
       projects:'../projects/projects.html',
       projectDetail:'../projects/projects.html',
+      completedProjects:'../completed-projects/completed-projects.html',
       assets:'../assets/assets.html',
       assetDetail:'../assets/assets.html',
       review:'../review/review.html',
@@ -424,6 +517,7 @@ const Studio = {
     const url = new URL(target, window.location.href);
     if(page==='projectDetail' && arg) url.searchParams.set('project', arg);
     if(page==='assetDetail' && arg) url.searchParams.set('asset', arg);
+    if(page==='assets' && arg) url.searchParams.set('status', arg);
 
     state.page = page;
     if(page==='projectDetail') state.selectedProjectId = arg || null;
@@ -472,7 +566,10 @@ async function loadServerState(){
     const data=await parseApiResponse(res);
     if(!data.success || !data.state) return false;
     const server=data.state;
-    DB_PERSISTED_FIELDS.forEach(key=>{ if(Array.isArray(server[key])) DB[key]=server[key]; });
+    DB_PERSISTED_FIELDS.forEach(key=>{
+      if(!Array.isArray(server[key])) return;
+      DB[key] = key==='assets' ? server[key].map(withVersions) : server[key];
+    });
     if(server.currentUser){
       const su={id:String(server.currentUser.id),name:server.currentUser.full_name,email:server.currentUser.email,role:server.currentUser.role};
       DB.currentUser=su; 
@@ -493,6 +590,7 @@ const NAV = [
   {key:'assets', label:'Assets', icon:'▥'},
   {section:'Review & Collaboration'},
   {key:'review', label:'Review Queue', icon:'✓', badgeFn:()=> (DB.assets || []).filter(a => a && latestVersion(a)?.status === 'For Review').length},
+  {key:'completedProjects', label:'Completed Projects', icon:'☑'},
   {section:'Management'},
   {key:'integrations', label:'Integration Hub', icon:'⇄', perm:'runIntegrations'},
   {key:'resources', label:'Resources & Budget', icon:'₱', perm:'manageResources'},
@@ -503,7 +601,7 @@ const NAV = [
 function renderSidebar(){
   const demoUsers = document.getElementById('demoUsers');
   if(demoUsers) demoUsers.innerHTML = DB.users.slice(0,8).map(u=>
-    '<button class="demo-card" onclick="Studio.quickLogin(\''+u.id+'\')"><b>'+esc(u.name)+'</b><span>'+ROLE_LABELS[u.role]+'</span></button>'
+    '<button class="demo-card" onclick="Studio.quickLogin(\''+u.id+'\')"><b>'+esc(u.name)+'</b><span style="color:var(--'+(ROLE_COLOR_VAR[u.role]||'text-faint')+');">'+ROLE_LABELS[u.role]+'</span></button>'
   ).join('');
 
   const navlist = document.getElementById('navlist');
@@ -582,7 +680,25 @@ Object.assign(Studio, {
       toast('Project name and client are required.','error');
       return;
     }
+    if(!NAME_RE.test(client)){
+      toast('Client name can only contain letters, spaces, hyphens, and apostrophes.','error');
+      return;
+    }
+    const todayISO = new Date().toISOString().slice(0,10);
+    if(deadline && deadline < todayISO){
+      toast('Deadline cannot be in the past.','error');
+      return;
+    }
 
+    Studio.openConfirm({
+      title:'Create this project?',
+      body:'“'+esc(name)+'” for '+esc(client)+' will be added to the board.'+(budget?' Budget: ₱'+budget.toLocaleString()+'.':''),
+      confirmLabel:'Create project',
+      onConfirm:()=>Studio._doCreateProject(name, client, deadline, budget)
+    });
+  },
+
+  _doCreateProject(name, client, deadline, budget){
     const project = {
       name: name,
       client: client,
@@ -642,39 +758,13 @@ Object.assign(Studio, {
         toast('Please select an existing asset.','error');
         return;
       }
-
-      try {
-        const response = await fetch('/SIA/api/assets.php', {
-          method:'POST',
-          credentials:'include',
-          headers:{ 'Content-Type':'application/json' },
-          body:JSON.stringify({ action:'version', asset_id:existingId, notes:notes })
-        });
-
-        const data = await response.json();
-
-        if(!response.ok || !data.success){
-          toast(data.error || 'Failed to save new version.', 'error');
-          return;
-        }
-
-        const asset = assetById(existingId);
-        if(asset){
-          asset.versions = asset.versions || [];
-          asset.versions.push(data.version);
-        }
-
-        const v = data.version;
-        pushAudit('Upload', asset ? asset.title : existingId, 'Submitted v'+v.n+' (auto-status: For Review)');
-        pushEvent('Asset Uploaded', { asset:asset ? asset.title : existingId, version:'v'+v.n, by:DB.currentUser.name });
-        pushNotif('submission', 'New version submitted: “'+(asset ? asset.title : existingId)+'” v'+v.n+' is awaiting review.', existingId);
-        toast('New version submitted — status set to For Review.', 'success');
-        Studio.goto('assetDetail', existingId);
-
-      } catch(error) {
-        console.error('submitAsset version error:', error);
-        toast('Could not connect to the server.', 'error');
-      }
+      const existingAsset = assetById(existingId);
+      Studio.openConfirm({
+        title:'Submit new version?',
+        body:'A new version will be added to “'+esc(existingAsset?existingAsset.title:existingId)+'” and set to For Review.',
+        confirmLabel:'Submit version',
+        onConfirm:()=>Studio._doSubmitVersion(existingId, notes)
+      });
       return;
     }
 
@@ -683,6 +773,50 @@ Object.assign(Studio, {
       return;
     }
 
+    Studio.openConfirm({
+      title:'Submit this asset?',
+      body:'“'+esc(title)+'” will be submitted and set to For Review.',
+      confirmLabel:'Submit asset',
+      onConfirm:()=>Studio._doSubmitNewAsset(project, title, type, link, notes)
+    });
+  },
+
+  async _doSubmitVersion(existingId, notes){
+    try {
+      const response = await fetch('/SIA/api/assets.php', {
+        method:'POST',
+        credentials:'include',
+        headers:{ 'Content-Type':'application/json' },
+        body:JSON.stringify({ action:'version', asset_id:existingId, notes:notes })
+      });
+
+      const data = await response.json();
+
+      if(!response.ok || !data.success){
+        toast(data.error || 'Failed to save new version.', 'error');
+        return;
+      }
+
+      const asset = assetById(existingId);
+      if(asset){
+        asset.versions = asset.versions || [];
+        asset.versions.push(data.version);
+      }
+
+      const v = data.version;
+      pushAudit('Upload', asset ? asset.title : existingId, 'Submitted v'+v.n+' (auto-status: For Review)');
+      pushEvent('Asset Uploaded', { asset:asset ? asset.title : existingId, version:'v'+v.n, by:DB.currentUser.name });
+      pushNotif('submission', 'New version submitted: “'+(asset ? asset.title : existingId)+'” v'+v.n+' is awaiting review.', existingId);
+      toast('New version submitted — status set to For Review.', 'success');
+      Studio.goto('assetDetail', existingId);
+
+    } catch(error) {
+      console.error('submitAsset version error:', error);
+      toast('Could not connect to the server.', 'error');
+    }
+  },
+
+  async _doSubmitNewAsset(project, title, type, link, notes){
     try {
       const response = await fetch('/SIA/api/assets.php', {
         method:'POST',
@@ -698,7 +832,7 @@ Object.assign(Studio, {
         return;
       }
 
-      DB.assets.push(data.asset);
+      DB.assets.push(withVersions(data.asset));
       pushAudit('Upload', title, 'Submitted v1 (auto-status: For Review)');
       pushEvent('Asset Uploaded', { asset:title, version:'v1', by:DB.currentUser.name });
       pushNotif('submission', 'New submission: “'+title+'” is awaiting review.', data.asset.id);
@@ -862,6 +996,7 @@ Object.assign(Studio, {
     const name = document.getElementById('umName').value.trim();
     const role = document.getElementById('umRole').value;
     if(!name){ toast('Enter a name.','error'); return; }
+    if(!NAME_RE.test(name)){ toast('Name can only contain letters, spaces, hyphens, and apostrophes.','error'); return; }
     const u = {id:nid('u'), name, role};
     DB.users.push(u);
     pushAudit('User', name, 'Added to team as '+ROLE_LABELS[role]);
@@ -878,5 +1013,28 @@ Object.assign(Studio, {
     toast(u.name+' is now '+(ROLE_LABELS[role]||role)+'.');
     if(typeof render === 'function') render();
     Studio.persist();
+  },
+
+  deleteUser(uid){
+    if(!can('manageUsers')) return;
+    if(DB.currentUser && DB.currentUser.id === uid){
+      toast('You can’t remove your own account while signed in.','error');
+      return;
+    }
+    const u = userById(uid);
+    if(!u) return;
+    Studio.openConfirm({
+      title:'Remove team member?',
+      body:'“'+esc(u.name)+'” ('+esc(ROLE_LABELS[u.role]||u.role)+') will lose access to the studio. Their past uploads, comments, and approvals stay on record.',
+      confirmLabel:'Remove',
+      danger:true,
+      onConfirm:()=>{
+        DB.users = DB.users.filter(x=>x.id!==uid);
+        pushAudit('User', u.name, 'Removed from team');
+        toast(u.name+' removed from the team.','success');
+        if(typeof render === 'function') render();
+        Studio.persist();
+      }
+    });
   },
 });

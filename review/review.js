@@ -6,7 +6,6 @@ function pageReview(){
   const items = DB.assets.filter(a=>['For Review','Revision Requested'].includes(latestVersion(a).status));
   return `
     <div class="section-title">Review queue</div>
-    <div class="section-sub">Everything waiting on a decision, newest first.</div>
     <div class="card" style="margin-top:16px;">
       ${items.length? items.map(a=>{
         const v = latestVersion(a);
@@ -37,6 +36,7 @@ function render(){
     case 'dashboard': el.innerHTML=pageDashboard(); break;
     case 'projects': el.innerHTML=pageProjects(); break;
     case 'projectDetail': el.innerHTML=pageProjectDetail(); break;
+    case 'completedProjects': el.innerHTML=pageCompletedProjects(); break;
     case 'assets': el.innerHTML=pageAssets(); break;
     case 'assetDetail': el.innerHTML=pageAssetDetail(); break;
     case 'review': el.innerHTML=pageReview(); break;

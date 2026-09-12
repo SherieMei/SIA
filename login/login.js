@@ -6,7 +6,7 @@ document.addEventListener('DOMContentLoaded', () => {
     grid.innerHTML = DB.users.slice(0, 8).map(user => `
       <button type="button" class="demo-card" data-user-id="${user.id}">
         <b>${esc(user.name)}</b>
-        <span>${ROLE_LABELS[user.role]}</span>
+        <span style="color:var(--${ROLE_COLOR_VAR[user.role]||'text-faint'});">${ROLE_LABELS[user.role]}</span>
       </button>
     `).join('');
 
@@ -32,6 +32,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function setMode(next) {
     mode = next;
     const isSignup = mode === 'signup';
+    document.getElementById('loginScreen')?.classList.toggle('signup-mode', isSignup);
     if (nameField) nameField.classList.toggle('hidden', !isSignup);
     if (submitLabel) submitLabel.textContent = isSignup ? 'Create account' : 'Enter studio';
     if (helpText) helpText.textContent = isSignup

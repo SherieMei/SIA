@@ -5,7 +5,6 @@
 function pageUsers(){
   return `
     <div class="section-title">Team &amp; roles</div>
-    <div class="section-sub">Add teammates and set what they can do — role controls what shows up in their studio.</div>
 
     <div class="card" style="padding:20px;margin-top:16px;">
       <h3 style="margin-top:0;font-size:15px;">Add team member</h3>
@@ -20,15 +19,20 @@ function pageUsers(){
 
     <div class="card" style="margin-top:18px;">
       <table>
-        <thead><tr><th>Name</th><th>Role</th><th>Change role</th></tr></thead>
+        <thead><tr><th>Name</th><th>Role</th><th>Change role</th><th></th></tr></thead>
         <tbody>
           ${DB.users.map(u=>`<tr>
             <td style="display:flex;align-items:center;gap:9px;padding-top:10px;"><div class="avatar" style="width:26px;height:26px;font-size:10.5px;">${initials(u.name)}</div>${esc(u.name)}</td>
-            <td><span class="badge b-role">${ROLE_LABELS[u.role]}</span></td>
+            <td><span class="badge b-role b-role-${u.role}">${ROLE_LABELS[u.role]}</span></td>
             <td>
               <select onchange="Studio.changeRole('${u.id}', this.value)">
                 ${Object.entries(ROLE_LABELS).map(([k,v])=>`<option value="${k}" ${u.role===k?'selected':''}>${v}</option>`).join('')}
               </select>
+            </td>
+            <td>
+              ${u.id===DB.currentUser.id
+                ? `<span class="chip" title="You can’t remove your own account">You</span>`
+                : `<button class="btn btn-danger btn-sm" title="Remove ${esc(u.name)} from the team" onclick="Studio.deleteUser('${u.id}')">✕ Remove</button>`}
             </td>
           </tr>`).join('')}
         </tbody>
@@ -47,6 +51,7 @@ function render(){
     case 'dashboard': el.innerHTML=pageDashboard(); break;
     case 'projects': el.innerHTML=pageProjects(); break;
     case 'projectDetail': el.innerHTML=pageProjectDetail(); break;
+    case 'completedProjects': el.innerHTML=pageCompletedProjects(); break;
     case 'assets': el.innerHTML=pageAssets(); break;
     case 'assetDetail': el.innerHTML=pageAssetDetail(); break;
     case 'review': el.innerHTML=pageReview(); break;
@@ -61,9 +66,13 @@ function render(){
 }
 
 document.addEventListener('DOMContentLoaded',()=>{
-  if(!DB.currentUser){ 
-    window.location.assign('../login/login.html'); 
-    return; 
+  if(!DB.currentUser){
+    window.location.assign('../login/login.html');
+    return;
+  }
+  if(!can('manageUsers')){
+    window.location.assign('../dashboard/dashboard.html');
+    return;
   }
 
   const menu=document.getElementById('menuButton');
