@@ -269,3 +269,5 @@ table{width:100%;border-collapse:collapse;font-size:13px}th{text-align:left;font
 [data-theme="dark"] .b-role-admin{color:#d7747c}
 [data-theme="dark"] .b-role-project_manager{color:#8b81cc}
 [data-theme="dark"] .b-role-client{color:#608ece}
+.simple-arrow-btn{background:transparent;border:none;color:var(--text-dim);font-size:20px;line-height:1;padding:0;cursor:pointer;display:inline-flex;align-items:center;flex-shrink:0;transition:transform .16s ease,color .16s ease}
+.simple-arrow-btn:hover{color:var(--coral);transform:translateX(-2px)}

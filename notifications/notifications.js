@@ -6,8 +6,8 @@ function pageNotifications(){
   const list = DB.notifications.slice().reverse();
   return `
     <div class="panel-head">
-      <div><div class="section-title">Notifications</div><div class="section-sub">Submissions, approvals, revisions, and deadlines across every project.</div></div>
-      <button class="btn btn-sm" onclick="Studio.markAllRead()">Mark all as read</button>
+        <div style="display:flex;align-items:center;gap:10px;"><button type="button" class="simple-arrow-btn" title="Back" aria-label="Go back" onclick="Studio.goBack('dashboard')">&larr;</button><div class="section-title">Notifications</div></div>
+    <button class="btn btn-sm" onclick="Studio.markAllRead()">Mark all as read</button>
     </div>
     <div class="card" style="margin-top:14px;">
       ${list.length? list.map(n=>`
@@ -60,6 +60,12 @@ document.addEventListener('DOMContentLoaded',()=>{
       document.getElementById('sidebar')?.classList.toggle('open');
     });
   }
+
+  document.addEventListener('click', (e)=>{
+    if(e.target.closest('#menuButton')){
+      document.getElementById('sidebar')?.classList.toggle('open');
+    }
+  });
 
   // Render the actual page after the separated HTML document loads.
   render();

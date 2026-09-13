@@ -44,8 +44,8 @@ function pageAssets(){
 
   return `
     <div class="panel-head">
-      <div><div class="section-title">Assets</div><div class="section-sub">Storyboards, animatics, character sheets, backgrounds, scenes and renders — with full version history.</div></div>
-      ${can('submitAssets') ? `<button class="btn btn-primary" onclick="Studio.toggleForm('newAssetForm')">+ Submit asset</button>` : ''}
+    <div style="display:flex;align-items:center;gap:10px;"><button type="button" class="simple-arrow-btn" title="Back" aria-label="Go back" onclick="Studio.goBack('dashboard')">&larr;</button><div class="section-title">Assets</div></div>
+    ${can('submitAssets') ? `<button class="btn btn-primary" onclick="Studio.toggleForm('newAssetForm')">+ Submit asset</button>` : ''}
     </div>
 
     ${can('submitAssets') ? `

@@ -9,8 +9,7 @@ function pageCompletedProjects(){
   const completed = DB.projects.filter(p=>projectProgress(p.id)===100);
   return `
     <div class="panel-head">
-      <div><div class="section-title">Completed projects</div></div>
-    </div>
+    <div style="display:flex;align-items:center;gap:10px;"><button type="button" class="simple-arrow-btn" title="Back" aria-label="Go back" onclick="Studio.goBack('dashboard')">&larr;</button><div class="section-title">Completed Projects</div></div>    </div>
     <div class="proj-grid">
       ${completed.length ? completed.map(p=>{
         const assetCount = DB.assets.filter(a=>a.project===p.id).length;
@@ -58,12 +57,11 @@ document.addEventListener('DOMContentLoaded',()=>{
     return;
   }
 
-  const menu=document.getElementById('menuButton');
-  if(menu) {
-    menu.addEventListener('click',()=>{
+  document.addEventListener('click', (e)=>{
+    if(e.target.closest('#menuButton')){
       document.getElementById('sidebar')?.classList.toggle('open');
-    });
-  }
+    }
+  });
 
   // Render the actual page after the separated HTML document loads.
   render();

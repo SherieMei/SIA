@@ -5,7 +5,7 @@
 function pageReview(){
   const items = DB.assets.filter(a=>['For Review','Revision Requested'].includes(latestVersion(a).status));
   return `
-    <div class="section-title">Review queue</div>
+      <div style="display:flex;align-items:center;gap:10px;"><button type="button" class="simple-arrow-btn" title="Back" aria-label="Go back" onclick="Studio.goBack('dashboard')">&larr;</button><div class="section-title">Review Queue</div></div>
     <div class="card" style="margin-top:16px;">
       ${items.length? items.map(a=>{
         const v = latestVersion(a);
@@ -56,12 +56,11 @@ document.addEventListener('DOMContentLoaded',()=>{
     return; 
   }
 
-  const menu=document.getElementById('menuButton');
-  if(menu) {
-    menu.addEventListener('click',()=>{
+    document.addEventListener('click', (e)=>{
+    if(e.target.closest('#menuButton')){
       document.getElementById('sidebar')?.classList.toggle('open');
-    });
-  }
+    }
+  });
 
   // Render the actual page after the separated HTML document loads.
   render();

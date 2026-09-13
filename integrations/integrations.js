@@ -114,12 +114,11 @@ document.addEventListener('DOMContentLoaded',()=>{
     return; 
   }
 
-  const menu=document.getElementById('menuButton');
-  if(menu) {
-    menu.addEventListener('click',()=>{
+    document.addEventListener('click', (e)=>{
+    if(e.target.closest('#menuButton')){
       document.getElementById('sidebar')?.classList.toggle('open');
-    });
-  }
+    }
+  });
 
   // Render the actual page after the separated HTML document loads.
   render();

@@ -141,10 +141,7 @@ function pageDashboard(){
   ];
 
   return `
-    <div class="section-title">
-      Welcome back, ${esc(DB.currentUser.name.split(' ')[0])}
-    </div>
-
+    <div class="section-title">Welcome back, ${esc(DB.currentUser.name.split(' ')[0])}</div>
     <div class="section-sub">
       Signed in as ${ROLE_LABELS[DB.currentUser.role]} · here's where production stands today.
     </div>
@@ -316,15 +313,7 @@ document.addEventListener('DOMContentLoaded',()=>{
     window.location.assign('../login/login.html');
     return;
   }
-
-  const menu=document.getElementById('menuButton');
-
-  if(menu) {
-    menu.addEventListener('click',()=>{
-      document.getElementById('sidebar')?.classList.toggle('open');
-    });
-  }
-
+  
   // Render the actual page after the separated HTML document loads.
   render();
 

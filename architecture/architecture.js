@@ -4,8 +4,7 @@
    ========================================================================== */
 function pageArchitecture(){
   return `
-    <div class="section-title">System architecture</div>
-
+      <div style="display:flex;align-items:center;gap:10px;"><button type="button" class="simple-arrow-btn" title="Back" aria-label="Go back" onclick="Studio.goBack('dashboard')">&larr;</button><div class="section-title">System Architecture</div></div>
     <div class="card" style="padding:22px;margin-top:16px;">
       <h3 style="margin-top:0;">Layered Architecture</h3>
       <p style="color:var(--text-dim);font-size:13.5px;line-height:1.6;">Three layers, each with one job — every rule lives in exactly one place, so behavior never drifts between pages:</p>

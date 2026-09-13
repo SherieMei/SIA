@@ -110,19 +110,20 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 #app{display:block;min-height:100vh}.shell{display:flex;min-height:100vh}
 .sidebar-spacer{width:76px;flex-shrink:0}
 .sidebar{width:76px;flex-shrink:0;background:rgba(255,255,255,.96);border-right:1px solid var(--line);display:flex;flex-direction:column;padding:20px 10px;position:fixed;left:0;top:0;height:100vh;overflow-y:auto;overflow-x:hidden;z-index:40;transition:width .18s ease,padding .18s ease,box-shadow .18s ease}
-.sidebar:hover{width:258px;padding:20px 13px;box-shadow:16px 0 40px rgba(37,48,68,.16)}
+.sidebar:hover{width:180px;padding:14px 10px;box-shadow:16px 0 40px rgba(37,48,68,.16)}
 .brand{display:flex;align-items:center;justify-content:center;gap:10px;padding:5px 0 20px;transition:.16s}
 .sidebar:hover .brand{justify-content:flex-start;padding:5px 9px 20px}
 .brand-mark{width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,var(--coral),#e89aaa);display:flex;align-items:center;justify-content:center;font-family:var(--font-display);color:#fff;font-size:18px;box-shadow:0 8px 18px rgba(216,95,120,.25);flex-shrink:0}
 .brand-text{display:none;white-space:nowrap;min-width:0}
 .sidebar:hover .brand-text{display:block}
-.brand b{font-family:var(--font-display);font-size:22px;letter-spacing:.04em;display:block}.brand small{color:var(--text-faint);font-size:9px;font-family:var(--font-mono);letter-spacing:.04em}
+.brand b{font-family:var(--font-display);font-size:16px;letter-spacing:.02em;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.brand small{color:var(--text-faint);font-size:8px;font-family:var(--font-mono);letter-spacing:.03em}
 .nav-section{height:1px;background:var(--line-soft);margin:12px 8px;padding:0;font-size:0;line-height:0;color:transparent;overflow:hidden;transition:.16s;white-space:nowrap}
 .nav-section:first-child{display:none}
 .sidebar:hover .nav-section{height:auto;background:none;margin:0;padding:14px 10px 6px;font-size:9px;line-height:1.4;color:#aab4c3;font-family:var(--font-mono);letter-spacing:.12em;text-transform:uppercase;overflow:visible}
 .sidebar:hover .nav-section:first-child{display:block}
 .navlist{display:flex;flex-direction:column;gap:3px;flex:1}
-.navitem{display:flex;align-items:center;justify-content:center;gap:0;padding:11px;border-radius:10px;color:var(--text-dim);font-size:13px;font-weight:650;border:1px solid transparent;position:relative;transition:.16s;white-space:nowrap;overflow:hidden}
+.navitem{display:flex;align-items:center;justify-content:center;gap:0;padding:11px;border-radius:10px;color:var(--text-dim);font-size:11.5px;font-weight:650;border:1px solid transparent;position:relative;transition:.16s;white-space:nowrap;overflow:hidden}
+.navitem span:not(.ic){overflow:hidden;text-overflow:ellipsis}
 .sidebar:hover .navitem{justify-content:flex-start;gap:11px;padding:10px 11px}
 .navitem::after{content:'';position:absolute;left:3px;top:8px;bottom:8px;width:3px;border-radius:4px;background:transparent;transition:.16s}
 .navitem:hover{background:#f7f8fb;color:var(--text)}
@@ -137,7 +138,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .avatar{width:34px;height:34px;border-radius:50%;background:#eef7f5;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;flex-shrink:0;border:1px solid #d8ebe8;color:var(--cyan)}
 .side-user .u{display:none;min-width:0}
 .sidebar:hover .side-user .u{display:block}
-.side-user .u b{display:block;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.side-user .u span{font-size:9.5px;color:var(--text-faint);font-family:var(--font-mono);text-transform:uppercase}
+.side-user .u b{display:block;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.side-user .u span{font-size:8.5px;color:var(--text-faint);font-family:var(--font-mono);text-transform:uppercase}
 .side-user button{margin-left:0;background:#f8f9fb;border:1px solid var(--line-soft);color:var(--text-faint);font-size:14px;padding:6px 8px;border-radius:8px}
 .sidebar:hover .side-user button{margin-left:auto}
 .side-user button:hover{color:var(--crimson);background:var(--crimson-glow)}

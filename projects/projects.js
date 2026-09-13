@@ -26,8 +26,7 @@ async function loadProjectsFromDB(){
 function pageProjects(){
   return `
     <div class="panel-head">
-      <div><div class="section-title">Projects</div></div>
-      ${can('manageProjects') ? `<button class="btn btn-primary" onclick="Studio.toggleForm('newProjectForm')">+ Create project</button>` : ''}
+    <div style="display:flex;align-items:center;gap:10px;"><button type="button" class="simple-arrow-btn" title="Back" aria-label="Go back" onclick="Studio.goBack('dashboard')">&larr;</button><div class="section-title">Projects</div></div>
     </div>
     ${can('manageProjects') ? `
     <div id="newProjectForm" class="card hidden" style="padding:20px;margin-top:14px;">
@@ -145,12 +144,11 @@ document.addEventListener('DOMContentLoaded',()=>{
     return; 
   }
 
-  const menu=document.getElementById('menuButton');
-  if(menu) {
-    menu.addEventListener('click',()=>{
+    document.addEventListener('click', (e)=>{
+    if(e.target.closest('#menuButton')){
       document.getElementById('sidebar')?.classList.toggle('open');
-    });
-  }
+    }
+  });
 
   loadProjectsFromDB();
 

@@ -51,3 +51,160 @@ input,select,textarea{font-family:inherit}
 button.navitem{font-family:inherit;text-align:left;width:100%;cursor:pointer}
 button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid var(--coral-glow);outline-offset:1px}
 .panel-head h3{color:var(--text)}
+
+/* ===== GLOBAL SIDEBAR FIX ===== */
+
+@media (min-width:881px){
+
+  .sidebar-spacer{
+    width:160px !important;
+    flex-shrink:0 !important;
+  }
+
+  .sidebar{
+    width:160px !important;
+    flex-shrink:0 !important;
+    transition:none !important;
+  }
+
+  .sidebar:hover{
+    width:160px !important;
+    box-shadow:none !important;
+  }
+
+  .brand{
+    justify-content:flex-start !important;
+  }
+
+  .brand-text{
+    display:block !important;
+  }
+
+  .nav-section{
+    height:auto !important;
+    background:none !important;
+    margin:0 !important;
+    padding:11px 4px 5px !important;
+    overflow:visible !important;
+  }
+
+  .nav-section:first-child{
+    display:block !important;
+  }
+
+  .navitem{
+    justify-content:flex-start !important;
+    gap:7px !important;
+    padding:8px 6px !important;
+  }
+
+  .navitem span:not(.ic){
+    display:inline !important;
+  }
+
+  .navitem .nb{
+    display:inline-flex !important;
+    margin-left:auto !important;
+  }
+
+  .side-user{
+    justify-content:flex-start !important;
+  }
+
+  .side-user .u{
+    display:block !important;
+  }
+
+  .side-user button{
+    margin-left:auto !important;
+  }
+
+  /* TOPBAR LEFT */
+  .topbar{
+  justify-content:flex-end !important;
+}
+
+.top-actions{
+  justify-content:flex-end !important;
+  margin-left:auto !important;
+  margin-right:0 !important;
+}
+
+
+/* ===== BACK BUTTON ===== */
+
+.section-title .page-back-btn{
+  order:-1 !important;
+  flex-shrink:0 !important;
+  margin:0 !important;
+}
+
+
+/* ===== MOBILE ===== */
+
+@media(max-width:880px){
+
+  .sidebar{
+    width:258px !important;
+    padding:20px 13px !important;
+  }
+
+  .sidebar-spacer{
+    display:none !important;
+  }
+
+  .brand{
+    justify-content:flex-start !important;
+  }
+
+  .brand-text{
+    display:block !important;
+  }
+
+  .nav-section{
+    height:auto !important;
+    background:none !important;
+    margin:0 !important;
+    padding:14px 10px 6px !important;
+    overflow:visible !important;
+  }
+
+  .nav-section:first-child{
+    display:block !important;
+  }
+
+  .navitem{
+    justify-content:flex-start !important;
+    gap:11px !important;
+    padding:10px 11px !important;
+  }
+
+  .navitem span:not(.ic){
+    display:inline !important;
+  }
+
+  .navitem .nb{
+    display:inline-flex !important;
+  }
+
+  .side-user{
+    justify-content:flex-start !important;
+  }
+
+  .side-user .u{
+    display:block !important;
+  }
+
+  .side-user button{
+    margin-left:auto !important;
+  }
+
+  .topbar{
+    justify-content:flex-start !important;
+  }
+
+  .top-actions{
+    justify-content:flex-start !important;
+    margin-left:0 !important;
+  }
+}

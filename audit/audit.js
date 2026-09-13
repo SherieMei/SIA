@@ -4,8 +4,8 @@
    ========================================================================== */
 function pageAudit(){
   return `
-    <div class="section-title">Audit log</div>
-    <div class="card" style="margin-top:16px;">
+      <div style="display:flex;align-items:center;gap:10px;"><button type="button" id="menuButton" class="simple-arrow-btn" aria-label="Toggle navigation sidebar">&larr;</button><div class="section-title">Audit log</div></div>
+  <div class="card" style="margin-top:16px;">
       <table>
         <thead><tr><th>Time</th><th>User</th><th>Action</th><th>Entity</th><th>Detail</th></tr></thead>
         <tbody>
@@ -56,12 +56,11 @@ document.addEventListener('DOMContentLoaded',()=>{
     return;
   }
 
-  const menu=document.getElementById('menuButton');
-  if(menu) {
-    menu.addEventListener('click',()=>{
+    document.addEventListener('click', (e)=>{
+    if(e.target.closest('#menuButton')){
       document.getElementById('sidebar')?.classList.toggle('open');
-    });
-  }
+    }
+  });
 
   // Render the actual page after the separated HTML document loads.
   render();

@@ -4,8 +4,7 @@
    ========================================================================== */
 function pageUsers(){
   return `
-    <div class="section-title">Team &amp; roles</div>
-
+      <div style="display:flex;align-items:center;gap:10px;"><button type="button" class="simple-arrow-btn" title="Back" aria-label="Go back" onclick="Studio.goBack('dashboard')">&larr;</button><div class="section-title">Team & Roles</div></div>
     <div class="card" style="padding:20px;margin-top:16px;">
       <h3 style="margin-top:0;font-size:15px;">Add team member</h3>
       <div class="field-row">

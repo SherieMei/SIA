@@ -4,8 +4,7 @@
    ========================================================================== */
 function pageResources(){
   return `
-    <div class="section-title">Resources &amp; budget</div>
-
+      <div style="display:flex;align-items:center;gap:10px;"><button type="button" class="simple-arrow-btn" title="Back" aria-label="Go back" onclick="Studio.goBack('dashboard')">&larr;</button><div class="section-title">Resources & Budget</div></div>
     <div class="proj-grid" style="margin-top:18px;">
       ${DB.projects.map(p=>{
         const items = DB.resources.filter(r=>r.project===p.id);
