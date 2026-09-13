@@ -269,3 +269,59 @@ table{width:100%;border-collapse:collapse;font-size:13px}th{text-align:left;font
 [data-theme="dark"] .b-role-admin{color:#d7747c}
 [data-theme="dark"] .b-role-project_manager{color:#8b81cc}
 [data-theme="dark"] .b-role-client{color:#608ece}
+
+/* =========================================================
+   ASSETS STATUS CARDS
+   Added only for the Assets page status filters
+   ========================================================= */
+
+.assets-status-grid{
+  margin-top:22px;
+  margin-bottom:28px;
+}
+
+.asset-status-card{
+  width:100%;
+  border:1px solid var(--line-soft);
+  text-align:left;
+  font-family:inherit;
+  cursor:pointer;
+  transition:transform .18s ease,
+             box-shadow .18s ease,
+             border-color .18s ease;
+}
+
+.asset-status-card:hover{
+  transform:translateY(-2px);
+  box-shadow:var(--shadow-hover);
+  border-color:var(--line);
+}
+
+.asset-status-card:focus-visible{
+  outline:3px solid var(--coral-glow);
+  outline-offset:2px;
+}
+
+.asset-status-card.active{
+  box-shadow:0 0 0 2px var(--coral-glow), var(--shadow);
+  border-color:#e9b6c1;
+}
+
+.asset-status-card .l{
+  font-size:11px;
+  color:var(--text-dim);
+  margin-top:7px;
+  font-weight:700;
+}
+
+@media(max-width:1100px){
+  .assets-status-grid{
+    grid-template-columns:repeat(2,1fr);
+  }
+}
+
+@media(max-width:560px){
+  .assets-status-grid{
+    grid-template-columns:1fr;
+  }
+}

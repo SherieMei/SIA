@@ -13,9 +13,38 @@ function pageAssets(){
   const types = Object.keys(TYPE_META);
   const statuses = ['For Review','Approved','Rejected','Revision Requested','Final'];
 
+  /* Added only for the Assets status cards */
+  const statusCards = [
+    {
+      status:'For Review',
+      className:'b-review',
+      color:'var(--coral)'
+    },
+    {
+      status:'Approved',
+      className:'b-approved',
+      color:'var(--cyan)'
+    },
+    {
+      status:'Rejected',
+      className:'b-rejected',
+      color:'var(--crimson)'
+    },
+    {
+      status:'Revision Requested',
+      className:'b-revision',
+      color:'var(--violet)'
+    },
+    {
+      status:'Final',
+      className:'b-final',
+      color:'var(--gold)'
+    }
+  ];
+
   return `
     <div class="panel-head">
-      <div><div class="section-title">Assets</div></div>
+      <div><div class="section-title">Assets</div><div class="section-sub">Storyboards, animatics, character sheets, backgrounds, scenes and renders — with full version history.</div></div>
       ${can('submitAssets') ? `<button class="btn btn-primary" onclick="Studio.toggleForm('newAssetForm')">+ Submit asset</button>` : ''}
     </div>
 
@@ -50,6 +79,27 @@ function pageAssets(){
       <span style="font-size:11.5px;color:var(--text-faint);margin-left:10px;">Workflow automation will move this asset into the review queue automatically.</span>
     </div>` : ''}
 
+    <!-- Added: Asset status cards -->
+    <div class="stat-grid assets-status-grid">
+      ${statusCards.map(s=>{
+        const count = DB.assets.filter(a=>latestVersion(a).status===s.status).length;
+        const active = f.status===s.status;
+        return `
+          <button
+            type="button"
+            class="card stat asset-status-card ${active?'active':''}"
+            onclick="Studio.setFilter('status','${s.status}')"
+            aria-label="Show ${s.status} assets"
+            title="Show ${s.status} assets"
+          >
+            <div class="bar" style="background:${s.color}"></div>
+            <div class="n">${count}</div>
+            <div class="l">${s.status}</div>
+          </button>
+        `;
+      }).join('')}
+    </div>
+
     <div class="toolbar">
       <select onchange="Studio.setFilter('project',this.value)">
         <option value="all">All projects</option>
@@ -75,7 +125,7 @@ function pageAssets(){
           <div class="type-tag" style="background:${meta.color}22;color:${meta.color};">${meta.tag}</div>
           <div style="flex:1;">
             <div class="row-title">${esc(a.title)}</div>
-            <div class="row-sub">${proj?esc(proj.name):''} · ${(a.versions||[]).length} version(s) · updated ${fmtDate(v.date)}</div>
+            <div class="row-sub">${proj?esc(proj.name):''} · ${a.versions.length} version(s) · updated ${fmtDate(v.date)}</div>
           </div>
           <span class="vtag">v${String(v.n).padStart(2,'0')}</span>
           <span class="badge ${STATUS_CLASS[v.status]}">${v.status}</span>
@@ -92,11 +142,12 @@ function pageAssetDetail(){
   const meta = TYPE_META[a.type];
   const v = latestVersion(a);
   const comments = DB.comments.filter(c=>c.asset===a.id);
-  const canReviewNow = can('review') && v.status === 'For Review';
+  const canReviewNow = can('review') && ['For Review','Revision Requested'].includes(v.status);
   const isRender = a.type==='Render';
 
   return `
-    <div class="card" style="padding:22px;">
+    <button class="btn btn-ghost btn-sm" onclick="Studio.goto('assets')">← All assets</button>
+    <div class="card" style="padding:22px;margin-top:14px;">
       <div style="display:flex;gap:14px;align-items:flex-start;">
         <div class="type-tag" style="background:${meta.color}22;color:${meta.color};width:46px;height:46px;font-size:13px;">${meta.tag}</div>
         <div style="flex:1;">
@@ -115,7 +166,7 @@ function pageAssetDetail(){
     <div class="grid-2" style="margin-top:20px;">
       <div>
         <h3 style="font-size:15px;">Version history</h3>
-        ${(a.versions||[]).length ? (a.versions.slice().reverse().map(ver=>{
+        ${a.versions.slice().reverse().map(ver=>{
           const author = userById(ver.by);
           return `<div class="version-item ${ver.id===v.id?'latest':''}">
             <div class="vh-top">
@@ -126,7 +177,7 @@ function pageAssetDetail(){
             <div style="font-size:13px;margin-top:8px;color:var(--text-dim);">${esc(ver.notes||'—')}</div>
             <div style="font-size:11px;color:var(--text-faint);margin-top:6px;" class="mono">Submitted by ${author?esc(author.name):'—'}</div>
           </div>`;
-        }).join('')) : `<div class="empty">No versions on record.</div>`}
+        }).join('')}
 
         ${canReviewNow ? `
         <div class="card" style="padding:18px;margin-top:6px;">
@@ -151,7 +202,7 @@ function pageAssetDetail(){
             return `<div class="comment">
               <div class="avatar" style="width:30px;height:30px;font-size:11px;">${initials(u?u.name:'?')}</div>
               <div class="body">
-                <div class="meta"><b>${u?esc(u.name):'Unknown'}</b>${u?`<span class="badge b-role b-role-${u.role}">${ROLE_LABELS[u.role]}</span>`:''}<span>${fmtDate(c.date)}</span></div>
+                <div class="meta"><b>${u?esc(u.name):'Unknown'}</b><span>${u?ROLE_LABELS[u.role]:''}</span><span>${fmtDate(c.date)}</span></div>
                 <div class="txt">${esc(c.text)}</div>
               </div>
             </div>`;
@@ -176,7 +227,6 @@ function render(){
     case 'dashboard': el.innerHTML=pageDashboard(); break;
     case 'projects': el.innerHTML=pageProjects(); break;
     case 'projectDetail': el.innerHTML=pageProjectDetail(); break;
-    case 'completedProjects': el.innerHTML=pageCompletedProjects(); break;
     case 'assets': el.innerHTML=pageAssets(); break;
     case 'assetDetail': el.innerHTML=pageAssetDetail(); break;
     case 'review': el.innerHTML=pageReview(); break;
