@@ -708,7 +708,7 @@ Object.assign(Studio, {
       budget: budget
     };
 
-    fetch('/SIA/api/projects.php', {
+    fetch('http://localhost/SIA/api/projects.php', {
       method: 'POST',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
@@ -887,15 +887,38 @@ Object.assign(Studio, {
       DB.comments.push({id:nid('c'), asset:asset.id, by:DB.currentUser.id, text, date:new Date().toISOString().slice(0,10)});
     }
     if(typeof render === 'function') render();
-    Studio.persist();
-  },
+      Studio.persist();
 
-  quickApprove(assetId){
-    state.selectedAssetId = assetId;
-    Studio.reviewAsset(assetId,'approve');
-    toast('Approved from Review Queue.','success');
-  },
-});
+      fetch('http://localhost/SIA/api/assets.php', {
+        method: 'PUT',
+        credentials: 'include',
+        headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+      asset_id: asset.id,
+      version: v.n,
+      status: v.status,
+      approved_by: DB.currentUser.name
+      })
+    })
+    .then(response => parseApiResponse(response))
+    .then(data => {
+      if(!data.success){
+        console.error('Failed to update asset status:', data);
+      }
+    })
+    .catch(error => {
+      console.error('Asset status update error:', error);
+    });
+      },
+
+      quickApprove(assetId){
+        state.selectedAssetId = assetId;
+        Studio.reviewAsset(assetId,'approve');
+        toast('Approved from Review Queue.','success');
+      },
+    });
 
 /* ===== FEEDBACK ACTIONS: js/actions/feedback.js ===== */
 Object.assign(Studio, {

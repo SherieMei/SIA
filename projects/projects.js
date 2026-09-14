@@ -26,8 +26,17 @@ async function loadProjectsFromDB(){
 function pageProjects(){
   return `
     <div class="panel-head">
-    <div style="display:flex;align-items:center;gap:10px;"><button type="button" class="simple-arrow-btn" title="Back" aria-label="Go back" onclick="Studio.goBack('dashboard')">&larr;</button><div class="section-title">Projects</div></div>
-    </div>
+  <div style="display:flex;align-items:center;gap:10px;">
+    <button type="button" class="simple-arrow-btn" title="Back" aria-label="Go back" onclick="Studio.goBack('dashboard')">&larr;</button>
+    <div class="section-title">Projects</div>
+  </div>
+
+  ${can('manageProjects') ? `
+    <button class="btn btn-primary" onclick="Studio.toggleForm('newProjectForm')">
+      + Create project
+    </button>
+  ` : ''}
+</div>
     ${can('manageProjects') ? `
     <div id="newProjectForm" class="card hidden" style="padding:20px;margin-top:14px;">
       <h3 style="margin-top:0;font-size:15px;">New project</h3>

@@ -95,6 +95,78 @@ try {
         $link       = $input['link'] ?? $input['external_link'] ?? '';
         $notes      = $input['notes'] ?? '';
 
+        if (($input['action'] ?? '') === 'version') {
+
+    $assetId = $input['asset_id'] ?? null;
+
+    if (!$assetId) {
+        ob_clean();
+        http_response_code(400);
+        echo json_encode([
+            "success" => false,
+            "error" => "Asset ID is required."
+        ]);
+        exit();
+    }
+
+    // Get the latest version number
+    $stmt = $pdo->prepare("
+        SELECT MAX(version_no) AS latest_version
+        FROM asset_versions
+        WHERE asset_id = ?
+    ");
+    $stmt->execute([$assetId]);
+
+    $row = $stmt->fetch();
+    $nextVersion = ((int)($row['latest_version'] ?? 0)) + 1;
+
+    // Generate version ID
+    $versionId = 'v' . bin2hex(random_bytes(6));
+
+    // Current user
+    $uploadedBy = $_SESSION['user']['full_name']
+        ?? $_SESSION['user']['name']
+        ?? 'User';
+
+    // Insert new version
+    $stmt = $pdo->prepare("
+        INSERT INTO asset_versions
+        (
+            id,
+            asset_id,
+            version_no,
+            status,
+            notes,
+            uploaded_by,
+            uploaded_at
+        )
+        VALUES (?, ?, ?, ?, ?, ?, NOW())
+    ");
+
+    $stmt->execute([
+        $versionId,
+        $assetId,
+        $nextVersion,
+        'For Review',
+        $notes,
+        $uploadedBy
+    ]);
+
+    echo json_encode([
+        "success" => true,
+        "version" => [
+            "id" => $versionId,
+            "n" => $nextVersion,
+            "status" => "For Review",
+            "notes" => $notes,
+            "by" => $uploadedBy,
+            "date" => date('Y-m-d H:i:s')
+        ]
+    ], JSON_UNESCAPED_UNICODE);
+
+    exit();
+}
+
         if (empty($title)) {
             ob_clean();
             http_response_code(400);
@@ -136,6 +208,51 @@ try {
             ]
         ]);
     }
+
+    if ($method === 'PUT') {
+    $rawInput = file_get_contents('php://input');
+    $input = json_decode($rawInput, true);
+
+    if (!$input) {
+        ob_clean();
+        http_response_code(400);
+        echo json_encode([
+            "success" => false,
+            "error" => "No JSON payload received."
+        ]);
+        exit();
+    }
+
+    $assetId = $input['asset_id'] ?? null;
+    $versionNo = $input['version'] ?? null;
+    $status = $input['status'] ?? null;
+    $approvedBy = $input['approved_by'] ?? null;
+
+    if (!$assetId || !$versionNo || !$status) {
+        ob_clean();
+        http_response_code(400);
+        echo json_encode([
+            "success" => false,
+            "error" => "Asset ID, version, and status are required."
+        ]);
+        exit();
+    }
+
+    $stmt = $pdo->prepare("
+        UPDATE asset_versions
+        SET status = ?, approved_by = ?
+        WHERE asset_id = ? AND version_no = ?
+    ");
+
+    $stmt->execute([$status, $approvedBy, $assetId, $versionNo]);
+
+    ob_clean();
+    echo json_encode([
+        "success" => true,
+        "message" => "Asset status updated successfully."
+    ]);
+    exit();
+}
 
 } catch (Exception $e) {
     ob_clean();
