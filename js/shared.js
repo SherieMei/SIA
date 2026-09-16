@@ -59,15 +59,7 @@ function nid(prefix){ idCounters[prefix]++; return prefix+idCounters[prefix]; }
 
 const DB = {
   currentUser:null,
-  users:[
-    {id:'u1',name:'Jordan Reyes',email:'jordan.reyes@beeproduction.studio',role:'admin'},
-    {id:'u2',name:'Mika Santos',email:'mika.santos@beeproduction.studio',role:'project_manager'},
-    {id:'u3',name:'Leo Cruz',email:'leo.cruz@beeproduction.studio',role:'animator'},
-    {id:'u4',name:'Ava Domingo',email:'ava.domingo@beeproduction.studio',role:'animator'},
-    {id:'u5',name:'Noah Bautista',email:'noah.bautista@beeproduction.studio',role:'editor'},
-    {id:'u6',name:'Priya Fernandez',email:'priya.fernandez@beeproduction.studio',role:'project_manager'},
-    {id:'u7',name:'Skyline Media (Client)',email:'client@skylinemedia.com',role:'client'},
-  ],
+  users:[],
   projects:[
     {id:'p1',name:"Skybound Chronicles — Ep.4 “The Hollow Reach”",client:'Meridian Animation Network',
      status:'In Production',deadline:'2026-10-15',pm:'u2',team:['u3','u4','u5','u6'],budget:48000},
@@ -370,8 +362,6 @@ const Studio = {
         confirmLabel:'Continue to sign in',
         hideCancel:true,
         onConfirm: async ()=>{
-          // The register call already authenticated a session server-side — end it so
-          // signing in below is a real, deliberate login, not a leftover session.
           try{
             await fetch('/SIA/api/auth.php', {method:'POST', credentials:'include', headers:{'Content-Type':'application/json'}, body:JSON.stringify({action:'logout'})});
           }catch(e){}
@@ -389,8 +379,11 @@ const Studio = {
     const u = userById(id);
     if(!u) return;
     document.getElementById('loginEmail').value=u.email||'';
-    document.getElementById('loginPassword').value='password123';
-    await Studio.manualLogin(); 
+    const password = document.getElementById('loginPassword');
+    if(password){
+      password.value='';
+      password.focus();
+    }
   },
 
   completeLogin(u){
@@ -551,11 +544,6 @@ try{
   }
 }catch(e){
   sessionStorage.removeItem('beeCurrentUser');
-}
-
-/* Fallback auto-assign session if opening assets or other pages directly in dev */
-if(!DB.currentUser && DB.users.length > 0) {
-  DB.currentUser = DB.users[0];
 }
 
 async function loadServerState(){
