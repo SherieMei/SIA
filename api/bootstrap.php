@@ -17,8 +17,20 @@ try {
         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC
     ]);
 
+    if (isset($_SESSION['user']) && $_SESSION['user']['role'] === 'client') {
+    $stmt = $pdo->prepare("
+        SELECT a.*
+        FROM assets a
+        INNER JOIN projects p ON a.project_id = p.id
+        WHERE p.client_id = ?
+        ORDER BY a.id DESC
+    ");
+    $stmt->execute([$_SESSION['user']['id']]);
+} else {
     $stmt = $pdo->query("SELECT * FROM assets ORDER BY id DESC");
-    $rawAssets = $stmt->fetchAll();
+}
+
+$rawAssets = $stmt->fetchAll();
 
     // Group asset_versions by asset_id so each asset can carry its own version history —
     // the client always expects `versions` to be an array (see js/shared.js withVersions()).

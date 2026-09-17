@@ -19,8 +19,44 @@ try {
 
     $method = $_SERVER['REQUEST_METHOD'];
 
+        function createReviewNotifications($pdo, $assetTitle, $versionNo) {
+        $stmt = $pdo->query("
+            SELECT id
+            FROM app_users
+            WHERE role IN ('admin', 'project_manager')
+        ");
+
+        $users = $stmt->fetchAll();
+
+        $notify = $pdo->prepare("
+            INSERT INTO notifications
+            (user_id, title, message, type, is_read)
+            VALUES (?, ?, ?, ?, 0)
+        ");
+
+        foreach ($users as $user) {
+            $notify->execute([
+                $user['id'],
+                'New Asset for Review',
+                "A new version (V{$versionNo}) of '{$assetTitle}' is waiting for review.",
+                'asset_review'
+            ]);
+        }
+    }
+
     function respondWithState($pdo, $extraData = []) {
-        $stmt = $pdo->query("SELECT * FROM assets ORDER BY id DESC");
+        if ($_SESSION['user']['role'] === 'client') {
+    $stmt = $pdo->prepare("
+        SELECT a.*
+        FROM assets a
+        INNER JOIN projects p ON a.project_id = p.id
+        WHERE p.client_id = ?
+        ORDER BY a.id DESC
+    ");
+    $stmt->execute([$_SESSION['user']['id']]);
+} else {
+    $stmt = $pdo->query("SELECT * FROM assets ORDER BY id DESC");
+}
         $rawAssets = $stmt->fetchAll();
 
         // Group asset_versions by asset_id so each asset can carry its own version history —
@@ -151,6 +187,21 @@ try {
         $notes,
         $uploadedBy
     ]);
+
+        // Notify admins and project managers
+    $assetStmt = $pdo->prepare("
+        SELECT asset_title
+        FROM assets
+        WHERE id = ?
+    ");
+    $assetStmt->execute([$assetId]);
+    $assetRow = $assetStmt->fetch();
+
+    createReviewNotifications(
+        $pdo,
+        $assetRow['asset_title'] ?? 'Untitled Asset',
+        $nextVersion
+    );
 
     echo json_encode([
         "success" => true,
