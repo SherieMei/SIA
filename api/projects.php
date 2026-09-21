@@ -33,6 +33,27 @@ if (!isset($_SESSION['user'])) {
     exit;
 }
 
+/* =========================================================
+   AUDIT LOG
+   ========================================================= */
+
+function createAuditLog($pdo, $action, $entity = null, $details = null) {
+    $userId = $_SESSION['user']['id'] ?? null;
+
+    $stmt = $pdo->prepare("
+        INSERT INTO audit_logs
+        (user_id, action, entity, detail)
+        VALUES (?, ?, ?, ?)
+    ");
+
+    $stmt->execute([
+        $userId,
+        $action,
+        $entity,
+        $details
+    ]);
+}
+
 
 /* =========================================================
    GET PROJECTS
@@ -81,6 +102,53 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     }
 
     $projects = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    /* =========================================================
+   AUTO UPDATE COMPLETED PROJECTS
+   ========================================================= */
+
+foreach ($projects as $p) {
+
+    $checkStmt = $pdo->prepare("
+        SELECT
+            COUNT(*) AS total_assets,
+            SUM(
+                CASE
+                    WHEN av.status IN ('Approved', 'Final')
+                    THEN 1
+                    ELSE 0
+                END
+            ) AS completed_assets
+        FROM assets a
+        LEFT JOIN asset_versions av
+            ON av.asset_id = a.id
+            AND av.version_no = (
+                SELECT MAX(version_no)
+                FROM asset_versions
+                WHERE asset_id = a.id
+            )
+        WHERE a.project_id = ?
+    ");
+
+    $checkStmt->execute([$p['id']]);
+    $check = $checkStmt->fetch(PDO::FETCH_ASSOC);
+
+    if (
+        $check &&
+        $check['total_assets'] > 0 &&
+        $check['total_assets'] == $check['completed_assets'] &&
+        $p['status'] !== 'Completed'
+    ) {
+
+        $updateStmt = $pdo->prepare("
+            UPDATE projects
+            SET status = 'Completed'
+            WHERE id = ?
+        ");
+
+        $updateStmt->execute([$p['id']]);
+
+    }
+}
 
     echo json_encode([
         'success' => true,
@@ -192,6 +260,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $budget
     ]);
 
+    createAuditLog(
+    $pdo,
+    'Created',
+    'Project',
+    "Created project {$id} - {$name}"
+    );
+
 
     /* Return created project */
 
@@ -208,6 +283,77 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'budget' => $budget,
             'project_manager_id' => $projectManager
         ]
+    ], JSON_UNESCAPED_UNICODE);
+
+    exit;
+}
+
+/* =========================================================
+   UPDATE PROJECT
+   ========================================================= */
+
+if ($_SERVER['REQUEST_METHOD'] === 'PUT') {
+
+    $in = json_decode(
+        file_get_contents('php://input'),
+        true
+    ) ?? [];
+
+    $id = $in['id'] ?? null;
+    $name = trim($in['name'] ?? '');
+    $client = trim($in['client'] ?? '');
+    $deadline = $in['deadline'] ?? null;
+    $clientId = $in['client_id'] ?? null;
+    $producer = $in['producer'] ?? '';
+    $status = $in['status'] ?? 'Pre-Production';
+    $projectManager = $in['pm'] ?? $in['project_manager_id'] ?? null;
+    $budget = (float)($in['budget'] ?? 0);
+
+    if (!$id || !$name || !$client) {
+        http_response_code(400);
+        echo json_encode([
+            'success' => false,
+            'message' => 'Project ID, name, and client are required.'
+        ]);
+        exit;
+    }
+
+    $stmt = $pdo->prepare("
+        UPDATE projects
+        SET
+            name = ?,
+            client = ?,
+            client_id = ?,
+            producer = ?,
+            status = ?,
+            deadline = ?,
+            pm = ?,
+            budget = ?
+        WHERE id = ?
+    ");
+
+    $stmt->execute([
+        $name,
+        $client,
+        $clientId,
+        $producer,
+        $status,
+        $deadline ?: null,
+        $projectManager,
+        $budget,
+        $id
+    ]);
+
+    createAuditLog(
+        $pdo,
+        'Updated',
+        'Project',
+        "Updated project {$id} - {$name}"
+    );
+
+    echo json_encode([
+        'success' => true,
+        'message' => 'Project updated successfully.'
     ], JSON_UNESCAPED_UNICODE);
 
     exit;

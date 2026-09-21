@@ -2,6 +2,42 @@
    REVIEW / APPROVAL ACTIONS — approve, reject, request revision.
    Also fires the webhook simulation on every approval.
    ========================================================================== */
+async function checkProjectCompletion(projectId) {
+  const projectAssets = DB.assets.filter(a => a.project === projectId);
+
+  if (!projectAssets.length) return;
+
+  const allCompleted = projectAssets.every(a => {
+    const v = latestVersion(a);
+    return v && (v.status === 'Approved' || v.status === 'Final');
+  });
+
+  if (!allCompleted) return;
+
+  const project = DB.projects.find(p => p.id === projectId);
+  if (!project || project.status === 'Completed') return;
+
+  project.status = 'Completed';
+  await fetch('http://localhost/SIA/api/projects.php', {
+  method: 'PUT',
+  credentials: 'include',
+  headers: {
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    id: project.id,
+    name: project.name,
+    client: project.client,
+    client_id: project.client_id,
+    producer: project.producer,
+    status: 'Completed',
+    deadline: project.deadline,
+    pm: project.pm,
+    budget: project.budget
+  })
+});
+}
+
 Object.assign(Studio, {
 
   async reviewAsset(assetId, decision){
@@ -57,6 +93,9 @@ Object.assign(Studio, {
     }
 
     v.status = data.status || status;
+    if (decision === 'approve') {
+      await checkProjectCompletion(asset.project);
+    }
 
     if(decision === 'approve'){
       pushAudit('Approval', asset.title, 'v'+v.n+' approved');

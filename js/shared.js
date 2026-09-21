@@ -891,11 +891,13 @@ Object.assign(Studio, {
       })
     })
     .then(response => parseApiResponse(response))
-    .then(data => {
-      if(!data.success){
-        console.error('Failed to update asset status:', data);
-      }
-    })
+    .then(async data => {
+    if(!data.success){
+      console.error('Failed to update asset status:', data);
+    }
+    await checkProjectCompletion(asset.project);  
+  })
+
     .catch(error => {
       console.error('Asset status update error:', error);
     });

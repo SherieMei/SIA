@@ -42,10 +42,17 @@ function pageResources(){
       <table>
         <thead><tr><th>Project</th><th>Category</th><th>Description</th><th>Cost</th><th>Hours</th></tr></thead>
         <tbody>
-          ${DB.resources.slice().reverse().map(r=>`<tr>
-            <td>${esc(projectById(r.project).name)}</td><td>${esc(r.category)}</td><td>${esc(r.desc)}</td>
-            <td class="mono">₱${r.cost.toLocaleString()}</td><td class="mono">${r.hours}h</td>
-          </tr>`).join('')}
+          ${DB.resources.slice().reverse().map(r=>{
+          const project = projectById(r.project);
+
+          return `<tr>
+            <td>${esc(project ? project.name : 'Unknown Project')}</td>
+            <td>${esc(r.category)}</td>
+            <td>${esc(r.desc)}</td>
+            <td class="mono">₱${r.cost.toLocaleString()}</td>
+            <td class="mono">${r.hours}h</td>
+            </tr>`;
+          }).join('')}
         </tbody>
       </table>
     </div>

@@ -44,6 +44,23 @@ try {
         }
     }
 
+    function createAuditLog($pdo, $action, $entity = null, $details = null) {
+    $userId = $_SESSION['user']['id'] ?? null;
+
+    $stmt = $pdo->prepare("
+        INSERT INTO audit_logs
+        (user_id, action, entity, detail)
+        VALUES (?, ?, ?, ?)
+    ");
+
+    $stmt->execute([
+        $userId,
+        $action,
+        $entity,
+        $details
+    ]);
+}
+
     function respondWithState($pdo, $extraData = []) {
         if ($_SESSION['user']['role'] === 'client') {
     $stmt = $pdo->prepare("
@@ -131,6 +148,99 @@ try {
         $link       = $input['link'] ?? $input['external_link'] ?? '';
         $notes      = $input['notes'] ?? '';
 
+        if (($input['action'] ?? '') === 'update_status') {
+    $assetId = $input['asset_id'] ?? null;
+    $status = $input['status'] ?? null;
+
+    if (!$assetId || !$status) {
+        ob_clean();
+        http_response_code(400);
+        echo json_encode([
+            "success" => false,
+            "error" => "Asset ID and status are required."
+        ]);
+        exit();
+    }
+
+    $stmt = $pdo->prepare("
+        UPDATE asset_versions
+        SET status = ?
+        WHERE asset_id = ?
+        ORDER BY version_no DESC
+        LIMIT 1
+    ");
+
+    $stmt->execute([
+        $status,
+        $assetId
+    ]);
+
+    // Check if all assets under this project are completed
+if ($status === 'Approved' || $status === 'Final') {
+
+    $projectStmt = $pdo->prepare("
+        SELECT project_id
+        FROM assets
+        WHERE id = ?
+    ");
+    $projectStmt->execute([$assetId]);
+    $assetRow = $projectStmt->fetch();
+
+    if ($assetRow) {
+        $projectId = $assetRow['project_id'];
+
+        $checkStmt = $pdo->prepare("
+            SELECT COUNT(*) AS total,
+                   SUM(
+                       CASE
+                           WHEN av.status IN ('Approved', 'Final')
+                           THEN 1
+                           ELSE 0
+                       END
+                   ) AS completed
+            FROM assets a
+            LEFT JOIN (
+                SELECT av1.asset_id, av1.status
+                FROM asset_versions av1
+                INNER JOIN (
+                    SELECT asset_id, MAX(version_no) AS max_version
+                    FROM asset_versions
+                    GROUP BY asset_id
+                ) av2
+                ON av1.asset_id = av2.asset_id
+                AND av1.version_no = av2.max_version
+            ) av
+            ON a.id = av.asset_id
+            WHERE a.project_id = ?
+        ");
+
+        $checkStmt->execute([$projectId]);
+        $result = $checkStmt->fetch();
+
+        if (
+            $result &&
+            $result['total'] > 0 &&
+            $result['total'] == $result['completed']
+        ) {
+            $updateProject = $pdo->prepare("
+                UPDATE projects
+                SET status = 'Completed'
+                WHERE id = ?
+            ");
+
+            $updateProject->execute([$projectId]);
+        }
+    }
+}
+
+    ob_clean();
+    echo json_encode([
+        "success" => true,
+        "status" => $status
+    ]);
+    exit();
+}
+
         if (($input['action'] ?? '') === 'version') {
 
     $assetId = $input['asset_id'] ?? null;
@@ -188,6 +298,13 @@ try {
         $uploadedBy
     ]);
 
+    createAuditLog(
+    $pdo,
+    'Created',
+    'Asset Version',
+    "Created V{$nextVersion} for asset {$assetId}"
+    );  
+
         // Notify admins and project managers
     $assetStmt = $pdo->prepare("
         SELECT asset_title
@@ -232,6 +349,13 @@ try {
 
         $stmt = $pdo->prepare("INSERT INTO assets (id, project_id, asset_title, asset_type, external_link) VALUES (?, ?, ?, ?, ?)");
         $stmt->execute([$assetId, $rawProject, $title, $type, $link]);
+
+        createAuditLog(
+        $pdo,
+        'Created',
+        'Asset',
+        "Created asset {$assetId} - {$title}"
+        );
 
         $initialVersion = null;
         try {
@@ -296,6 +420,13 @@ try {
     ");
 
     $stmt->execute([$status, $approvedBy, $assetId, $versionNo]);
+
+    createAuditLog(
+    $pdo,
+    $status === 'Approved' || $status === 'Final' ? 'Approved' : 'Rejected',
+    'Asset Version',
+    "{$status} V{$versionNo} for asset {$assetId}"
+    );
 
     ob_clean();
     echo json_encode([
