@@ -64,7 +64,7 @@ Object.assign(Studio, {
   const statusMap = {
     approve: 'Approved',
     reject: 'Rejected',
-    revise: 'Revisi'
+    revise: 'Revision Requested'
   };
 
   const status = statusMap[decision];

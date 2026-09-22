@@ -549,24 +549,80 @@ try{
 async function loadServerState(){
   try{
     const res = await fetch(`${window.location.origin}/SIA/api/bootstrap.php`, {
-      credentials: 'include'
+      credentials:'include'
     });
-    const data=await parseApiResponse(res);
+
+    const data = await parseApiResponse(res);
+
     if(!data.success || !data.state) return false;
-    const server=data.state;
+
+    const server = data.state;
+
     DB_PERSISTED_FIELDS.forEach(key=>{
       if(!Array.isArray(server[key])) return;
-      DB[key] = key==='assets' ? server[key].map(withVersions) : server[key];
+      DB[key] = key === 'assets'
+        ? server[key].map(withVersions)
+        : server[key];
     });
+
     if(server.currentUser){
-      const su={id:String(server.currentUser.id),name:server.currentUser.full_name,email:server.currentUser.email,role:server.currentUser.role};
-      DB.currentUser=su; 
-      localStorage.setItem('beeCurrentUser',JSON.stringify(su));
-      sessionStorage.setItem('beeCurrentUser',JSON.stringify(su));
+      const su = {
+        id: String(server.currentUser.id),
+        name: server.currentUser.full_name,
+        email: server.currentUser.email,
+        role: server.currentUser.role
+      };
+
+      DB.currentUser = su;
+
+      localStorage.setItem(
+        'beeCurrentUser',
+        JSON.stringify(su)
+      );
+
+      sessionStorage.setItem(
+        'beeCurrentUser',
+        JSON.stringify(su)
+      );
     }
-    if(typeof render==='function' && document.body?.dataset.page!=='login') render();
+
+    if(typeof render === 'function' && document.body?.dataset.page !== 'login'){
+      render();
+    }
+
     return true;
-  }catch(e){ console.warn('Server sync unavailable:',e); return false; }
+
+  }catch(e){
+    console.warn('Server sync unavailable:', e);
+    return false;
+  }
+}
+
+async function loadResourcesFromDB(){
+  try {
+    const res = await fetch('http://localhost/SIA/api/resources.php', {
+      credentials: 'include'
+    });
+
+    const data = await parseApiResponse(res);
+
+    if(!data.success) return false;
+
+    DB.resources = (data.resources || []).map(r => ({
+      id: r.id,
+      project: r.project_id,
+      category: r.category,
+      desc: r.description,
+      cost: parseFloat(r.cost) || 0,
+      hours: parseFloat(r.hours) || 0
+    }));
+
+    return true;
+
+  } catch(e) {
+    console.warn('Resources sync unavailable:', e);
+    return false;
+  }
 }
 window.BEE_SERVER_READY=loadServerState();
 
@@ -985,22 +1041,7 @@ Object.assign(Studio, {
 });
 
 /* ===== RESOURCE ACTIONS: js/actions/resources.js ===== */
-Object.assign(Studio, {
-  addResource(){
-    if(!can('manageResources')) return;
-    const project = document.getElementById('rsProject').value;
-    const category = document.getElementById('rsCategory').value;
-    const desc = document.getElementById('rsDesc').value.trim();
-    const cost = parseFloat(document.getElementById('rsCost').value)||0;
-    const hours = parseFloat(document.getElementById('rsHours').value)||0;
-    if(!desc){ toast('Add a short description.','error'); return; }
-    DB.resources.push({id:nid('r'), project, category, desc, cost, hours});
-    pushAudit('Resource', projectById(project).name, category+' entry added: '+desc);
-    toast('Resource entry logged.','success');
-    if(typeof render === 'function') render();
-    Studio.persist();
-  },
-});
+
 
 /* ===== USER ACTIONS: js/actions/users.js ===== */
 Object.assign(Studio, {
