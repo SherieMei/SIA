@@ -274,7 +274,7 @@ const Studio = {
     return;
   }
 
-  fetch('http://localhost/SIA/api/resources.php', {
+  fetch('http://localhost/SIA/api/assets/resources.php', {
     method: 'POST',
     credentials: 'include',
     headers: {

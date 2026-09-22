@@ -35,6 +35,8 @@ try {
         ");
 
         foreach ($users as $user) {
+            error_log("NOTIFICATION INSERT: " . $user['id']);
+            
             $notify->execute([
                 $user['id'],
                 'New Asset for Review',
@@ -366,7 +368,15 @@ if ($status === 'Approved' || $status === 'Final') {
                 "id" => $versionId, "n" => 1, "status" => "For Review",
                 "notes" => $notes, "by" => $uploadedBy, "date" => date('Y-m-d H:i:s')
             ];
-        } catch (Exception $eVer) {}
+        } catch (Exception $eVer) {
+            error_log("ASSET VERSION ERROR: " . $eVer->getMessage());
+        }
+
+        createReviewNotifications(
+            $pdo,
+            $title,
+            1
+        );
 
         respondWithState($pdo, [
             "id" => $assetId,

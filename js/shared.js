@@ -600,7 +600,7 @@ async function loadServerState(){
 
 async function loadResourcesFromDB(){
   try {
-    const res = await fetch('http://localhost/SIA/api/resources.php', {
+    const res = await fetch('http://localhost/SIA/api/assets/resources.php', {
       credentials: 'include'
     });
 
@@ -625,6 +625,14 @@ async function loadResourcesFromDB(){
   }
 }
 window.BEE_SERVER_READY=loadServerState();
+
+window.BEE_SERVER_READY.then(async () => {
+  await loadResourcesFromDB();
+
+  if(typeof render === 'function' && document.body?.dataset.page !== 'login'){
+    render();
+  }
+});
 
 /* ---- Sidebar navigation menu ---- */
 const NAV = [
