@@ -2,8 +2,15 @@
 ob_start();
 ini_set('display_errors', 0);
 error_reporting(E_ALL);
-if (session_status() === PHP_SESSION_NONE) session_start();
-
+if (session_status() === PHP_SESSION_NONE) {
+    session_set_cookie_params([
+        'lifetime' => 60 * 60 * 24 * 30,
+        'path' => '/',
+        'httponly' => true,
+        'samesite' => 'Lax'
+    ]);
+    session_start();
+}
 header('Content-Type: application/json; charset=utf-8');
 
 try {
@@ -75,12 +82,12 @@ $rawAssets = $stmt->fetchAll();
     title,
     message AS text,
     type,
-    is_read AS read,
+    is_read AS `read`,
     created_at AS date
     FROM notifications
     WHERE user_id = ?
     ORDER BY created_at DESC
-    ");
+");
 
 $notificationStmt->execute([$_SESSION['user']['id'] ?? null]);
 $notifications = $notificationStmt->fetchAll();
