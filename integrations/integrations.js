@@ -3,10 +3,6 @@
    PAGE — Integration Hub (API console, ETL import, event stream, webhooks)
    ========================================================================== */
 function pageIntegrations(){
-  const sampleCSV = `title,project,type,assignee,duedate
-"Scene 21 - Market Chase Storyboard",Skybound,Storyboard,Leo Cruz,2026-09-10
-"Bridge Establishing BG",Skybound,Background Asset,Ava Domingo,2026-09-12
-"Hero Pose Turnaround",Nightfall,Character Sheet,Leo Cruz,2026-10-01`;
   return `
     <div class="section-title">Integration hub</div>
 
@@ -36,7 +32,7 @@ function pageIntegrations(){
       <div class="card" style="padding:20px;">
         <h3 style="margin-top:0;font-size:15px;">ETL integration — bulk import</h3>
         <div class="section-sub" style="margin-bottom:14px;">Paste a CSV of tasks or assets — each row is validated and loaded as a new asset.</div>
-        <div class="field"><textarea id="etlInput" style="min-height:120px;font-family:var(--font-mono);font-size:12px;">${sampleCSV}</textarea></div>
+        <div class="field"><textarea id="etlInput" style="min-height:120px;font-family:var(--font-mono);font-size:12px;">title,project,type,assignee,duedate</textarea></div>
         ${can('runIntegrations') ? `<button class="btn btn-primary btn-sm" onclick="Studio.runETL()">Run ETL import</button>` : `<div class="empty">Your role can't run imports.</div>`}
         <div class="divider"></div>
         <div id="etlLog" class="console"></div>

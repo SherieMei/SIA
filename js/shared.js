@@ -920,6 +920,7 @@ Object.assign(Studio, {
       pushAudit('Approval', asset.title, 'v'+v.n+(asFinal?' approved as FINAL':' approved'));
       pushEvent(asFinal?'Final Output Approved':'Asset Approved', {asset:asset.title, version:'v'+v.n, by:DB.currentUser.name});
       DB.webhooks.push({id:nid('w'), endpoint:'https://hooks.beeproduction.studio/asset-approved', status:200, payload:JSON.stringify({asset:asset.title, version:'v'+v.n, final:asFinal}), date:new Date().toISOString()});
+      fetch('http://localhost/SIA/api/integration_webhooks.php',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({asset_id:asset.id,endpoint:'https://hooks.beeproduction.studio/asset-approved',event_type:'asset-approved',status_code:200,payload:{asset:asset.title,version:'v'+v.n,final:asFinal}})}).catch(e=>console.error('Webhook log error:',e));
       pushNotif('approval', (asFinal?'“'+asset.title+'” was approved as Final Output.':'“'+asset.title+'” v'+v.n+' was approved.'), asset.id);
       toast(asFinal?'Marked as Final Output. Webhook fired.':'Approved. Webhook fired to production dashboard.','success');
     } else if(decision==='reject'){

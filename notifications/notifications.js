@@ -3,7 +3,12 @@
    PAGE — Notifications
    ========================================================================== */
 function pageNotifications(){
-  const list = DB.notifications.slice().reverse();
+  const list = DB.notifications.map(n => ({
+  ...n,
+  text: n.text ?? n.message ?? n.title ?? '',
+  date: n.date ?? n.created_at ?? '',
+  read: n.read ?? Boolean(n.is_read)
+})).reverse();
   return `
     <div class="panel-head">
         <div style="display:flex;align-items:center;gap:10px;"><button type="button" class="simple-arrow-btn" title="Back" aria-label="Go back" onclick="Studio.goBack('dashboard')">&larr;</button><div class="section-title">Notifications</div></div>

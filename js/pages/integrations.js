@@ -2,10 +2,8 @@
    PAGE — Integration Hub (API console, ETL import, event stream, webhooks)
    ========================================================================== */
 function pageIntegrations(){
-  const sampleCSV = `title,project,type,assignee,duedate
-"Scene 21 - Market Chase Storyboard",Skybound,Storyboard,Leo Cruz,2026-09-10
-"Bridge Establishing BG",Skybound,Background Asset,Ava Domingo,2026-09-12
-"Hero Pose Turnaround",Nightfall,Character Sheet,Leo Cruz,2026-10-01`;
+  const sampleCSV = `title,project,type,assignee,duedate`;
+
   return `
     <div class="section-title">Integration hub</div>
     <div class="section-sub" style="max-width:720px;">This is where BEE PRODUCTION talks to the rest of the studio's systems: production data goes out through an API, spreadsheet handoffs come in through ETL, and every upload or approval fires an event other tools can react to.</div>
@@ -57,6 +55,7 @@ function pageIntegrations(){
           `).join('') || '<div class="empty">No events yet.</div>'}
         </div>
       </div>
+
       <div class="card" style="padding:20px;">
         <h3 style="margin-top:0;font-size:15px;">Webhook log — approval triggers</h3>
         <div class="section-sub" style="margin-bottom:10px;">Fires whenever a reviewer approves an asset, notifying the production dashboard endpoint.</div>

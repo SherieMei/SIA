@@ -68,13 +68,31 @@ $rawAssets = $stmt->fetchAll();
         ];
     }
 
-    $state = ["assets" => $assets];
-    // Only report the real signed-in user (matches the shape auth.php/sync.php already use).
-    // Omitting this when there's no session stops the client from clobbering whoever's really
-    // logged in with a fake placeholder — see js/shared.js loadServerState().
-    if (isset($_SESSION['user'])) {
-        $state["currentUser"] = $_SESSION['user'];
-    }
+    $notificationStmt = $pdo->prepare("
+    SELECT 
+    id,
+    user_id,
+    title,
+    message AS text,
+    type,
+    is_read AS read,
+    created_at AS date
+    FROM notifications
+    WHERE user_id = ?
+    ORDER BY created_at DESC
+    ");
+
+$notificationStmt->execute([$_SESSION['user']['id'] ?? null]);
+$notifications = $notificationStmt->fetchAll();
+
+    $state = [
+    "assets" => $assets,
+    "notifications" => $notifications
+];
+
+if (isset($_SESSION['user'])) {
+    $state["currentUser"] = $_SESSION['user'];
+}
 
     ob_clean();
     echo json_encode([

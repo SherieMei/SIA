@@ -2,7 +2,12 @@
    PAGE — Notifications
    ========================================================================== */
 function pageNotifications(){
-  const list = DB.notifications.slice().reverse();
+  const list = DB.notifications.map(n => ({
+  ...n,
+  text: n.text ?? n.message ?? n.title ?? '',
+  date: n.date ?? n.created_at ?? '',
+  read: n.read ?? Boolean(n.is_read)
+})).reverse();
   return `
     <div class="panel-head">
       <div><div class="section-title">Notifications</div><div class="section-sub">Submissions, approvals, revisions, and deadlines across every project.</div></div>
