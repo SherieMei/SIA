@@ -61,8 +61,6 @@ const DB = {
   currentUser:null,
   users:[],
   projects:[
-    {id:'p1',name:"Skybound Chronicles — Ep.4 “The Hollow Reach”",client:'Meridian Animation Network',
-     status:'In Production',deadline:'2026-10-15',pm:'u2',team:['u3','u4','u5','u6'],budget:48000},
     {id:'p2',name:"Lumen Oral Care — “Bright Mornings” Campaign",client:'Lumen Oral Care Co.',
      status:'Client Review',deadline:'2026-09-20',pm:'u2',team:['u3','u4','u6','u7'],budget:22000},
     {id:'p3',name:"Nightfall Games — Cinematic Trailer",client:'Nightfall Interactive',
@@ -153,9 +151,7 @@ function pushNotif(type,text,ref){
 }
 pushNotif('submission','New submission: “Undercity Market — Background Plate” is awaiting review.','a4');
 if (seedA12) pushNotif('revision','Revision requested on “Trailer — Theme Sting”.',seedA12.id);
-pushNotif('deadline','Skybound Chronicles Ep.4 deadline is in 6 weeks.','p1');
 if (seedA10) pushNotif('approval','“Bright Mornings — Final Cut” was approved as Final Output.',seedA10.id);
-
 function pushAudit(action,entity,detail){
   DB.auditLog.push({id:nid('au'), by:DB.currentUser?DB.currentUser.name:'System', action, entity, detail, date:new Date().toISOString()});
 }
@@ -180,7 +176,16 @@ DB.webhooks.push(
 
 /* ===== PERSISTENCE ACROSS SEPARATE PAGES ===== */
 const DB_PERSIST_KEY = 'beeDB';
-const DB_PERSISTED_FIELDS = ['users','projects','assets','comments','notifications','auditLog','events','webhooks','apiLogs','resources'];
+const DB_PERSISTED_FIELDS = [
+  'users',
+  'projects',
+  'assets',
+  'comments',
+  'events',
+  'webhooks',
+  'apiLogs',
+  'resources'
+];
 (function restorePersistedDB(){
   try{
     const raw = sessionStorage.getItem(DB_PERSIST_KEY);

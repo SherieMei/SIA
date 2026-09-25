@@ -11,8 +11,8 @@
     <div id="newProjectForm" class="card hidden" style="padding:20px;margin-top:14px;">
       <h3 style="margin-top:0;font-size:15px;">New project</h3>
       <div class="field-row">
-        <div class="field"><label>Project name</label><input id="npName" placeholder="e.g. Skybound Chronicles — Ep. 5"></div>
-        <div class="field"><label>Client</label><input id="npClient" placeholder="e.g. Meridian Animation Network"></div>
+        <div class="field"><label>Project name</label><input id="npName" placeholder="e.g. Lumen Oral Care — Phase 2"></div>
+        <div class="field"><label>Client</label><input id="npClient" placeholder="e.g. Lumen Oral Care Co."></div>
       </div>
       <div class="field-row">
         <div class="field"><label>Deadline</label><input id="npDeadline" type="date" value="2026-12-01"></div>
@@ -31,7 +31,7 @@
           </div>
           <div class="client">${esc(p.client)}</div>
           <div class="progress-track"><div class="progress-fill" style="width:${pct}%"></div></div>
-          <div class="proj-meta"><span>${assetCount} asset(s)</span><span>Due ${fmtDate(p.deadline)}</span></div>
+          <div class="proj-meta"><span>${assetCount} asset(s)</span><span>Due${fmtDate(p.deadline)}</span></div>
         </div>`;
       }).join('')}
     </div>
@@ -87,7 +87,7 @@ function pageProjectDetail(){
       <h3 style="margin:0;font-size:16px;">Team</h3>
     </div>
     <div class="pill-row">
-      ${p.team.map(uid=>{ const u=userById(uid); return u? `<span class="chip">${esc(u.name)} · ${ROLE_LABELS[u.role]}</span>`:''; }).join('')}
+      ${p.team.map(uid=>{ const u=userById(uid); return u? `<span class="chip">${esc(u.name)} ·${ROLE_LABELS[u.role]}</span>`:''; }).join('')}
     </div>
   `;
 }
