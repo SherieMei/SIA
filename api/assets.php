@@ -37,17 +37,6 @@ try {
     {
         try {
 
-<<<<<<< HEAD
-        foreach ($users as $user) {
-            error_log("NOTIFICATION INSERT: " . $user['id']);
-            
-            $notify->execute([
-                $user['id'],
-                'New Asset for Review',
-                "A new version (V{$versionNo}) of '{$assetTitle}' is waiting for review.",
-                'asset_review'
-            ]);
-=======
             $stmt = $pdo->query("
                 SELECT id
                 FROM app_users
@@ -75,7 +64,6 @@ try {
 
         } catch (Exception $e) {
             // Notification failure should not stop asset creation.
->>>>>>> f150b11 ()
         }
     }
 
@@ -752,27 +740,6 @@ try {
             "Created asset {$assetId} - {$title}"
         );
 
-<<<<<<< HEAD
-        $initialVersion = null;
-        try {
-            $versionId = 'v' . bin2hex(random_bytes(6));
-            $stmtVer = $pdo->prepare("INSERT INTO asset_versions (id, asset_id, version_no, status, notes, uploaded_by) VALUES (?, ?, 1, 'For Review', ?, ?)");
-            $stmtVer->execute([$versionId, $assetId, $notes, $uploadedBy]);
-            $initialVersion = [
-                "id" => $versionId, "n" => 1, "status" => "For Review",
-                "notes" => $notes, "by" => $uploadedBy, "date" => date('Y-m-d H:i:s')
-            ];
-        } catch (Exception $eVer) {
-            error_log("ASSET VERSION ERROR: " . $eVer->getMessage());
-        }
-
-        createReviewNotifications(
-            $pdo,
-            $title,
-            1
-        );
-=======
->>>>>>> f150b11 ()
 
         /* =====================================================
            CREATE INITIAL VERSION
