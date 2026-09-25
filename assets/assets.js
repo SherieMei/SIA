@@ -58,7 +58,7 @@ function pageAssets(){
       <h3 style="margin-top:0;font-size:15px;">Submit an asset</h3>
       <div class="field-row">
         <div class="field"><label>Project</label>
-          <select id="saProject">${DB.projects.map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join('')}</select>
+          <select id="saProject">${DB.projects.filter(p=>p.status !== 'Completed').map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join('')}</select>
         </div>
         <div class="field"><label>This is</label>
           <select id="saExisting" onchange="Studio.onSaExistingChange()">

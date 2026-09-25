@@ -51,19 +51,40 @@ function pageProjects(){
       <button class="btn btn-primary" onclick="Studio.createProject()">Create project</button>
     </div>` : ''}
     <div class="proj-grid">
-      ${DB.projects.filter(p=>projectProgress(p.id)<100).map(p=>{
-        const pct = projectProgress(p.id);
-        const assetCount = DB.assets.filter(a=>a.project===p.id).length;
-        return `<div class="card proj-card" onclick="Studio.goto('projectDetail','${p.id}')">
-          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;">
-            <h3>${esc(p.name)}</h3>
-            <span class="chip">${esc(p.status)}</span>
-          </div>
-          <div class="client">${esc(p.client)}</div>
-          <div class="progress-track"><div class="progress-fill" style="width:${pct}%"></div></div>
-          <div class="proj-meta"><span>${assetCount} asset(s)</span><span>Due ${fmtDate(p.deadline)}</span></div>
-        </div>`;
-      }).join('')}
+      ${DB.projects.filter(p=>p.status !== 'Completed').map(p=>{
+      const pct = projectProgress(p.id);
+      const assetCount = DB.assets.filter(a=>a.project===p.id).length;
+      return `<div class="card proj-card">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;">
+          <h3 onclick="Studio.goto('projectDetail','${p.id}')" style="cursor:pointer;">${esc(p.name)}</h3>
+          <span class="chip">${esc(p.status)}</span>
+        </div>
+
+        <div class="client" onclick="Studio.goto('projectDetail','${p.id}')" style="cursor:pointer;">
+          ${esc(p.client)}
+        </div>
+
+        <div class="progress-track" onclick="Studio.goto('projectDetail','${p.id}')" style="cursor:pointer;">
+          <div class="progress-fill" style="width:${pct}%"></div>
+        </div>
+  
+        <div class="proj-meta">
+          <span>${assetCount} asset(s)</span>
+          <span>Due ${fmtDate(p.deadline)}</span>
+        </div>
+
+      ${can('manageProjects') ? `
+        <div style="margin-top:12px;display:flex;justify-content:flex-end;">
+          <button
+            type="button"
+            class="btn btn-primary btn-sm"
+            onclick="event.stopPropagation(); finishProject('${p.id}', ${pct})">
+            Finished
+          </button>
+        </div>
+      ` : ''}
+    </div>`;
+}).join('')}
     </div>
   `;
 }
@@ -121,6 +142,52 @@ function pageProjectDetail(){
         return u ? `<span class="chip">${esc(u.name)} · <b style="color:var(--${ROLE_COLOR_VAR[u.role]||'text-dim'});">${ROLE_LABELS[u.role]}</b></span>` : '';
     }).join('')}    </div>
   `;
+}
+
+function finishProject(projectId, pct){
+  const project = projectById(projectId);
+  if(!project) return;
+
+  if(pct < 100){
+    toast('This project must be 100% complete before it can be finished.', 'error');
+    return;
+  }
+
+  Studio.openConfirm({
+    title: 'Finish this project?',
+    body: `Are you sure you want to mark “${esc(project.name)}” as Finished? This will move the project to Completed Projects.`,
+    confirmLabel: 'Finish project',
+    onConfirm: async () => {
+      try {
+        const response = await fetch('http://localhost/SIA/api/projects.php', {
+          method: 'PUT',
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            id: projectId,
+            status: 'Completed'
+          })
+        });
+
+        const data = await parseApiResponse(response);
+
+        if(data.success){
+          project.status = 'Completed';
+
+          toast('Project marked as Completed.', 'success');
+          render();
+        } else {
+          toast(data.error || 'Failed to complete project.', 'error');
+        }
+
+      } catch(error) {
+        console.error('Error finishing project:', error);
+        toast('An error occurred while completing this project.', 'error');
+      }
+    }
+  });
 }
 
 

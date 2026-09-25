@@ -1,49 +1,90 @@
 /* Page-specific BEE PRODUCTION controller. Shared runtime is loaded before this file. */
 /* ==========================================================================
-   PAGE — System Architecture (write-up for the project submission)
+   PAGE — System Information
    ========================================================================== */
 function pageArchitecture(){
   return `
-      <div style="display:flex;align-items:center;gap:10px;"><button type="button" class="simple-arrow-btn" title="Back" aria-label="Go back" onclick="Studio.goBack('dashboard')">&larr;</button><div class="section-title">System Architecture</div></div>
+    <div style="display:flex;align-items:center;gap:10px;">
+      <button
+        type="button"
+        class="simple-arrow-btn"
+        title="Back"
+        aria-label="Go back"
+        onclick="Studio.goBack('dashboard')"
+      >&larr;</button>
+
+      <div class="section-title">System Information</div>
+    </div>
+
     <div class="card" style="padding:22px;margin-top:16px;">
-      <h3 style="margin-top:0;">Layered Architecture</h3>
-      <p style="color:var(--text-dim);font-size:13.5px;line-height:1.6;">Three layers, each with one job — every rule lives in exactly one place, so behavior never drifts between pages:</p>
+      <h3 style="margin-top:0;">About the System</h3>
+      <p style="color:var(--text-dim);font-size:13.5px;line-height:1.7;">
+        This system is a centralized platform for managing production projects,
+        assets, approvals, revisions, and project resources. It helps team members
+        monitor work progress and keeps important project activities organized in one place.
+      </p>
+    </div>
+
+    <div class="card" style="padding:22px;margin-top:18px;">
+      <h3 style="margin-top:0;">How the System Works</h3>
+
+      <div style="font-size:14px;font-weight:600;margin:14px 0;color:var(--text);">
+        Project → Asset Submission → Review → Approval / Revision → Final Output
+      </div>
+
+      <p style="color:var(--text-dim);font-size:13.5px;line-height:1.7;margin-bottom:0;">
+        When an asset is uploaded, it is automatically marked as
+        <b>For Review</b>. Authorized users can then approve the asset,
+        reject it, or request revisions.
+      </p>
+    </div>
+
+    <div class="card" style="padding:22px;margin-top:18px;">
+      <h3 style="margin-top:0;">Main Features</h3>
+
       <ul style="color:var(--text-dim);font-size:13.5px;line-height:1.9;margin:8px 0 0;padding-left:20px;">
-        <li><b>Presentation</b> — the pages themselves: navigation, forms, and views.</li>
-        <li><b>Business logic</b> — one <span class="mono">Studio</span> object owns every rule: submissions, approvals, permissions, integrations.</li>
-        <li><b>Data</b> — an in-memory <span class="mono">DB</span> store standing in for a production database (projects, assets, versions, comments, notifications, audit log).</li>
+        <li><b>Project Management</b> – Create and manage production projects.</li>
+        <li><b>Asset Management</b> – Upload, organize, review, and track project assets.</li>
+        <li><b>Approval Workflow</b> – Approve, reject, or request revisions for submitted assets.</li>
+        <li><b>Version Tracking</b> – Keep track of different versions of an asset.</li>
+        <li><b>Comments</b> – Add feedback and communicate about project assets.</li>
+        <li><b>Notifications</b> – Receive updates about important project activities.</li>
+        <li><b>Audit Log</b> – Records important actions performed within the system.</li>
+        <li><b>Integration Hub</b> – Provides tools for API, ETL, webhook, and event-based integrations.</li>
+        <li><b>Resources &amp; Budget</b> – Monitor project resources, equipment, labor, and costs.</li>
+        <li><b>External Storage Links</b> – Store links to files hosted on external storage services.</li>
       </ul>
-      <p style="color:var(--text-dim);font-size:13.5px;line-height:1.6;margin-bottom:0;">On disk: each page has its own HTML/CSS/JS file (Dashboard, Projects, Assets, etc.); shared logic and data live in one file, <span class="mono">js/shared.js</span>, loaded by every page.</p>
     </div>
 
     <div class="card" style="padding:22px;margin-top:18px;">
-      <h3 style="margin-top:0;">Event-Driven Integration</h3>
-      <p style="color:var(--text-dim);font-size:13.5px;line-height:1.6;">An upload, an approval, a rejection — each one fires an event that other parts of the system can react to, without being wired directly to whatever triggered it. This is the primary integration pattern, visible in the Integration Hub's Event Stream. For sending data out, one API connection pushes approved-asset data to an external Production Dashboard, rather than every module talking to every other module directly.</p>
-      <table class="arch-table" style="margin-top:14px;">
-        <thead><tr><th>Pattern</th><th>Used here?</th><th>Why</th></tr></thead>
-        <tbody>
-          <tr><td>Event-driven</td><td>✓ Primary pattern</td><td>Matches how production actually flows; stays auditable via the Event Stream and Audit Log</td></tr>
-          <tr><td>Hub-and-spoke</td><td>✓ For the API sync</td><td>One integration point instead of many direct wires</td></tr>
-          <tr><td>Point-to-point</td><td>Not used</td><td>Doesn't scale past a couple of systems</td></tr>
-          <tr><td>Shared database</td><td>Not used</td><td>Data ownership gets blurry once multiple systems write to it</td></tr>
-        </tbody>
-      </table>
+      <h3 style="margin-top:0;">System Integrations</h3>
+
+      <p style="color:var(--text-dim);font-size:13.5px;line-height:1.7;">
+        The system includes simulated integrations for:
+      </p>
+
+      <ul style="color:var(--text-dim);font-size:13.5px;line-height:1.9;margin:8px 0 0;padding-left:20px;">
+        <li><b>API Integration</b> – Sends approved asset information to an external production dashboard.</li>
+        <li><b>ETL Import</b> – Imports asset and task information from CSV files.</li>
+        <li><b>Workflow Automation</b> – Automatically updates asset status after submission.</li>
+        <li><b>Webhook Simulation</b> – Generates webhook events when important actions occur.</li>
+        <li><b>Event Stream</b> – Records system events such as asset uploads, revisions, and approvals.</li>
+      </ul>
     </div>
 
     <div class="card" style="padding:22px;margin-top:18px;">
-      <h3 style="margin-top:0;">Implemented Integrations</h3>
-      <table class="arch-table">
-        <tbody>
-          <tr><td style="width:220px;"><span class="check">✓</span> API Integration</td><td>Asset submission → Production Dashboard (Integration Hub → API console)</td></tr>
-          <tr><td><span class="check">✓</span> ETL Integration</td><td>CSV of tasks/assets → cleaned and loaded as assets (Integration Hub → ETL import)</td></tr>
-          <tr><td><span class="check">✓</span> Workflow Automation</td><td>Every upload auto-sets status to "For Review" — no manual step</td></tr>
-          <tr><td><span class="check">✓</span> Webhook Simulation</td><td>Every approval fires a webhook to an external endpoint</td></tr>
-          <tr><td><span class="check">✓</span> Messaging Simulation</td><td>Event Stream publishes Asset Uploaded, Revision Requested, Final Output Approved, etc.</td></tr>
-          <tr><td><span class="check">✓</span> External Storage</td><td>Assets can carry a Drive/Dropbox/local link</td></tr>
-          <tr><td><span class="check">✓</span> ERP / Resources</td><td>Resources &amp; Budget ties labor, equipment, and cost to each project</td></tr>
-        </tbody>
-      </table>
-      <p style="color:var(--text-faint);font-size:12px;margin-top:14px;">Data lives in memory for this browser session — refreshing the page resets it to the seeded demo data.</p>
+      <h3 style="margin-top:0;">Data &amp; Security</h3>
+
+      <p style="color:var(--text-dim);font-size:13.5px;line-height:1.7;">
+        The system organizes project information into separate areas such as projects,
+        assets, asset versions, comments, notifications, and activity records.
+      </p>
+
+      <p style="color:var(--text-dim);font-size:13.5px;line-height:1.7;margin-bottom:0;">
+        <b>Demo Data Notice:</b> This system currently uses temporary browser-based data
+        for demonstration. Data may reset when the browser session or page data is cleared
+        or refreshed, depending on the current system configuration.
+      </p>
     </div>
   `;
 }
@@ -54,6 +95,7 @@ function render(){
   renderSidebar();
   const el=document.getElementById('pageContent');
   if(!el) return;
+
   switch(state.page){
     case 'dashboard': el.innerHTML=pageDashboard(); break;
     case 'projects': el.innerHTML=pageProjects(); break;
@@ -72,6 +114,7 @@ function render(){
   }
 }
 
+
 document.addEventListener('DOMContentLoaded',()=>{
   if(!DB.currentUser){ 
     window.location.assign('../login/login.html'); 
@@ -79,6 +122,7 @@ document.addEventListener('DOMContentLoaded',()=>{
   }
 
   const menu=document.getElementById('menuButton');
+
   if(menu) {
     menu.addEventListener('click',()=>{
       document.getElementById('sidebar')?.classList.toggle('open');

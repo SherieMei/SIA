@@ -5,8 +5,23 @@ function pageIntegrations(){
   const sampleCSV = `title,project,type,assignee,duedate`;
 
   return `
-    <div class="section-title">Integration hub</div>
-    <div class="section-sub" style="max-width:720px;">This is where BEE PRODUCTION talks to the rest of the studio's systems: production data goes out through an API, spreadsheet handoffs come in through ETL, and every upload or approval fires an event other tools can react to.</div>
+    <div style="display:flex;align-items:center;gap:10px;">
+      <button
+        type="button"
+        class="simple-arrow-btn"
+        title="Back"
+        aria-label="Go back"
+        onclick="history.back()"
+      >&larr;</button>
+
+      <div class="section-title">Integration hub</div>
+    </div>
+
+    <div class="section-sub" style="max-width:720px;">
+      This is where BEE PRODUCTION talks to the rest of the studio's systems:
+      production data goes out through an API, spreadsheet handoffs come in
+      through ETL, and every upload or approval fires an event other tools can react to.
+    </div>
 
     <div class="grid-2" style="margin-top:22px;">
       <div class="card" style="padding:20px;">

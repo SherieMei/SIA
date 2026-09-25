@@ -4,7 +4,17 @@
    ========================================================================== */
 function pageAudit(){
   return `
-      <div style="display:flex;align-items:center;gap:10px;"><button type="button" id="menuButton" class="simple-arrow-btn" aria-label="Toggle navigation sidebar">&larr;</button><div class="section-title">Audit log</div></div>
+      <div style="display:flex;align-items:center;gap:10px;">
+          <button
+            type="button"
+            class="simple-arrow-btn"
+            title="Back"
+            aria-label="Go back"
+            onclick="history.back()"
+          >&larr;</button>
+
+          <div class="section-title">Audit log</div>
+      </div>
   <div class="card" style="margin-top:16px;">
       <table>
         <thead><tr><th>Time</th><th>User</th><th>Action</th><th>Entity</th><th>Detail</th></tr></thead>

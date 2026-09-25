@@ -6,7 +6,7 @@
    there is no manual "mark as completed" step and nothing to keep in sync.
    ========================================================================== */
 function pageCompletedProjects(){
-  const completed = DB.projects.filter(p => projectProgress(p.id) === 100); 
+  const completed = DB.projects.filter(p => p.status === 'Completed'); 
   return `
     <div class="panel-head">
     <div style="display:flex;align-items:center;gap:10px;"><button type="button" class="simple-arrow-btn" title="Back" aria-label="Go back" onclick="Studio.goBack('dashboard')">&larr;</button><div class="section-title">Completed Projects</div></div>    </div>

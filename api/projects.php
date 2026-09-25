@@ -309,6 +309,41 @@ if ($_SERVER['REQUEST_METHOD'] === 'PUT') {
     $projectManager = $in['pm'] ?? $in['project_manager_id'] ?? null;
     $budget = (float)($in['budget'] ?? 0);
 
+    // Mark project as Completed
+    if (($in['status'] ?? '') === 'Completed') {
+
+        if (!$id) {
+            http_response_code(400);
+            echo json_encode([
+                'success' => false,
+                'message' => 'Project ID is required.'
+            ]);
+            exit;
+        }
+
+        $stmt = $pdo->prepare("
+            UPDATE projects
+            SET status = 'Completed'
+            WHERE id = ?
+        ");
+
+        $stmt->execute([$id]);
+
+        createAuditLog(
+            $pdo,
+            'Completed',
+            'Project',
+            "Marked project {$id} as Completed"
+        );
+
+        echo json_encode([
+            'success' => true,
+            'message' => 'Project marked as Completed.'
+        ], JSON_UNESCAPED_UNICODE);
+
+        exit;
+    }
+
     if (!$id || !$name || !$client) {
         http_response_code(400);
         echo json_encode([

@@ -4,7 +4,7 @@
    ========================================================================== */
 function pageResources(){
   return `
-      <div style="display:flex;align-items:center;gap:10px;"><button type="button" class="simple-arrow-btn" title="Back" aria-label="Go back" onclick="Studio.goBack('dashboard')">&larr;</button><div class="section-title">Resources & Budget</div></div>
+      <div style="display:flex;align-items:center;gap:10px;"><button type="button" title="Back" aria-label="Go back" onclick="Studio.goBack('dashboard')" style="border:none;background:none;padding:0;color:var(--text-muted);font-size:24px;cursor:pointer;">&larr;</button><div class="section-title">Resources & Budget</div></div>
     <div class="proj-grid" style="margin-top:18px;">
       ${DB.projects.map(p=>{
         const items = DB.resources.filter(r=>r.project===p.id);
@@ -32,10 +32,10 @@ function pageResources(){
       </div>
       <div class="field-row">
         <div class="field"><label>Description</label><input id="rsDesc" placeholder="e.g. Freelance colorist — 3 days"></div>
-        <div class="field"><label>Cost (PHP)</label><input id="rsCost" type="number" placeholder="750"></div>
+        <div class="field"><label>Cost (PHP)</label><input id="rsCost" type="number" placeholder="750" step="250" min="0"></div>
       </div>
       <div class="field"><label>Hours (optional)</label><input id="rsHours" type="number" placeholder="24"></div>
-      <button class="btn btn-primary btn-sm" onclick="Studio.addResource()">Log entry</button>
+      <button class="btn btn-primary" onclick="Studio.addResource()">Log entry</button>
     </div>` : ''}
 
     <div class="card" style="margin-top:20px;">

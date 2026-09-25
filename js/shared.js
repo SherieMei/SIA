@@ -643,7 +643,7 @@ const NAV = [
   {section:'Review & Collaboration'},
   {key:'review', label:'Review Queue', icon:'✓', badgeFn:()=> (DB.assets || []).filter(a => a && latestVersion(a)?.status === 'For Review').length},
   {key:'completedProjects', label:'Completed Projects', icon:'☑'},
-  {section:'Management'},
+  {section:'Management', hideFor:['client','animator']},
   {key:'integrations', label:'Integration Hub', icon:'⇄', perm:'runIntegrations'},
   {key:'resources', label:'Resources & Budget', icon:'₱', perm:'manageResources'},
   {key:'audit', label:'Audit Log', icon:'≡', perm:'viewAudit'},
@@ -658,7 +658,10 @@ function renderSidebar(){
 
   const navlist = document.getElementById('navlist');
   if(navlist){
-    const list = NAV.filter(n=> n.section || !n.perm || can(n.perm));
+    const list = NAV.filter(n =>
+      (!n.hideFor || !DB.currentUser || !n.hideFor.includes(DB.currentUser.role)) &&
+      (n.section || !n.perm || can(n.perm))
+    );
     navlist.innerHTML = list.map(n=>{
       if(n.section) return '<div class="nav-section">'+n.section+'</div>';
       const badge = n.badgeFn ? n.badgeFn() : 0;
