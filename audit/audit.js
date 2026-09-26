@@ -5,13 +5,6 @@
 function pageAudit(){
   return `
       <div style="display:flex;align-items:center;gap:10px;">
-          <button
-            type="button"
-            class="simple-arrow-btn"
-            title="Back"
-            aria-label="Go back"
-            onclick="history.back()"
-          >&larr;</button>
 
           <div class="section-title">Audit log</div>
       </div>
