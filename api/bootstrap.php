@@ -92,9 +92,36 @@ $rawAssets = $stmt->fetchAll();
 $notificationStmt->execute([$_SESSION['user']['id'] ?? null]);
 $notifications = $notificationStmt->fetchAll();
 
-    $state = [
+
+// =========================================================
+// LOAD AUDIT LOGS FROM DATABASE
+// =========================================================
+
+$auditStmt = $pdo->query("
+    SELECT
+        al.id,
+        al.action,
+        al.entity,
+        al.detail,
+        al.created_at AS date,
+        COALESCE(u.full_name, 'System') AS `by`
+    FROM audit_logs al
+    LEFT JOIN app_users u
+        ON al.user_id = u.id
+    ORDER BY al.created_at ASC, al.id ASC
+");
+
+$auditLog = $auditStmt->fetchAll();
+
+
+// =========================================================
+// BOOTSTRAP STATE
+// =========================================================
+
+$state = [
     "assets" => $assets,
-    "notifications" => $notifications
+    "notifications" => $notifications,
+    "auditLog" => $auditLog
 ];
 
 if (isset($_SESSION['user'])) {

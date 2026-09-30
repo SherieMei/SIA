@@ -164,12 +164,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit;
     }
 
-    $projectStmt = $pdo->prepare("
-        SELECT id, name
-        FROM projects
-        WHERE id = ?
-        LIMIT 1
-    ");
+$projectStmt = $pdo->prepare("
+    SELECT
+        id,
+        name,
+        client_id
+    FROM projects
+    WHERE id = ?
+    LIMIT 1
+");
 
     $projectStmt->execute([
         $projectId
@@ -185,57 +188,118 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         exit;
     }
+$resourceId = 'r' . bin2hex(random_bytes(6));
 
-    $resourceId = 'r' . bin2hex(random_bytes(6));
-    try {
+try {
 
-        $stmt = $pdo->prepare("
-            INSERT INTO resources (
-                id,
-                project_id,
-                category,
-                description,
-                cost,
-                hours,
-                logged_by
-            )
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        ");
+    // Resource + Audit Log must save together
+    $pdo->beginTransaction();
 
-        $stmt->execute([
-            $resourceId,
-            $projectId,
-            $category,
-            $description,
-            $cost,
-            $hours,
-            $currentUser['id']
-        ]);
 
-        echo json_encode([
-            'success' => true,
-            'message' => 'Resource entry saved.',
-            'resource' => [
-                'id' => $resourceId,
-                'project_id' => $projectId,
-                'category' => $category,
-                'description' => $description,
-                'cost' => $cost,
-                'hours' => $hours,
-                'logged_by' => $currentUser['id']
-            ]
-        ]);
+    /* =========================================================
+       SAVE RESOURCE
+       ========================================================= */
 
-    } catch (PDOException $e) {
-        http_response_code(500);
-        echo json_encode([
-            'success' => false,
-            'message' => 'Failed to save resource.',
-            'error' => $e->getMessage()
-        ]);
+    $stmt = $pdo->prepare("
+        INSERT INTO resources (
+            id,
+            project_id,
+            category,
+            description,
+            cost,
+            hours,
+            logged_by
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+    ");
+
+    $stmt->execute([
+        $resourceId,
+        $projectId,
+        $category,
+        $description,
+        $cost,
+        $hours,
+        $currentUser['id']
+    ]);
+
+
+    /* =========================================================
+       SAVE TO AUDIT LOG
+       ========================================================= */
+
+    $auditStmt = $pdo->prepare("
+        INSERT INTO audit_logs (
+            user_id,
+            project_id,
+            client_id,
+            action,
+            entity,
+            detail
+        )
+        VALUES (?, ?, ?, ?, ?, ?)
+    ");
+
+    $auditDetail =
+        'Logged ' .
+        $category .
+        ' resource for project ' .
+        $project['name'] .
+        ' - ' .
+        $description .
+        ' | Cost: PHP ' .
+        number_format($cost, 2) .
+        ' | Hours: ' .
+        number_format($hours, 2);
+
+
+    $auditStmt->execute([
+        $currentUser['id'],
+        $projectId,
+        $project['client_id'],
+        'Created',
+        'Resource',
+        $auditDetail
+    ]);
+
+
+    // Both inserts succeeded
+    $pdo->commit();
+
+
+    echo json_encode([
+        'success' => true,
+        'message' => 'Resource entry saved.',
+        'resource' => [
+            'id' => $resourceId,
+            'project_id' => $projectId,
+            'category' => $category,
+            'description' => $description,
+            'cost' => $cost,
+            'hours' => $hours,
+            'logged_by' => $currentUser['id']
+        ]
+    ]);
+
+
+} catch (PDOException $e) {
+
+    // If either Resource OR Audit Log fails,
+    // cancel both inserts.
+    if ($pdo->inTransaction()) {
+        $pdo->rollBack();
     }
 
-    exit;
+    http_response_code(500);
+
+    echo json_encode([
+        'success' => false,
+        'message' => 'Failed to save resource.',
+        'error' => $e->getMessage()
+    ]);
+}
+
+exit;
 }
 
 http_response_code(405);

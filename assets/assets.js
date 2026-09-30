@@ -3,23 +3,27 @@
    PAGE — Assets (list + submission form) + Asset Detail
    ========================================================================== */
 function pageAssets(){
-  const f = state.filter;
-
-  let list = DB.assets.filter(a => {
-    const status = latestVersion(a).status;
-    return ['Approved', 'Rejected', 'Final', 'Revision Requested'].includes(status);
-  });
-
-  if(f.project!=='all') list = list.filter(a=>a.project===f.project);
-  if(f.type!=='all') list = list.filter(a=>a.type===f.type);
-  if(f.status!=='all') list = list.filter(a=>latestVersion(a).status===f.status);
-  if(f.q) list = list.filter(a=>a.title.toLowerCase().includes(f.q.toLowerCase()));
-
-  const types = Object.keys(TYPE_META);
-  const statuses = ['For Review','Approved','Rejected','Revision Requested','Final'];
-
+  const params=
+    new URLSearchParams(
+      window.location.search
+    );
+  const openSubmitForm=
+    params.get('submit')==='1';
+  const submitProject=
+    params.get('project')||'';
+  const f=state.filter;
+  const activeProjects=DB.projects.filter(p=>p.status!=='Completed');
+  const activeProjectIds=new Set(activeProjects.map(p=>String(p.id)));
+  const activeAssets=DB.assets.filter(a=>activeProjectIds.has(String(a.project)));
+  let list=[...activeAssets];
+  if(f.project!=='all')list=list.filter(a=>a.project===f.project);
+  if(f.type!=='all')list=list.filter(a=>a.type===f.type);
+  if(f.status!=='all')list=list.filter(a=>latestVersion(a).status===f.status);
+  if(f.q)list=list.filter(a=>a.title.toLowerCase().includes(f.q.toLowerCase()));
+  const types=Object.keys(TYPE_META);
+  const statuses=['For Review','Approved','Rejected','Revision Requested','Final'];
   /* Added only for the Assets status cards */
-  const statusCards = [
+  const statusCards=[
     {
       status:'For Review',
       className:'b-review',
@@ -46,24 +50,35 @@ function pageAssets(){
       color:'var(--gold)'
     }
   ];
-
   return `
     <div class="panel-head">
-    <div style="display:flex;align-items:center;gap:10px;"><button type="button" class="simple-arrow-btn" title="Back" aria-label="Go back" onclick="Studio.goBack('dashboard')">&larr;</button><div class="section-title">Assets</div></div>
-    ${can('submitAssets') ? `<button class="btn btn-primary" onclick="Studio.toggleForm('newAssetForm')">+ Submit asset</button>` : ''}
+    <div style="display:flex;align-items:center;gap:10px;"><button type="button" class="simple-arrow-btn" title="Back" aria-label="Go back" onclick="Studio.goBack('dashboard')">←</button><div class="section-title">Assets</div></div>
+    ${can('submitAssets')?`<button class="btn btn-primary" onclick="Studio.toggleForm('newAssetForm')">+ Submit asset</button>`:''}
     </div>
-
-    ${can('submitAssets') ? `
-    <div id="newAssetForm" class="card hidden" style="padding:20px;margin-top:6px;">
+    ${can('submitAssets')?`
+    <div
+  id="newAssetForm"
+  class="card ${openSubmitForm?'':'hidden'}"
+  style="padding:20px;margin-top:6px;"
+>
       <h3 style="margin-top:0;font-size:15px;">Submit an asset</h3>
       <div class="field-row">
         <div class="field"><label>Project</label>
-          <select id="saProject">${DB.projects.filter(p=>p.status !== 'Completed').map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join('')}</select>
-        </div>
+  <select id="saProject">
+    ${activeProjects.map(p=>`
+      <option
+        value="${p.id}"
+        ${submitProject===String(p.id)?'selected':''}
+      >
+        ${esc(p.name)}
+      </option>
+    `).join('')}
+  </select>
+</div>
         <div class="field"><label>This is</label>
           <select id="saExisting" onchange="Studio.onSaExistingChange()">
             <option value="new">A new asset</option>
-            ${DB.assets.map(a=>`<option value="${a.id}">New version of: ${esc(a.title)}</option>`).join('')}
+            ${activeAssets.map(a=>`<option value="${a.id}">New version of: ${esc(a.title)}</option>`).join('')}
           </select>
         </div>
       </div>
@@ -82,13 +97,12 @@ function pageAssets(){
       <div class="field"><label>Notes for reviewers</label><textarea id="saNotes" placeholder="What changed, what to check..."></textarea></div>
       <button class="btn btn-primary" onclick="Studio.submitAsset()">Submit — sets status to “For Review”</button>
       <span style="font-size:11.5px;color:var(--text-faint);margin-left:10px;">Workflow automation will move this asset into the review queue automatically.</span>
-    </div>` : ''}
-
+    </div>`:''}
     <!-- Added: Asset status cards -->
     <div class="stat-grid assets-status-grid">
       ${statusCards.map(s=>{
-        const count = DB.assets.filter(a=>latestVersion(a).status===s.status).length;
-        const active = f.status===s.status;
+        const count=activeAssets.filter(a=>latestVersion(a).status===s.status).length;
+        const active=f.status===s.status;
         return `
           <button
             type="button"
@@ -104,11 +118,10 @@ function pageAssets(){
         `;
       }).join('')}
     </div>
-
     <div class="toolbar">
       <select onchange="Studio.setFilter('project',this.value)">
         <option value="all">All projects</option>
-        ${DB.projects.map(p=>`<option value="${p.id}" ${f.project===p.id?'selected':''}>${esc(p.name)}</option>`).join('')}
+        ${activeProjects.map(p=>`<option value="${p.id}" ${f.project===p.id?'selected':''}>${esc(p.name)}</option>`).join('')}
       </select>
       <select onchange="Studio.setFilter('type',this.value)">
         <option value="all">All types</option>
@@ -120,12 +133,11 @@ function pageAssets(){
       </select>
       <input placeholder="Search title…" value="${esc(f.q)}" oninput="Studio.setFilter('q',this.value)">
     </div>
-
     <div class="card">
-      ${list.length? list.map(a=>{
-        const v = latestVersion(a);
-        const meta = TYPE_META[a.type];
-        const proj = projectById(a.project);
+      ${list.length?list.map(a=>{
+        const v=latestVersion(a);
+        const meta=TYPE_META[a.type];
+        const proj=projectById(a.project);
         return `<div class="list-row" style="cursor:pointer;" onclick="Studio.goto('assetDetail','${a.id}')">
           <div class="type-tag" style="background:${meta.color}22;color:${meta.color};">${meta.tag}</div>
           <div style="flex:1;">
@@ -135,21 +147,19 @@ function pageAssets(){
           <span class="vtag">v${String(v.n).padStart(2,'0')}</span>
           <span class="badge ${STATUS_CLASS[v.status]}">${v.status}</span>
         </div>`;
-      }).join('') : `<div class="empty">No assets match these filters.</div>`}
+      }).join(''):`<div class="empty">No assets match these filters.</div>`}
     </div>
   `;
 }
-
 function pageAssetDetail(){
-  const a = assetById(state.selectedAssetId);
-  if(!a) return `<div class="empty">Asset not found.</div>`;
-  const proj = projectById(a.project);
-  const meta = TYPE_META[a.type];
-  const v = latestVersion(a);
-  const comments = DB.comments.filter(c=>c.asset===a.id);
-  const canReviewNow = can('review') && ['For Review','Revision Requested'].includes(v.status);
-  const isRender = a.type==='Render';
-
+  const a=assetById(state.selectedAssetId);
+  if(!a)return `<div class="empty">Asset not found.</div>`;
+  const proj=projectById(a.project);
+  const meta=TYPE_META[a.type];
+  const v=latestVersion(a);
+  const comments=DB.comments.filter(c=>c.asset===a.id);
+  const canReviewNow=can('review')&&v.status==='For Review';
+  const isRender=a.type==='Render';
   return `
     <button class="btn btn-ghost btn-sm" onclick="Studio.goto('assets')">← All assets</button>
     <div class="card" style="padding:22px;margin-top:14px;">
@@ -161,18 +171,29 @@ function pageAssetDetail(){
           <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
             <span class="chip">${a.type}</span>
             <span class="badge ${STATUS_CLASS[v.status]}">${v.status}</span>
-            ${a.link? `<span class="chip" title="External storage link">🔗 ${esc(a.link)}</span>`:''}
+            ${a.link?`<span class="chip" title="External storage link">🔗 ${esc(a.link)}</span>`:''}
           </div>
         </div>
-        ${can('submitAssets') ? `<button class="btn btn-sm" onclick="Studio.goto('assets');Studio.toggleForm('newAssetForm');document.getElementById('saExisting').value='${a.id}';Studio.onSaExistingChange();">+ New version</button>`:''}
+       ${can('submitAssets')&&v.status==='Revision Requested'?`
+<button
+  class="btn btn-sm"
+  onclick="
+    Studio.goto('assets');
+    Studio.toggleForm('newAssetForm');
+    document.getElementById('saExisting').value='${a.id}';
+    Studio.onSaExistingChange();
+  "
+>
+  + Submit Revised Version
+</button>
+`:''}
       </div>
     </div>
-
     <div class="grid-2" style="margin-top:20px;">
       <div>
         <h3 style="font-size:15px;">Version history</h3>
         ${a.versions.slice().reverse().map(ver=>{
-          const author = userById(ver.by);
+          const author=userById(ver.by);
           return `<div class="version-item ${ver.id===v.id?'latest':''}">
             <div class="vh-top">
               <span class="vtag">v${String(ver.n).padStart(2,'0')}</span>
@@ -183,27 +204,25 @@ function pageAssetDetail(){
             <div style="font-size:11px;color:var(--text-faint);margin-top:6px;" class="mono">Submitted by ${author?esc(author.name):'—'}</div>
           </div>`;
         }).join('')}
-
-        ${canReviewNow ? `
+        ${canReviewNow?`
         <div class="card" style="padding:18px;margin-top:6px;">
           <h3 style="margin-top:0;font-size:14px;">Review v${String(v.n).padStart(2,'0')}</h3>
           <div class="field"><label>Comment (optional)</label><textarea id="reviewComment" placeholder="Leave feedback for the team..."></textarea></div>
-          ${isRender ? `<label style="display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--text-dim);margin-bottom:12px;">
+          ${isRender?`<label style="display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--text-dim);margin-bottom:12px;">
             <input type="checkbox" id="markFinal"> Mark as Final Output on approval
-          </label>` : '<input type="hidden" id="markFinal">'}
+          </label>`:'<input type="hidden" id="markFinal">'}
           <div style="display:flex;gap:10px;flex-wrap:wrap;">
             <button class="btn btn-cyan" onclick="Studio.reviewAsset('${a.id}','approve')">✓ Approve</button>
             <button class="btn" style="border-color:var(--violet);color:var(--violet);" onclick="Studio.reviewAsset('${a.id}','revise')">↺ Request revision</button>
             <button class="btn btn-danger" onclick="Studio.reviewAsset('${a.id}','reject')">✕ Reject</button>
           </div>
-        </div>` : ''}
+        </div>`:''}
       </div>
-
       <div>
-        <h3 style="font-size:15px;">Comments &amp; feedback</h3>
+        <h3 style="font-size:15px;">Comments & feedback</h3>
         <div class="card" style="padding:16px 18px;">
-          ${comments.length? comments.map(c=>{
-            const u = userById(c.by);
+          ${comments.length?comments.map(c=>{
+            const u=userById(c.by);
             return `<div class="comment">
               <div class="avatar" style="width:30px;height:30px;font-size:11px;">${initials(u?u.name:'?')}</div>
               <div class="body">
@@ -211,53 +230,52 @@ function pageAssetDetail(){
                 <div class="txt">${esc(c.text)}</div>
               </div>
             </div>`;
-          }).join('') : `<div class="empty">No feedback yet. Notes from reviewers and clients will show up here.</div>`}
-          ${can('comment') ? `
+          }).join(''):`<div class="empty">No feedback yet. Notes from reviewers and clients will show up here.</div>`}
+          ${can('comment')?`
           <div class="divider"></div>
           <div class="field"><textarea id="newComment" placeholder="Add a comment..."></textarea></div>
-          <button class="btn btn-sm" onclick="Studio.addComment('${a.id}')">Add comment</button>` : ''}
+          <button class="btn btn-sm" onclick="Studio.addComment('${a.id}')">Add comment</button>`:''}
         </div>
       </div>
     </div>
   `;
 }
-
-
 function render(){
-  if(!DB.currentUser) return;
+  if(!DB.currentUser)return;
   renderSidebar();
   const el=document.getElementById('pageContent');
-  if(!el) return;
+  if(!el)return;
   switch(state.page){
-    case 'dashboard': el.innerHTML=pageDashboard(); break;
-    case 'projects': el.innerHTML=pageProjects(); break;
-    case 'projectDetail': el.innerHTML=pageProjectDetail(); break;
-    case 'assets': el.innerHTML=pageAssets(); break;
-    case 'assetDetail': el.innerHTML=pageAssetDetail(); break;
-    case 'review': el.innerHTML=pageReview(); break;
-    case 'notifications': el.innerHTML=pageNotifications(); break;
-    case 'integrations': el.innerHTML=pageIntegrations(); break;
-    case 'resources': el.innerHTML=pageResources(); break;
-    case 'audit': el.innerHTML=pageAudit(); break;
-    case 'users': el.innerHTML=pageUsers(); break;
-    case 'architecture': el.innerHTML=pageArchitecture(); break;
-    default: el.innerHTML=pageDashboard();
+    case 'dashboard':el.innerHTML=pageDashboard();break;
+    case 'projects':el.innerHTML=pageProjects();break;
+    case 'projectDetail':el.innerHTML=pageProjectDetail();break;
+    case 'assets':el.innerHTML=pageAssets();break;
+    case 'assetDetail':el.innerHTML=pageAssetDetail();break;
+    case 'review':el.innerHTML=pageReview();break;
+    case 'notifications':el.innerHTML=pageNotifications();break;
+    case 'integrations':el.innerHTML=pageIntegrations();break;
+    case 'resources':el.innerHTML=pageResources();break;
+    case 'audit':el.innerHTML=pageAudit();break;
+    case 'users':el.innerHTML=pageUsers();break;
+    case 'architecture':el.innerHTML=pageArchitecture();break;
+    default:el.innerHTML=pageDashboard();
   }
 }
-
 document.addEventListener('DOMContentLoaded',()=>{
-  if(!DB.currentUser){ 
-    window.location.assign('../login/login.html'); 
-    return; 
+  // When opened from Project Details via ?submit=1&project=..., keep this as the Assets page.
+  if(new URLSearchParams(window.location.search).get('submit')==='1'){
+    state.page='assets';
   }
-
+  if(!DB.currentUser){
+    window.location.assign('../login/login.html');
+    return;
+  }
   const menu=document.getElementById('menuButton');
-  if(menu) {
+  if(menu){
     menu.addEventListener('click',()=>{
       document.getElementById('sidebar')?.classList.toggle('open');
     });
   }
-
   // Render the actual page after the separated HTML document loads.
   render();
 });

@@ -113,149 +113,210 @@ Object.assign(Studio, {
   }, 650);
 
 },  
+async runETL(){
 
-  runETL(){
+  const raw =
+    document
+      .getElementById('etlInput')
+      .value
+      .trim();
 
-  const raw = document.getElementById('etlInput').value.trim();
-  const log = document.getElementById('etlLog');
+  const log =
+    document.getElementById('etlLog');
 
   if(!raw){
-    toast('Paste or keep the sample CSV first.','error');
+
+    toast(
+      'Paste or keep the sample CSV first.',
+      'error'
+    );
+
     return;
   }
 
-  const lines = raw.split('\n').map(l=>l.trim()).filter(Boolean);
-  const header = lines[0].split(',').map(h=>h.trim().toLowerCase());
-  const rows = lines.slice(1);
+  const lines =
+    raw
+      .split('\n')
+      .map(line => line.trim())
+      .filter(Boolean);
 
-  let steps = [];
+  if(lines.length < 2){
 
-  steps.push('EXTRACT — read '+rows.length+' row(s) from source file.');
-
-  let loaded = 0;
-  let skipped = 0;
-
-  rows.forEach(line => {
-
-    const cells = line.match(/(".*?"|[^,]+)/g) || [];
-    const clean = cells.map(c=>c.replace(/^"|"$/g,'').trim());
-
-    const rec = {};
-
-    header.forEach((h,i)=>{
-      rec[h] = clean[i] || '';
-    });
-
-    if(!rec.title || !rec.project){
-      skipped++;
-      return;
-    }
-
-    const proj = DB.projects.find(p =>
-      p.name.toLowerCase().includes(rec.project.toLowerCase()) ||
-      rec.project.toLowerCase().includes(p.name.split(' ')[0].toLowerCase())
+    toast(
+      'Add at least one CSV data row.',
+      'error'
     );
 
-    const type = [
-      'Storyboard',
-      'Animatic',
-      'Character Sheet',
-      'Background Asset',
-      'Animation Scene',
-      'Render',
-      'Audio',
-      'Design Draft'
-    ].includes(rec.type)
-      ? rec.type
-      : 'Design Draft';
+    return;
+  }
 
-    const asset = {
-      id: nid('a'),
-      project: proj ? proj.id : DB.projects[0].id,
-      title: rec.title,
-      type,
-      link: '',
-      versions: [{
-        id: nid('v'),
-        n: 1,
-        status: 'For Review',
-        notes:
-          'Imported via ETL — assignee: ' +
-          (rec.assignee || 'unassigned') +
-          (rec.duedate ? ', due ' + rec.duedate : ''),
-        by: DB.currentUser.id,
-        date: new Date().toISOString().slice(0,10)
-      }]
-    };
+  const header =
+    lines[0]
+      .split(',')
+      .map(h =>
+        h.trim().toLowerCase()
+      );
 
-    DB.assets.push(asset);
-    loaded++;
-  });
+  const requiredHeaders = [
+    'title',
+    'project'
+  ];
 
-  steps.push(
-    'TRANSFORM — validated required fields, normalized asset type, mapped project names (' +
-    skipped +
-    ' row(s) skipped for missing data).'
-  );
+  const missingHeaders =
+    requiredHeaders.filter(
+      h => !header.includes(h)
+    );
 
-  steps.push(
-    'LOAD — inserted ' +
-    loaded +
-    ' new asset record(s), each auto-set to “For Review”.'
-  );
+  if(missingHeaders.length){
 
-  log.innerHTML = steps.map(s =>
-    '<div class="log-line"><span class="t">›</span><span>' +
-    esc(s) +
-    '</span></div>'
-  ).join('');
+    toast(
+      'CSV must include: title, project',
+      'error'
+    );
 
-  // Save ETL log to database
-  fetch('http://localhost/SIA/api/integration_etl_logs.php', {
-    method: 'POST',
-    credentials: 'include',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      source: 'CSV Import',
-      total_rows: rows.length,
-      loaded_rows: loaded,
-      skipped_rows: skipped,
-      status: 'Completed',
-      details: steps.join('\n')
-    })
-  })
-  .then(response => response.json())
-  .then(data => {
-    console.log('ETL log saved:', data);
-  })
-  .catch(error => {
-    console.error('ETL log save error:', error);
-  });
+    return;
+  }
 
-  pushAudit(
-    'Integration',
-    'ETL Import',
-    loaded + ' asset(s) imported from CSV'
-  );
+  const rows =
+    lines
+      .slice(1)
+      .map(line => {
 
-  pushEvent(
-    'ETL Import Completed',
-    {
-      rows: rows.length,
-      loaded,
-      skipped
+        const cells =
+          line.match(/(".*?"|[^,]+)/g)
+          || [];
+
+        const clean =
+          cells.map(cell =>
+            cell
+              .replace(/^"|"$/g, '')
+              .trim()
+          );
+
+        const record = {};
+
+        header.forEach(
+          (name, index) => {
+
+            record[name] =
+              clean[index] || '';
+
+          }
+        );
+
+        return record;
+
+      });
+
+  try {
+
+    if(log){
+
+      log.innerHTML = `
+        <div class="log-line">
+          <span class="t">›</span>
+          <span>Running ETL import...</span>
+        </div>
+      `;
+
     }
-  );
 
-  toast(
-    'ETL run complete — ' + loaded + ' record(s) loaded.',
-    'success'
-  );
+    const response =
+      await fetch(
+        'http://localhost/SIA/api/integration_etl_logs.php',
+        {
+          method: 'POST',
 
-  render();
+          credentials: 'include',
+
+          headers: {
+            'Content-Type': 'application/json'
+          },
+
+          body: JSON.stringify({
+            rows: rows
+          })
+        }
+      );
+
+    const data =
+      await parseApiResponse(
+        response
+      );
+
+    if(
+      !response.ok ||
+      !data.success
+    ){
+
+      throw new Error(
+        data.error ||
+        'ETL import failed.'
+      );
+
+    }
+
+    if(log){
+
+      log.innerHTML =
+        (data.details || [])
+          .map(step => `
+            <div class="log-line">
+              <span class="t">›</span>
+              <span>${esc(step)}</span>
+            </div>
+          `)
+          .join('');
+
+    }
+
+    await loadAssetsFromDB();
+
+    pushEvent(
+      'ETL Import Completed',
+      {
+        rows: data.total_rows,
+        loaded: data.loaded_rows,
+        skipped: data.skipped_rows
+      }
+    );
+
+    toast(
+      'ETL complete — ' +
+      data.loaded_rows +
+      ' asset(s) saved to MySQL.',
+      'success'
+    );
+
+    if(typeof render === 'function'){
+      render();
+    }
+
+  } catch(error){
+
+    console.error(
+      'ETL import error:',
+      error
+    );
+
+    if(log){
+
+      log.innerHTML = `
+        <div class="log-line">
+          <span class="t">!</span>
+          <span>${esc(error.message)}</span>
+        </div>
+      `;
+
+    }
+
+    toast(
+      error.message ||
+      'ETL import failed.',
+      'error'
+    );
+
+  }
 
 },
-
 });

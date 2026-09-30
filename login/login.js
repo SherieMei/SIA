@@ -1,111 +1,160 @@
 /* BEE PRODUCTION Login — MySQL connected controller */
 document.addEventListener('DOMContentLoaded', () => {
 
-  const grid = document.getElementById('demoUsers');
+const grid = document.getElementById('demoUsers');
 
-  // --------------------------------------------------
-  // LOAD REGISTERED USERS FROM MYSQL
-  // --------------------------------------------------
-  async function loadUsers() {
-    if (!grid) return;
+let registeredUsers = [];
 
-    try {
-      const response = await fetch('../api/auth.php?action=users', {
+
+// --------------------------------------------------
+// LOAD REGISTERED USERS FROM MYSQL
+// --------------------------------------------------
+
+async function loadUsers() {
+
+  if (!grid) return;
+
+  try {
+
+    const response = await fetch(
+      '../api/auth.php?action=users',
+      {
         method: 'GET',
         credentials: 'include'
-      });
-
-      const data = await response.json();
-
-      if (!response.ok || !data.success) {
-        throw new Error(data.error || 'Unable to load users.');
       }
+    );
 
-      const demoEmails = [
-        'jordan.reyes@beeproduction.studio',
-        'mika.santos@beeproduction.studio',
-        'leo.cruz@beeproduction.studio',
-        'ava.domingo@beeproduction.studio',
-        'noah.bautista@beeproduction.studio',
-        'priya.fernandez@beeproduction.studio',
-        'client@skylinemedia.com'
-      ];
+    const data = await response.json();
 
-      const users = (data.users || []).filter(user =>
-        !demoEmails.includes(
-          String(user.email || '').toLowerCase()
-        )
+    if (!response.ok || !data.success) {
+      throw new Error(
+        data.error ||
+        'Unable to load users.'
       );
+    }
 
-      // Remove all old demo users
-      grid.innerHTML = '';
+    registeredUsers =
+      Array.isArray(data.users)
+        ? data.users
+        : [];
 
-      if (users.length === 0) {
-        grid.innerHTML = `
-          <div class="demo-empty">
-            No registered accounts yet.
-          </div>
-        `;
-        return;
-      }
+    grid.innerHTML = '';
 
-      // Display real MySQL users
-      grid.innerHTML = users.map(user => `
-        <button
-          type="button"
-          class="demo-card"
-          data-user-id="${esc(String(user.id))}"
-          data-user-email="${esc(String(user.email || ''))}"
-        >
-          <b>${esc(user.full_name)}</b>
-          <span>
-            ${ROLE_LABELS[user.role] || user.role}
-          </span>
-        </button>
-      `).join('');
-
-    } catch (error) {
-
-      console.error(
-        'Unable to load MySQL users:',
-        error
-      );
+    if (registeredUsers.length === 0) {
 
       grid.innerHTML = `
         <div class="demo-empty">
-          Unable to load registered accounts.
+          No registered accounts yet.
         </div>
       `;
+
+      return;
     }
+
+    grid.innerHTML = registeredUsers.map(user => `
+
+      <button
+        type="button"
+        class="demo-card"
+        data-user-id="${esc(String(user.id))}"
+      >
+
+        <b>
+          ${esc(user.full_name)}
+        </b>
+
+        <span>
+          ${ROLE_LABELS[user.role] || user.role}
+        </span>
+
+      </button>
+
+    `).join('');
+
+  } catch (error) {
+
+    console.error(
+      'Unable to load MySQL users:',
+      error
+    );
+
+    registeredUsers = [];
+
+    grid.innerHTML = `
+      <div class="demo-empty">
+        Unable to load registered accounts.
+      </div>
+    `;
+
   }
 
+}
 
-  // Quick Sign-In: select a real MySQL account and require its password.
-  if (grid) {
-    grid.addEventListener('click', event => {
-      const card = event.target.closest('[data-user-id]');
-      if (!card) return;
 
-      const emailInput = document.getElementById('loginEmail');
-      const passwordInput = document.getElementById('loginPassword');
+// --------------------------------------------------
+// QUICK SIGN-IN
+// --------------------------------------------------
 
-      const email = card.dataset.userEmail || '';
+if (grid) {
 
-      if (emailInput) {
-        emailInput.value = email;
-      }
+  grid.addEventListener('click', event => {
 
-      if (passwordInput) {
-        passwordInput.value = '';
-        passwordInput.focus();
-      }
+    const card =
+      event.target.closest('[data-user-id]');
 
-      if (mode !== 'signin') {
-        setMode('signin');
-      }
-    });
-  }
+    if (!card) return;
 
+    const selectedUser =
+      registeredUsers.find(
+        user =>
+          String(user.id) ===
+          String(card.dataset.userId)
+      );
+
+    if (!selectedUser) return;
+
+    const emailInput =
+      document.getElementById('loginEmail');
+
+    const passwordInput =
+      document.getElementById('loginPassword');
+
+    const roleInput =
+      document.getElementById('loginRole');
+
+    if (emailInput) {
+      emailInput.value =
+        selectedUser.email || '';
+    }
+
+    if (roleInput) {
+
+      roleInput.value =
+        selectedUser.role || 'viewer';
+
+      roleInput.dispatchEvent(
+        new Event('change', {
+          bubbles: true
+        })
+      );
+
+    }
+
+    if (passwordInput) {
+
+      passwordInput.value = '';
+
+      passwordInput.focus();
+
+    }
+
+    if (mode !== 'signin') {
+      setMode('signin');
+    }
+
+  });
+
+}
 
   // --------------------------------------------------
   // SIGN IN VS CREATE ACCOUNT
@@ -694,49 +743,93 @@ document.addEventListener('DOMContentLoaded', () => {
   // SHOW / HIDE PASSWORD
   // --------------------------------------------------
 
-  const pwToggle =
-    document.getElementById('pwToggleBtn');
+  // --------------------------------------------------
+// SHOW / HIDE PASSWORD
+// --------------------------------------------------
 
-  const pwInput =
-    document.getElementById('loginPassword');
+const pwToggle =
+  document.getElementById('pwToggleBtn');
 
+const pwInput =
+  document.getElementById('loginPassword');
 
-  if (pwToggle && pwInput) {
+if (pwToggle && pwInput) {
 
-    pwToggle.addEventListener(
-      'click',
-      () => {
+  pwToggle.addEventListener('click', () => {
 
-        const showing =
-          pwInput.type === 'text';
+    const isHidden =
+      pwInput.type === 'password';
 
-        pwInput.type =
-          showing
-            ? 'password'
-            : 'text';
+    pwInput.type =
+      isHidden ? 'text' : 'password';
 
-        pwToggle.textContent =
-          showing
-            ? '👁'
-            : '🙈';
+    if (isHidden) {
 
-        const label =
-          showing
-            ? 'Show password'
-            : 'Hide password';
+      pwToggle.innerHTML = `
+        <svg
+          class="pw-icon"
+          viewBox="0 0 24 24"
+          width="22"
+          height="22"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path
+            d="M2 12C4.5 7.5 8 5 12 5C16 5 19.5 7.5 22 12C19.5 16.5 16 19 12 19C8 19 4.5 16.5 2 12Z"
+            stroke="currentColor"
+            stroke-width="2"
+          />
 
-        pwToggle.title = label;
+          <circle
+            cx="12"
+            cy="12"
+            r="3"
+            stroke="currentColor"
+            stroke-width="2"
+          />
+        </svg>
+      `;
 
-        pwToggle.setAttribute(
-          'aria-label',
-          label
-        );
+      pwToggle.title = 'Hide password';
 
-      }
-    );
+    } else {
 
-  }
+      pwToggle.innerHTML = `
+        <svg
+          class="pw-icon"
+          viewBox="0 0 24 24"
+          width="22"
+          height="22"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path
+            d="M3 3L21 21"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+          />
 
+          <path
+            d="M10.6 5.2C11.1 5.1 11.5 5 12 5C16 5 19.5 7.5 22 12C21.2 13.4 20.3 14.6 19.2 15.6"
+            stroke="currentColor"
+            stroke-width="2"
+          />
+
+          <path
+            d="M6.6 6.6C4.7 7.8 3.2 9.6 2 12C4.5 16.5 8 19 12 19C13.6 19 15.1 18.6 16.4 17.8"
+            stroke="currentColor"
+            stroke-width="2"
+          />
+        </svg>
+      `;
+
+      pwToggle.title = 'Show password';
+    }
+
+  });
+
+}
 
   // --------------------------------------------------
   // THEME

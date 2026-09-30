@@ -72,35 +72,198 @@ try {
        CREATE AUDIT LOG
        ========================================================= */
 
-    function createAuditLog($pdo, $action, $entity = null, $details = null)
-    {
-        try {
+function createAuditLog(
+    $pdo,
+    $action,
+    $entity = null,
+    $details = null,
+    $projectId = null,
+    $clientId = null
+)
+{
+    try {
 
-            $userId = $_SESSION['user']['id'] ?? null;
+        $userId = $_SESSION['user']['id'] ?? null;
 
-            $stmt = $pdo->prepare("
-                INSERT INTO audit_logs
-                (user_id, action, entity, detail)
-                VALUES (?, ?, ?, ?)
+        if ($projectId && !$clientId) {
+
+            $projectStmt = $pdo->prepare("
+                SELECT client_id
+                FROM projects
+                WHERE id = ?
+                LIMIT 1
             ");
 
-            $stmt->execute([
-                $userId,
-                $action,
-                $entity,
-                $details
+            $projectStmt->execute([
+                $projectId
             ]);
 
-        } catch (Exception $e) {
-            // Audit failure should not stop the main operation.
-        }
-    }
+            $projectRow = $projectStmt->fetch(PDO::FETCH_ASSOC);
 
+            $clientId = $projectRow['client_id'] ?? null;
+        }
+
+        $stmt = $pdo->prepare("
+            INSERT INTO audit_logs
+            (
+                user_id,
+                project_id,
+                client_id,
+                action,
+                entity,
+                detail
+            )
+            VALUES (?, ?, ?, ?, ?, ?)
+        ");
+
+        $stmt->execute([
+            $userId,
+            $projectId,
+            $clientId,
+            $action,
+            $entity,
+            $details
+        ]);
+
+    } catch (Exception $e) {
+        // Audit failure should not stop the main operation.
+    }
+}
+function getAssetProjectInfo($pdo, $assetId)
+{
+    try {
+
+        $stmt = $pdo->prepare("
+            SELECT
+                a.project_id,
+                a.asset_title,
+                p.client_id,
+                p.name AS project_name
+            FROM assets a
+            LEFT JOIN projects p
+                ON p.id = a.project_id
+            WHERE a.id = ?
+            LIMIT 1
+        ");
+
+        $stmt->execute([
+            $assetId
+        ]);
+
+        return $stmt->fetch(PDO::FETCH_ASSOC);
+
+    } catch (Exception $e) {
+
+        return false;
+    }
+}
 
     /* =========================================================
        RETURN CURRENT ASSET STATE
        ========================================================= */
+/* =========================================================
+   CREATE USER NOTIFICATION
+   ========================================================= */
 
+function createUserNotification(
+    $pdo,
+    $userId,
+    $title,
+    $message,
+    $type = 'general'
+)
+{
+    if (!$userId) {
+        return;
+    }
+
+    try {
+
+        $stmt = $pdo->prepare("
+            INSERT INTO notifications
+            (
+                user_id,
+                title,
+                message,
+                type,
+                is_read
+            )
+            VALUES (?, ?, ?, ?, 0)
+        ");
+
+        $stmt->execute([
+            $userId,
+            $title,
+            $message,
+            $type
+        ]);
+
+    } catch (Exception $e) {
+
+        error_log(
+            'Notification error: ' .
+            $e->getMessage()
+        );
+    }
+}
+
+
+/* =========================================================
+   NOTIFY ADMIN / PROJECT MANAGER
+   ========================================================= */
+
+function notifyManagement(
+    $pdo,
+    $title,
+    $message,
+    $type = 'general'
+)
+{
+    try {
+
+        $currentUserId =
+            $_SESSION['user']['id'] ?? null;
+
+        $stmt = $pdo->query("
+            SELECT id
+            FROM app_users
+            WHERE role IN (
+                'admin',
+                'project_manager'
+            )
+        ");
+
+        $users =
+            $stmt->fetchAll(
+                PDO::FETCH_ASSOC
+            );
+
+        foreach ($users as $user) {
+
+            if (
+                $currentUserId &&
+                (string)$user['id'] === (string)$currentUserId
+            ) {
+                continue;
+            }
+
+            createUserNotification(
+                $pdo,
+                $user['id'],
+                $title,
+                $message,
+                $type
+            );
+        }
+
+    } catch (Exception $e) {
+
+        error_log(
+            'Management notification error: ' .
+            $e->getMessage()
+        );
+    }
+}
     function respondWithState($pdo, $extraData = [])
     {
 
@@ -491,14 +654,65 @@ try {
             }
 
 
-            createAuditLog(
-                $pdo,
-                $status === 'Approved' || $status === 'Final'
-                    ? 'Approved'
-                    : 'Updated',
-                'Asset Version',
-                "{$status} for asset {$assetId}"
-            );
+           $assetInfo =
+    getAssetProjectInfo(
+        $pdo,
+        $assetId
+    );
+
+$actionName =
+    $status === 'Approved'
+    || $status === 'Final'
+        ? 'Approved'
+        : (
+            $status === 'Revision Requested'
+                ? 'Revision Requested'
+                : 'Updated'
+        );
+
+createAuditLog(
+    $pdo,
+    $actionName,
+    'Asset Version',
+    "{$status} for asset {$assetId}",
+    $assetInfo['project_id'] ?? null,
+    $assetInfo['client_id'] ?? null
+);
+$actorName =
+    $_SESSION['user']['full_name']
+    ?? $_SESSION['user']['name']
+    ?? 'A user';
+
+$assetTitle =
+    $assetInfo['asset_title']
+    ?? "Asset {$assetId}";
+
+if (
+    $status === 'Approved'
+    ||
+    $status === 'Final'
+) {
+
+    notifyManagement(
+        $pdo,
+        'Asset Approved',
+        "{$actorName} approved '{$assetTitle}'.",
+        'asset_approved'
+    );
+
+}
+elseif (
+    $status === 'Revision Requested'
+) {
+
+    notifyManagement(
+        $pdo,
+        'Revision Requested',
+        "{$actorName} requested revisions for '{$assetTitle}'.",
+        'revision_requested'
+    );
+
+}
 
 
             ob_clean();
@@ -602,12 +816,39 @@ try {
                 (int)$pdo->lastInsertId();
 
 
-            createAuditLog(
-                $pdo,
-                'Created',
-                'Asset Version',
-                "Created V{$nextVersion} for asset {$assetId}"
-            );
+$assetInfo =
+    getAssetProjectInfo(
+        $pdo,
+        $assetId
+    );
+
+createAuditLog(
+    $pdo,
+    'Created',
+    'Asset Version',
+    "Created V{$nextVersion} for asset {$assetId}",
+    $assetInfo['project_id'] ?? null,
+    $assetInfo['client_id'] ?? null
+);
+$currentUserId =
+    $_SESSION['user']['id'] ?? null;
+
+$clientId =
+    $assetInfo['client_id'] ?? null;
+
+if (
+    $clientId &&
+    (string)$clientId !== (string)$currentUserId
+) {
+
+    createUserNotification(
+        $pdo,
+        $clientId,
+        'New Asset Version',
+        "Version V{$nextVersion} of '{$assetInfo['asset_title']}' was submitted.",
+        'asset_version'
+    );
+}
 
 
             /* Get asset title */
@@ -733,13 +974,38 @@ try {
             (int)$pdo->lastInsertId();
 
 
-        createAuditLog(
-            $pdo,
-            'Created',
-            'Asset',
-            "Created asset {$assetId} - {$title}"
-        );
+createAuditLog(
+    $pdo,
+    'Created',
+    'Asset',
+    "Created asset {$assetId} - {$title}",
+    $rawProject
+);
+$assetProjectInfo =
+    getAssetProjectInfo(
+        $pdo,
+        $assetId
+    );
 
+$currentUserId =
+    $_SESSION['user']['id'] ?? null;
+
+$clientId =
+    $assetProjectInfo['client_id'] ?? null;
+
+if (
+    $clientId &&
+    (string)$clientId !== (string)$currentUserId
+) {
+
+    createUserNotification(
+        $pdo,
+        $clientId,
+        'New Asset Submitted',
+        "A new {$type} asset '{$title}' was submitted to your project.",
+        'asset_created'
+    );
+}
 
         /* =====================================================
            CREATE INITIAL VERSION
@@ -948,19 +1214,65 @@ try {
         ]);
 
 
-        createAuditLog(
-            $pdo,
-            (
-                $status === 'Approved'
-                ||
-                $status === 'Final'
-            )
-                ? 'Approved'
-                : 'Updated',
-            'Asset Version',
-            "{$status} V{$versionNo} for asset {$assetId}"
+$assetInfo =
+    getAssetProjectInfo(
+        $pdo,
+        $assetId
+    );
+
+$actionName =
+    $status === 'Approved'
+    || $status === 'Final'
+        ? 'Approved'
+        : (
+            $status === 'Revision Requested'
+                ? 'Revision Requested'
+                : 'Updated'
         );
 
+createAuditLog(
+    $pdo,
+    $actionName,
+    'Asset Version',
+    "{$status} V{$versionNo} for asset {$assetId}",
+    $assetInfo['project_id'] ?? null,
+    $assetInfo['client_id'] ?? null
+);
+$actorName =
+    $_SESSION['user']['full_name']
+    ?? $_SESSION['user']['name']
+    ?? 'A user';
+
+$assetTitle =
+    $assetInfo['asset_title']
+    ?? "Asset {$assetId}";
+
+if (
+    $status === 'Approved'
+    ||
+    $status === 'Final'
+) {
+
+    notifyManagement(
+        $pdo,
+        'Asset Approved',
+        "{$actorName} approved '{$assetTitle}' V{$versionNo}.",
+        'asset_approved'
+    );
+
+}
+elseif (
+    $status === 'Revision Requested'
+) {
+
+    notifyManagement(
+        $pdo,
+        'Revision Requested',
+        "{$actorName} requested revisions for '{$assetTitle}' V{$versionNo}.",
+        'revision_requested'
+    );
+
+}
 
         ob_clean();
 

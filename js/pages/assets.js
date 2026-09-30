@@ -3,7 +3,25 @@
    ========================================================================== */
 function pageAssets(){
   const f = state.filter;
-  let list = DB.assets.slice();
+  let list = DB.assets.filter(asset => {
+
+  const project =
+    DB.projects.find(
+      p =>
+        String(p.id) ===
+        String(
+          asset.project ??
+          asset.project_id
+        )
+    );
+
+  if (!project) {
+    return true;
+  }
+
+  return project.status !== 'Completed';
+
+});
   if(f.project!=='all') list = list.filter(a=>a.project===f.project);
   if(f.type!=='all') list = list.filter(a=>a.type===f.type);
   if(f.status!=='all') list = list.filter(a=>latestVersion(a).status===f.status);

@@ -1,4191 +1,1309 @@
 /* BEE PRODUCTION SHARED RUNTIME */
-
-
-
-
-
-
-
 /* ===== DATA CONSTANTS: js/data/constants.js ===== */
-
-
-
 /* ==========================================================================
-
-
-
    CONSTANTS — roles, permissions, asset type styling, status labels.
-
-
-
-   Edit permissions here to change who can do what.
-
-
-
-   ========================================================================== */
-
-
-
-const ROLE_LABELS = {
-
-
-
-  admin:'Administrator', project_manager:'Project Manager',
-
-
-
-  animator:'Animator', editor:'Editor', client:'Client'
-
-
-
+   Edit permissions here to change who can do what.========================================================================== */
+const ROLE_LABELS={
+  admin:'Administrator',project_manager:'Project Manager',
+  animator:'Animator',editor:'Editor',client:'Client'
 };
-
-
-
-
-
-
-
 /* Distinct, theme-safe accent color per role (used for badges and inline role tags) */
-
-
-
-const ROLE_COLOR_VAR = {
-
-
-
-  admin:'crimson', project_manager:'violet', animator:'cyan', editor:'gold', client:'azure'
-
-
-
+const ROLE_COLOR_VAR={
+  admin:'crimson',project_manager:'violet',animator:'cyan',editor:'gold',client:'azure'
 };
-
-
-
-
-
-
-
 /* Letters (incl. accented), spaces, apostrophes, hyphens, and periods only — for name-type
-
-
-
    fields (person names, client names). Rejects digits and other symbols. Fields that
-
-
-
    legitimately need numbers/symbols (email, password, IDs) must not use this. */
-
-
-
-const NAME_RE = /^[A-Za-zÀ-ÖØ-öø-ÿ' .-]+$/;
-
-
-
-
-
-
-
-const PERMISSIONS = {
-
-
-
+const NAME_RE=/^[A-Za-zÀ-ÖØ-öø-ÿ' .-]+$/;
+const PERMISSIONS={
   manageUsers:['admin'],
-
-
-
   manageProjects:['admin','project_manager'],
-
-
-
   submitAssets:['admin','animator','editor','project_manager'],
-
-
-
   review:['admin','project_manager','client'],
-
-
-
   comment:['admin','project_manager','animator','editor','client'],
-
-
-
-  viewAudit:['admin','project_manager'],
-
-
-
+  viewAudit:[
+    'admin',
+    'project_manager',
+  ],
   manageResources:['admin','project_manager'],
-
-
-
   runIntegrations:['admin','project_manager','editor'],
-
-
-
 };
-
-
-
-function can(action){ return DB.currentUser && PERMISSIONS[action] && PERMISSIONS[action].includes(DB.currentUser.role); }
-
-
-
-
-
-
-
-const TYPE_META = {
-
-
-
+function can(action){return DB.currentUser&&PERMISSIONS[action]&&PERMISSIONS[action].includes(DB.currentUser.role);}
+const TYPE_META={
   'Storyboard':{tag:'SB',color:'#ff6b4d'},
-
-
-
   'Animatic':{tag:'AN',color:'#9b8cfb'},
-
-
-
   'Character Sheet':{tag:'CS',color:'#2bd9c9'},
-
-
-
   'Background Asset':{tag:'BG',color:'#6ea8e0'},
-
-
-
   'Animation Scene':{tag:'AS',color:'#f0495a'},
-
-
-
   'Render':{tag:'RN',color:'#ffd479'},
-
-
-
   'Audio':{tag:'AU',color:'#e08ce0'},
-
-
-
   'Design Draft':{tag:'DD',color:'#9aa0ab'},
-
-
-
 };
-
-
-
-const STATUS_CLASS = {
-
-
-
-  'For Review':'b-review', 'Approved':'b-approved', 'Rejected':'b-rejected',
-
-
-
-  'Revision Requested':'b-revision', 'Final':'b-final'
-
-
-
+const STATUS_CLASS={
+  'For Review':'b-review','Approved':'b-approved','Rejected':'b-rejected',
+  'Revision Requested':'b-revision','Final':'b-final'
 };
-
-
-
-const NOTIF_ICON = {submission:'▲', revision:'↺', deadline:'◷', approval:'✓', completed:'●'};
-
-
-
-
-
-
-
-
-
-
-
+const NOTIF_ICON={submission:'▲',revision:'↺',deadline:'◷',approval:'✓',completed:'●'};
 /* ===== SEED DATA: js/data/seed.js ===== */
-
-
-
 /* ==========================================================================
-
-
-
    SEED DATA — demo team, projects, and assets the app boots with.
-
-
-
-   Everything lives in memory for the session (see Architecture page).
-
-
-
+   Everything lives in memory for the session (see Architecture page)
    ========================================================================== */
-
-
-
-let idCounters = {p:3,a:0,v:0,c:0,n:0,e:0,au:0,w:0,api:0,r:0,u:8};
-
-
-
-function nid(prefix){ idCounters[prefix]++; return prefix+idCounters[prefix]; }
-
-
-
-
-
-
-
-const DB = {
-
-
-
+let idCounters={p:3,a:0,v:0,c:0,n:0,e:0,au:0,w:0,api:0,r:0,u:8};
+function nid(prefix){idCounters[prefix]++;return prefix+idCounters[prefix];}
+const DB={
   currentUser:null,
-
-
-
   users:[],
-
-
-
   projects:[],
-
-
-
   assets:[],
-
-
-
   comments:[],
-
-
-
   notifications:[],
-
-
-
   auditLog:[],
-
-
-
   events:[],
-
-
-
   webhooks:[],
-
-
-
   apiLogs:[],
-
-
-
   resources:[],
-
-
-
 };
-
-
-
-
-
-
-
-function latestVersion(a) {
-
-
-
-  if (!a || typeof a !== 'object') {
-
-
-
-    return { status: 'For Review', n: 1, date: '' };
-
-
-
+function latestVersion(a){
+  if(!a||typeof a!=='object'){
+    return{status:'For Review',n:1,date:''};
   }
-
-
-
-  if (Array.isArray(a.versions) && a.versions.length > 0) {
-
-
-
-    const last = a.versions[a.versions.length - 1];
-
-
-
-    return last || { status: 'For Review', n: 1, date: '' };
-
-
-
+  if(Array.isArray(a.versions)&&a.versions.length>0){
+    const last=a.versions[a.versions.length-1];
+    return last||{status:'For Review',n:1,date:''};
   }
-
-
-
-  return { status: 'For Review', n: 1, date: '' };
-
-
-
+  return{status:'For Review',n:1,date:''};
 }
-
-
-
-
-
-
-
 /* The PHP backend (api/assets.php, api/bootstrap.php) doesn't nest asset_versions into
-
-
-
    its asset rows, so anything sourced from the server is missing `.versions`. Every asset
-
-
-
    entering DB.assets must go through this so the rest of the app's `a.versions.length`
-
-
-
    assumptions never crash. */
-
-
-
 function withVersions(a){
-
-
-
-  return Array.isArray(a && a.versions) ? a : { ...a, versions: [] };
-
-
-
+  return Array.isArray(a&&a.versions)?a:{...a,versions:[]};
 }
-
-
-
-
-
-
-
 /* Demo asset seeding removed. Assets now come from the database API. */
-
 function pushNotif(type,text,ref){
-
-
-
-  DB.notifications.push({id:nid('n'), type, text, ref, read:false, date:new Date().toISOString()});
-
-
-
+  DB.notifications.push({id:nid('n'),type,text,ref,read:false,date:new Date().toISOString()});
 }
-
-
-
 function pushAudit(action,entity,detail){
-
-
-
-  DB.auditLog.push({id:nid('au'), by:DB.currentUser?DB.currentUser.name:'System', action, entity, detail, date:new Date().toISOString()});
-
-
-
+  DB.auditLog.push({id:nid('au'),by:DB.currentUser?DB.currentUser.name:'System',action,entity,detail,date:new Date().toISOString()});
 }
-
-
-
 function pushEvent(name,payload){
-
-
-
-  DB.events.unshift({id:nid('e'), name, payload, date:new Date().toISOString()});
-
-
-
+  DB.events.unshift({id:nid('e'),name,payload,date:new Date().toISOString()});
 }
-
-
-
 /* ===== PERSISTENCE ACROSS SEPARATE PAGES ===== */
-
-
-
-const DB_PERSIST_KEY = 'beeDB';
-
-
-
-const DB_PERSISTED_FIELDS = [
-
-
-
+const DB_PERSIST_KEY='beeDB';
+const DB_PERSISTED_FIELDS=[
   'users',
-
-
-
   'projects',
-
-
-
-
-
   'comments',
-
-
-
+  'auditLog',
   'events',
-
-
-
   'webhooks',
-
-
-
   'apiLogs',
-
-
-
   'resources'
-
-
-
 ];
-
-
-
 (function restorePersistedDB(){
-
-
-
   try{
-
-
-
-    const raw = sessionStorage.getItem(DB_PERSIST_KEY);
-
-
-
-    if(!raw) return;
-
-
-
-    const saved = JSON.parse(raw);
-
-
-
-    if(!saved || typeof saved !== 'object') return;
-
-
-
+    const raw=sessionStorage.getItem(DB_PERSIST_KEY);
+    if(!raw)return;
+    const saved=JSON.parse(raw);
+    if(!saved||typeof saved!=='object')return;
     DB_PERSISTED_FIELDS.forEach(key=>{
-
-
-
-      if(Array.isArray(saved[key])) DB[key] = saved[key];
-
-
-
+      if(Array.isArray(saved[key]))DB[key]=saved[key];
     });
-
-
-
-    if(saved.idCounters && typeof saved.idCounters === 'object'){
-
-
-
-      idCounters = Object.assign(idCounters, saved.idCounters);
-
-
-
+    if(saved.idCounters&&typeof saved.idCounters==='object'){
+      idCounters=Object.assign(idCounters,saved.idCounters);
     }
-
-
-
   }catch(e){
-
-
-
     sessionStorage.removeItem(DB_PERSIST_KEY);
-
-
-
   }
-
-
-
 })();
-
-
-
-
-
-
-
 /* ===== ROLE MIGRATION: clean up data persisted under roles removed in the 5-role reduction ===== */
-
-
-
 (function migrateLegacyRoles(){
-
-
-
-  const ROLE_MIGRATION = { artist:'animator', reviewer:'project_manager' };
-
-
-
-  const REMOVED_ROLES = ['viewer'];
-
-
-
-  let changed = false;
-
-
-
-
-
-
-
-  DB.users = DB.users.filter(u=>{
-
-
-
-    if(REMOVED_ROLES.includes(u.role)){ changed = true; return false; }
-
-
-
+  const ROLE_MIGRATION={artist:'animator',reviewer:'project_manager'};
+  const REMOVED_ROLES=['viewer'];
+  let changed=false;
+  DB.users=DB.users.filter(u=>{
+    if(REMOVED_ROLES.includes(u.role)){changed=true;return false;}
     return true;
-
-
-
   });
-
-
-
   DB.users.forEach(u=>{
-
-
-
-    if(ROLE_MIGRATION[u.role]){ u.role = ROLE_MIGRATION[u.role]; changed = true; }
-
-
-
+    if(ROLE_MIGRATION[u.role]){u.role=ROLE_MIGRATION[u.role];changed=true;}
   });
-
-
-
-
-
-
-
-  [window.localStorage, window.sessionStorage].forEach(store=>{
-
-
-
+  [window.localStorage,window.sessionStorage].forEach(store=>{
     try{
-
-
-
-      const raw = store.getItem('beeCurrentUser');
-
-
-
-      if(!raw) return;
-
-
-
-      const u = JSON.parse(raw);
-
-
-
-      if(!u || typeof u !== 'object') return;
-
-
-
-      if(REMOVED_ROLES.includes(u.role)){ store.removeItem('beeCurrentUser'); changed = true; return; }
-
-
-
-      if(ROLE_MIGRATION[u.role]){ u.role = ROLE_MIGRATION[u.role]; store.setItem('beeCurrentUser', JSON.stringify(u)); changed = true; }
-
-
-
+      const raw=store.getItem('beeCurrentUser');
+      if(!raw)return;
+      const u=JSON.parse(raw);
+      if(!u||typeof u!=='object')return;
+      if(REMOVED_ROLES.includes(u.role)){store.removeItem('beeCurrentUser');changed=true;return;}
+      if(ROLE_MIGRATION[u.role]){u.role=ROLE_MIGRATION[u.role];store.setItem('beeCurrentUser',JSON.stringify(u));changed=true;}
     }catch(e){}
-
-
-
   });
-
-
-
-
-
-
-
   if(changed){
-
-
-
     try{
-
-
-
-      const raw = sessionStorage.getItem(DB_PERSIST_KEY);
-
-
-
-      const saved = raw ? JSON.parse(raw) : {};
-
-
-
-      saved.users = DB.users;
-
-
-
-      sessionStorage.setItem(DB_PERSIST_KEY, JSON.stringify(saved));
-
-
-
+      const raw=sessionStorage.getItem(DB_PERSIST_KEY);
+      const saved=raw?JSON.parse(raw):{};
+      saved.users=DB.users;
+      sessionStorage.setItem(DB_PERSIST_KEY,JSON.stringify(saved));
     }catch(e){}
-
-
-
   }
-
-
-
 })();
-
-
-
-
-
-
-
-
-
-
-
 /* ===== STATE: js/core/state.js ===== */
-
-
-
 /* ==========================================================================
-
-
-
    APP STATE + HELPERS
-
-
-
    ========================================================================== */
-
-
-
-const state = { page:'dashboard', selectedProjectId:null, selectedAssetId:null,
-
-
-
-  filter:{project:'all',type:'all',status:'all',q:''} };
-
-
-
-
-
-
-
+const state={page:'dashboard',selectedProjectId:null,selectedAssetId:null,
+  filter:{project:'all',type:'all',status:'all',q:''}};
 (function restorePageRoute(){
-
-
-
-  const page = document.body && document.body.dataset ? document.body.dataset.page : '';
-
-
-
-  if(page && page !== 'login') state.page = page;
-
-
-
-
-
-
-
-  try {
-
-
-
-    const params = new URLSearchParams(window.location.search);
-
-
-
-    const project = params.get('project');
-
-
-
-    const asset = params.get('asset');
-
-
-
-    const status = params.get('status');
-
-
-
-    if(project){ state.page='projectDetail'; state.selectedProjectId=project; }
-
-
-
-    if(asset){ state.page='assetDetail'; state.selectedAssetId=asset; }
-
-
-
-    if(status && STATUS_CLASS[status]) state.filter.status = status;
-
-
-
-  } catch(e) {}
-
-
-
+  const page=document.body&&document.body.dataset?document.body.dataset.page:'';
+  if(page&&page!=='login')state.page=page;
+  try{
+    const params=new URLSearchParams(window.location.search);
+    const project=params.get('project');
+    const asset=params.get('asset');
+    const status=params.get('status');
+    if(project){state.page='projectDetail';state.selectedProjectId=project;}
+    if(asset){state.page='assetDetail';state.selectedAssetId=asset;}
+    if(status&&STATUS_CLASS[status])state.filter.status=status;
+  }catch(e){}
 })();
-
-
-
-
-
-
-
 function fmtDate(d){
-
-
-
-  if(!d) return '—';
-
-
-
-  const dt = new Date(d);
-
-
-
-  if(isNaN(dt)) return d;
-
-
-
+  if(!d)return'—';
+  const dt=new Date(d);
+  if(isNaN(dt))return d;
   return dt.toLocaleDateString('en-US',{month:'short',day:'2-digit',year:'numeric'});
-
-
-
 }
-
-
-
 function fmtDateTime(d){
-
-
-
-  const dt = new Date(d);
-
-
-
-  if(isNaN(dt)) return d;
-
-
-
+  const dt=new Date(d);
+  if(isNaN(dt))return d;
   return dt.toLocaleDateString('en-US',{month:'short',day:'2-digit'})+' · '+dt.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
-
-
-
 }
-
-
-
-function userById(id){ return DB.users.find(u=>String(u.id)===String(id)); }
-
-
-
-function projectById(id){ return DB.projects.find(p=>String(p.id)===String(id)); }
-
-
-
-function assetById(id){ return DB.assets.find(a=>String(a.id)===String(id)); }
-
-
-
-function initials(name){ return name ? name.split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase() : '?'; }
-
-
-
-function esc(s){ return (s||'').toString().replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
-
-
-
-
-
-
-
-function toast(msg, kind){
-
-
-
-  const wrap = document.getElementById('toastWrap');
-
-
-
-  if(!wrap) return;
-
-
-
-  const el = document.createElement('div');
-
-
-
-  el.className = 'toast'+(kind?' '+kind:'');
-
-
-
-  el.textContent = msg;
-
-
-
+function userById(id){return DB.users.find(u=>String(u.id)===String(id));}
+function projectById(id){return DB.projects.find(p=>String(p.id)===String(id));}
+function assetById(id){return DB.assets.find(a=>String(a.id)===String(id));}
+function initials(name){return name?name.split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase():'?';}
+function esc(s){return(s||'').toString().replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function toast(msg,kind){
+  const wrap=document.getElementById('toastWrap');
+  if(!wrap)return;
+  const el=document.createElement('div');
+  el.className='toast'+(kind?' '+kind:'');
+  el.textContent=msg;
   wrap.appendChild(el);
-
-
-
-  setTimeout(()=>{ el.style.opacity='0'; el.style.transition='.25s'; setTimeout(()=>el.remove(),260); }, 3200);
-
-
-
+  setTimeout(()=>{el.style.opacity='0';el.style.transition='.25s';setTimeout(()=>el.remove(),260);},3200);
 }
-
-
-
-
-
-
-
 function projectProgress(pid){
 
+  const projectAssets =
+    Array.isArray(DB.assets)
+      ? DB.assets.filter(
+          a =>
+            String(
+              a.project ??
+              a.project_id
+            ) === String(pid)
+        )
+      : [];
 
 
-  const list = DB.assets.filter(a=>a.project===pid);
+  const projectResources =
+    Array.isArray(DB.resources)
+      ? DB.resources.filter(
+          r =>
+            String(
+              r.project ??
+              r.project_id
+            ) === String(pid)
+        )
+      : [];
 
 
+  /* ----------------------------------------------------------
+     STAGE 1 — HAS ASSET
+     0% → 30%
+     ---------------------------------------------------------- */
 
-  if(!list.length) return 0;
+  if(projectAssets.length === 0){
+    return 0;
+  }
+
+  let progress = 30;
 
 
+  /* ----------------------------------------------------------
+     STAGE 2 — ALL ASSETS APPROVED / FINAL
+     30% → 70%
+     ---------------------------------------------------------- */
 
-  const done = list.filter(a=>{ const v=latestVersion(a); return v.status==='Approved'||v.status==='Final'; }).length;
+  const allAssetsApproved =
+    projectAssets.every(asset => {
+
+      const version =
+        latestVersion(asset);
+
+      if(!version){
+        return false;
+      }
+
+      return (
+        version.status === 'Approved' ||
+        version.status === 'Final'
+      );
+
+    });
 
 
+  if(allAssetsApproved){
+    progress = 70;
+  }
 
-  return Math.round(done/list.length*100);
+
+  /* ----------------------------------------------------------
+     STAGE 3 — RESOURCE / COST ENTRY ADDED
+     70% → 100%
+     ---------------------------------------------------------- */
+
+  const hasResources =
+    projectResources.length > 0;
 
 
+  if(
+    allAssetsApproved &&
+    hasResources
+  ){
+    progress = 100;
+  }
 
+
+  return progress;
 }
-
-
-
-
-
-
-
-
-
-
-
 /* ===== NAVIGATION: js/core/nav.js ===== */
-
-
-
 /* ==========================================================================
-
-
-
    STUDIO CONTROLLER & ROUTING
-
-
-
    ========================================================================== */
-
-
-
-const Studio = {
-
-
-
-
-
-
-
+const Studio={
   persist(){
-
-
-
     try{
-
-
-
-      const snapshot = {};
-
-
-
-      DB_PERSISTED_FIELDS.forEach(key=>{ snapshot[key] = DB[key]; });
-
-
-
-      snapshot.idCounters = idCounters;
-
-
-
-      sessionStorage.setItem(DB_PERSIST_KEY, JSON.stringify(snapshot));
-
-
-
+      const snapshot={};
+      DB_PERSISTED_FIELDS.forEach(key=>{snapshot[key]=DB[key];});
+      snapshot.idCounters=idCounters;
+      sessionStorage.setItem(DB_PERSIST_KEY,JSON.stringify(snapshot));
       const payload=JSON.stringify({state:snapshot});
-
-
-
       if(navigator.sendBeacon){
-
-
-
         const blob=new Blob([payload],{type:'application/json'});
-
-
-
         navigator.sendBeacon('../api/sync.php',blob);
-
-
-
-      } else {
-
-
-
+      }else{
         fetch('../api/sync.php',{method:'POST',headers:{'Content-Type':'application/json'},body:payload,keepalive:true}).catch(()=>{});
-
-
-
       }
-
-
-
     }catch(e){}
-
-
-
   },
-
-
-
-
-
-
-
-  login(username, password) {
-
-
-
-    const user = window.DB.users.find(u => u.username === username || u.email === username) || window.DB.users[0];
-
-
-
-    if (user) {
-
-
-
-      window.DB.currentUser = user;
-
-
-
-      localStorage.setItem('beeCurrentUser', JSON.stringify(user));
-
-
-
-      sessionStorage.setItem('beeCurrentUser', JSON.stringify(user));
-
-
-
+  login(username,password){
+    const user=window.DB.users.find(u=>u.username===username||u.email===username)||window.DB.users[0];
+    if(user){
+      window.DB.currentUser=user;
+      localStorage.setItem('beeCurrentUser',JSON.stringify(user));
+      sessionStorage.setItem('beeCurrentUser',JSON.stringify(user));
       Studio.persist();
-
-
-
       window.location.assign('../dashboard/dashboard.html');
-
-
-
-    } else {
-
-
-
+    }else{
       toast('Invalid credentials','error');
-
-
-
     }
-
-
-
   },
-
-
-
-
-
-
-
   async manualLogin(){
-
-
-
-    const email = document.getElementById('loginEmail').value.trim();
-
-
-
-    const password = document.getElementById('loginPassword').value;
-
-
-
-    if(!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ toast('Enter a valid email to sign in.','error'); return; }
-
-
-
-    if(!password){ toast('Enter a password to sign in.','error'); return; }
-
-
-
-    try {
-
-
-
-      const res = await fetch('http://localhost/SIA/api/auth.php', {method:'POST', credentials:'include', headers:{'Content-Type':'application/json'}, body:JSON.stringify({action:'login',email,password})});
-
-
-
-      const data = await parseApiResponse(res);
-
-
-
-      if(!res.ok || !data.success) throw new Error(data.error || 'Sign in failed.');
-
-
-
-      const u = {id:String(data.user.id), name:data.user.full_name, email:data.user.email, role:data.user.role};
-
-
-
-      const existing=DB.users.find(x=>x.id===u.id); if(existing) Object.assign(existing,u); else DB.users.push(u);
-
-
-
-      Studio.completeLogin(u);
-
-
-
-    } catch(e){ toast(e.message || 'Unable to sign in.','error'); }
-
-
-
-  },
-
-
-
-
-
-
-
-  async createAccount(){
-
-
-
-    const name = document.getElementById('signupName').value.trim();
-
-
-
-    const email = document.getElementById('loginEmail').value.trim();
-
-
-
-    const password = document.getElementById('loginPassword').value;
-
-
-
-    const role = document.getElementById('loginRole').value;
-
-
-
-    if(!name){ toast('Enter your full name to create an account.','error'); return; }
-
-
-
-    if(!NAME_RE.test(name)){ toast('Name can only contain letters, spaces, hyphens, and apostrophes.','error'); return; }
-
-
-
-    if(!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ toast('Enter a valid email.','error'); return; }
-
-
-
-    if(password.length < 6){ toast('Password must be at least 6 characters.','error'); return; }
-
-
-
-    try {
-
-
-
-      const res = await fetch('http://localhost/SIA/api/auth.php', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({action:'register',name,email,password,role})});
-
-
-
-      const data = await parseApiResponse(res);
-
-
-
-      if(!res.ok || !data.success) throw new Error(data.error || 'Account creation failed.');
-
-
-
+    const email=document.getElementById('loginEmail').value.trim();
+    const password=document.getElementById('loginPassword').value;
+    if(!email||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){toast('Enter a valid email to sign in.','error');return;}
+    if(!password){toast('Enter a password to sign in.','error');return;}
+    try{
+      const res=await fetch('http://localhost/SIA/api/auth.php',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'login',email,password})});
+      const data=await parseApiResponse(res);
+      if(!res.ok||!data.success)throw new Error(data.error||'Sign in failed.');
       const u={id:String(data.user.id),name:data.user.full_name,email:data.user.email,role:data.user.role};
-
-
-
+      const existing=DB.users.find(x=>x.id===u.id);if(existing)Object.assign(existing,u);else DB.users.push(u);
+      Studio.completeLogin(u);
+    }catch(e){toast(e.message||'Unable to sign in.','error');}
+  },
+  async createAccount(){
+    const name=document.getElementById('signupName').value.trim();
+    const email=document.getElementById('loginEmail').value.trim();
+    const password=document.getElementById('loginPassword').value;
+    const role=document.getElementById('loginRole').value;
+    if(!name){toast('Enter your full name to create an account.','error');return;}
+    if(!NAME_RE.test(name)){toast('Name can only contain letters, spaces, hyphens, and apostrophes.','error');return;}
+    if(!email||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){toast('Enter a valid email.','error');return;}
+    if(password.length<6){toast('Password must be at least 6 characters.','error');return;}
+    try{
+      const res=await fetch('http://localhost/SIA/api/auth.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'register',name,email,password,role})});
+      const data=await parseApiResponse(res);
+      if(!res.ok||!data.success)throw new Error(data.error||'Account creation failed.');
+      const u={id:String(data.user.id),name:data.user.full_name,email:data.user.email,role:data.user.role};
       DB.users.push(u);
-
-
-
       Studio.openConfirm({
-
-
-
         title:'Account created!',
-
-
-
         body:'Welcome, '+esc(u.name)+'. Sign in with your new account to continue.',
-
-
-
         confirmLabel:'Continue to sign in',
-
-
-
         hideCancel:true,
-
-
-
-        onConfirm: async ()=>{
-
-
-
+        onConfirm:async()=>{
           try{
-
-
-
-            await fetch('/SIA/api/auth.php', {method:'POST', credentials:'include', headers:{'Content-Type':'application/json'}, body:JSON.stringify({action:'logout'})});
-
-
-
+            await fetch('/SIA/api/auth.php',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'logout'})});
           }catch(e){}
-
-
-
-          const passwordInput = document.getElementById('loginPassword');
-
-
-
-          if(passwordInput) passwordInput.value = '';
-
-
-
+          const passwordInput=document.getElementById('loginPassword');
+          if(passwordInput)passwordInput.value='';
           document.getElementById('authModeToggle')?.click();
-
-
-
-          const emailInput = document.getElementById('loginEmail');
-
-
-
-          if(emailInput){ emailInput.value = email; emailInput.focus(); }
-
-
-
+          const emailInput=document.getElementById('loginEmail');
+          if(emailInput){emailInput.value=email;emailInput.focus();}
         }
-
-
-
       });
-
-
-
-    } catch(e){ toast(e.message || 'Unable to create account.','error'); }
-
-
-
+    }catch(e){toast(e.message||'Unable to create account.','error');}
   },
-
-
-
-
-
-
-
   async quickLogin(id){
-
-
-
-    const u = userById(id);
-
-
-
-    if(!u) return;
-
-
-
+    const u=userById(id);
+    if(!u)return;
     document.getElementById('loginEmail').value=u.email||'';
-
-
-
-    const password = document.getElementById('loginPassword');
-
-
-
+    const password=document.getElementById('loginPassword');
     if(password){
-
-
-
       password.value='';
-
-
-
       password.focus();
-
-
-
     }
-
-
-
   },
-
-
-
-
-
-
-
   completeLogin(u){
-
-
-
-    if(!u) return;
-
-
-
-    DB.currentUser = u;
-
-
-
-    localStorage.setItem('beeCurrentUser', JSON.stringify(u));
-
-
-
-    sessionStorage.setItem('beeCurrentUser', JSON.stringify(u));
-
-
-
+    if(!u)return;
+    DB.currentUser=u;
+    localStorage.setItem('beeCurrentUser',JSON.stringify(u));
+    sessionStorage.setItem('beeCurrentUser',JSON.stringify(u));
     Studio.persist();
-
-
-
-
-
-
-
-    if(document.body && document.body.dataset.page === 'login'){
-
-
-
-      window.location.assign(new URL('../dashboard/dashboard.html', window.location.href).href);
-
-
-
+    if(document.body&&document.body.dataset.page==='login'){
+      window.location.assign(new URL('../dashboard/dashboard.html',window.location.href).href);
       return;
-
-
-
     }
-
-
-
-
-
-
-
     const loginScreen=document.getElementById('loginScreen');
-
-
-
     const app=document.getElementById('app');
-
-
-
-    if(loginScreen) loginScreen.hidden=true;
-
-
-
-    if(app) app.hidden=false;
-
-
-
+    if(loginScreen)loginScreen.hidden=true;
+    if(app)app.hidden=false;
     state.page='dashboard';
-
-
-
-    if(typeof render === 'function') render();
-
-
-
+    if(typeof render==='function')render();
     toast('Signed in as '+u.name+' ('+ROLE_LABELS[u.role]+').','success');
-
-
-
   },
-
-
-
-
-
-
-
   async logout(){
-
-
-
     try{
-
-
-
-      await fetch('/SIA/api/auth.php', {
-
-
-
+      await fetch('/SIA/api/auth.php',{
         method:'POST',
-
-
-
         credentials:'include',
-
-
-
         headers:{'Content-Type':'application/json'},
-
-
-
         body:JSON.stringify({action:'logout'})
-
-
-
       });
-
-
-
     }catch(e){}
-
-
-
     DB.currentUser=null;
-
-
-
     localStorage.removeItem('beeCurrentUser');
-
-
-
     sessionStorage.removeItem('beeCurrentUser');
-
-
-
     sessionStorage.removeItem(DB_PERSIST_KEY);
-
-
-
-    window.location.assign(new URL('../login/login.html', window.location.href).href);
-
-
-
+    window.location.assign(new URL('../login/login.html',window.location.href).href);
   },
-
-
-
-
-
-
-
   confirmLogout(){
-
-
-
     Studio.openConfirm({
-
-
-
       title:'Sign out?',
-
-
-
       body:'You\'ll need to sign in again to get back to '+(DB.currentUser?esc(DB.currentUser.name)+'\u2019s':'your')+' workspace.',
-
-
-
       confirmLabel:'Yes, log out',
-
-
-
       cancelLabel:'No, stay signed in',
-
-
-
       danger:true,
-
-
-
       onConfirm:()=>Studio.logout()
-
-
-
     });
-
-
-
   },
-
-
-
-
-
-
-
   openConfirm(opts){
-
-
-
     Studio.closeConfirm();
-
-
-
-    const overlay = document.createElement('div');
-
-
-
-    overlay.className = 'modal-overlay';
-
-
-
-    overlay.id = 'confirmOverlay';
-
-
-
-    overlay.innerHTML =
-
-
-
-      '<div class="modal confirm-modal" role="alertdialog" aria-modal="true" aria-labelledby="confirmTitle">' +
-
-
-
-        '<div class="modal-head"><h3 id="confirmTitle">'+esc(opts.title||'Are you sure?')+'</h3></div>' +
-
-
-
-        '<p class="confirm-body">'+ (opts.body||'') +'</p>' +
-
-
-
-        '<div class="confirm-actions">' +
-
-
-
-          (opts.hideCancel ? '' : '<button type="button" class="btn" id="confirmCancelBtn">'+esc(opts.cancelLabel||'Cancel')+'</button>') +
-
-
-
-          '<button type="button" class="btn '+(opts.danger?'btn-danger':'btn-primary')+'" id="confirmOkBtn">'+esc(opts.confirmLabel||'Yes')+'</button>' +
-
-
-
-        '</div>' +
-
-
-
+    const overlay=document.createElement('div');
+    overlay.className='modal-overlay';
+    overlay.id='confirmOverlay';
+    overlay.innerHTML=
+      '<div class="modal confirm-modal" role="alertdialog" aria-modal="true" aria-labelledby="confirmTitle">'+
+        '<div class="modal-head"><h3 id="confirmTitle">'+esc(opts.title||'Are you sure?')+'</h3></div>'+
+        '<p class="confirm-body">'+(opts.body||'')+'</p>'+
+        '<div class="confirm-actions">'+
+          (opts.hideCancel?'':'<button type="button" class="btn" id="confirmCancelBtn">'+esc(opts.cancelLabel||'Cancel')+'</button>')+
+          '<button type="button" class="btn '+(opts.danger?'btn-danger':'btn-primary')+'" id="confirmOkBtn">'+esc(opts.confirmLabel||'Yes')+'</button>'+
+        '</div>'+
       '</div>';
-
-
-
     document.body.appendChild(overlay);
-
-
-
-    overlay.addEventListener('click', e=>{ if(e.target===overlay) Studio.closeConfirm(); });
-
-
-
-    const cancelBtn = document.getElementById('confirmCancelBtn');
-
-
-
-    if(cancelBtn) cancelBtn.onclick = ()=>Studio.closeConfirm();
-
-
-
-    document.getElementById('confirmOkBtn').onclick = ()=>{ Studio.closeConfirm(); if(opts.onConfirm) opts.onConfirm(); };
-
-
-
-    document.addEventListener('keydown', Studio._confirmEscHandler = e=>{ if(e.key==='Escape') Studio.closeConfirm(); });
-
-
-
+    overlay.addEventListener('click',e=>{if(e.target===overlay)Studio.closeConfirm();});
+    const cancelBtn=document.getElementById('confirmCancelBtn');
+    if(cancelBtn)cancelBtn.onclick=()=>Studio.closeConfirm();
+    document.getElementById('confirmOkBtn').onclick=()=>{Studio.closeConfirm();if(opts.onConfirm)opts.onConfirm();};
+    document.addEventListener('keydown',Studio._confirmEscHandler=e=>{if(e.key==='Escape')Studio.closeConfirm();});
     document.getElementById('confirmOkBtn').focus();
-
-
-
   },
-
-
-
-
-
-
-
   closeConfirm(){
-
-
-
-    const overlay = document.getElementById('confirmOverlay');
-
-
-
-    if(overlay) overlay.remove();
-
-
-
-    if(Studio._confirmEscHandler){ document.removeEventListener('keydown', Studio._confirmEscHandler); Studio._confirmEscHandler = null; }
-
-
-
+    const overlay=document.getElementById('confirmOverlay');
+    if(overlay)overlay.remove();
+    if(Studio._confirmEscHandler){document.removeEventListener('keydown',Studio._confirmEscHandler);Studio._confirmEscHandler=null;}
   },
-
-
-
-
-
-
-
   /* ===== THEME (light/dark) ===== */
-
-
-
   applyTheme(){
-
-
-
-    const theme = localStorage.getItem('beeTheme') === 'dark' ? 'dark' : 'light';
-
-
-
-    document.documentElement.setAttribute('data-theme', theme);
-
-
-
+    const theme=localStorage.getItem('beeTheme')==='dark'?'dark':'light';
+    document.documentElement.setAttribute('data-theme',theme);
     document.querySelectorAll('.theme-toggle-btn').forEach(btn=>{
-
-
-
-      btn.textContent = theme==='dark' ? '☀️' : '🌙';
-
-
-
-      btn.title = theme==='dark' ? 'Switch to light mode' : 'Switch to dark mode';
-
-
-
-      btn.setAttribute('aria-label', btn.title);
-
-
-
+      btn.textContent=theme==='dark'?'☀️':'🌙';
+      btn.title=theme==='dark'?'Switch to light mode':'Switch to dark mode';
+      btn.setAttribute('aria-label',btn.title);
     });
-
-
-
   },
-
-
-
-
-
-
-
   toggleTheme(){
-
-
-
-    const next = document.documentElement.getAttribute('data-theme')==='dark' ? 'light' : 'dark';
-
-
-
-    localStorage.setItem('beeTheme', next);
-
-
-
+    const next=document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark';
+    localStorage.setItem('beeTheme',next);
     Studio.applyTheme();
-
-
-
   },
-
-
-
-
-
-
-
   goBack(fallback){
-
-
-
     try{
-
-
-
-      if(document.referrer && new URL(document.referrer).origin === window.location.origin && window.history.length > 1){
-
-
-
+      if(document.referrer&&new URL(document.referrer).origin===window.location.origin&&window.history.length>1){
         window.history.back();
-
-
-
         return;
-
-
-
       }
-
-
-
     }catch(e){}
-
-
-
-    Studio.goto(fallback || 'dashboard');
-
-
-
+    Studio.goto(fallback||'dashboard');
   },
-
-
-
-
-
-
-
-  goto(page, arg){
-
-
-
-    const routes = {
-
-
-
+  goBackSidebar(fallback){
+    const previousPage=sessionStorage.getItem('beePreviousSidebarPage');
+    if(previousPage&&previousPage!==state.page){
+      Studio.goto(previousPage);
+      return;
+    }
+    Studio.goto(fallback||'dashboard');
+  },
+  goto(page,arg){
+    const routes={
       dashboard:'../dashboard/dashboard.html',
-
-
-
       projects:'../projects/projects.html',
-
-
-
       projectDetail:'../projects/projects.html',
-
-
-
       completedProjects:'../completed-projects/completed-projects.html',
-
-
-
       assets:'../assets/assets.html',
-
-
-
       assetDetail:'../assets/assets.html',
-
-
-
       review:'../review/review.html',
-
-
-
       notifications:'../notifications/notifications.html',
-
-
-
       integrations:'../integrations/integrations.html',
-
-
-
       resources:'../resources/resources.html',
-
-
-
       audit:'../audit/audit.html',
-
-
-
       users:'../users/users.html',
-
-
-
       architecture:'../architecture/architecture.html'
-
-
-
     };
-
-
-
-    const target = routes[page] || routes.dashboard;
-
-
-
-    const url = new URL(target, window.location.href);
-
-
-
-    if(page==='projectDetail' && arg) url.searchParams.set('project', arg);
-
-
-
-    if(page==='assetDetail' && arg) url.searchParams.set('asset', arg);
-
-
-
-    if(page==='assets' && arg) url.searchParams.set('status', arg);
-
-
-
-
-
-
-
-    state.page = page;
-
-
-
-    if(page==='projectDetail') state.selectedProjectId = arg || null;
-
-
-
-    if(page==='assetDetail') state.selectedAssetId = arg || null;
-
-
-
-    document.getElementById('sidebar')?.classList.remove('open');
-
-
-
-    Studio.persist();
-
-
-
-    window.location.href = url.href;
-
-
-
-  },
-
-
-
-
-
-
-
-  toggleForm(id){
-
-
-
-    const el = document.getElementById(id);
-
-
-
-    if(el) el.classList.toggle('hidden');
-
-
-
-  },
-
-
-
-
-
-
-
-  setFilter(key,val){ state.filter[key]=val; render(); },
-
-
-
-};
-
-
-
-
-
-
-
-window.addEventListener('beforeunload', ()=>{ try{ Studio.persist(); }catch(e){} });
-
-
-
-
-
-
-
-/* Restore active user session across separate page views */
-
-
-
-try{
-
-
-
-  const saved = localStorage.getItem('beeCurrentUser') || sessionStorage.getItem('beeCurrentUser');
-
-
-
-  if(saved){
-
-
-
-    const parsed = JSON.parse(saved);
-
-
-
-    const existing = DB.users.find(u=>u.id===parsed.id || u.email===parsed.email);
-
-
-
-    if(existing) DB.currentUser = existing;
-
-
-
-    else if(parsed.name && parsed.role){
-
-
-
-      DB.users.push(parsed);
-
-
-
-      DB.currentUser = parsed;
-
-
-
-    }
-
-
-
-  }
-
-
-
-}catch(e){
-
-
-
-  sessionStorage.removeItem('beeCurrentUser');
-
-
-
-}
-
-
-
-
-
-
-
-async function loadServerState(){
-
-
-
-  try{
-
-
-
-    const res = await fetch(`${window.location.origin}/SIA/api/bootstrap.php`, {
-
-
-
-      credentials:'include'
-
-
-
-    });
-
-
-
-
-
-
-
-    const data = await parseApiResponse(res);
-
-
-
-
-
-
-
-    if(!data.success || !data.state) return false;
-
-
-
-
-
-
-
-    const server = data.state;
-
-
-
-
-
-
-
-    DB_PERSISTED_FIELDS.forEach(key=>{
-
-
-
-      if(!Array.isArray(server[key])) return;
-
-
-
-      DB[key] = key === 'assets'
-
-
-
-        ? server[key].map(withVersions)
-
-
-
-        : server[key];
-
-
-
-    });
-
-
-
-
-
-
-
-    if(server.currentUser){
-
-
-
-      const su = {
-
-
-
-        id: String(server.currentUser.id),
-
-
-
-        name: server.currentUser.full_name,
-
-
-
-        email: server.currentUser.email,
-
-
-
-        role: server.currentUser.role
-
-
-
-      };
-
-
-
-
-
-
-
-      DB.currentUser = su;
-
-
-
-
-
-
-
-      localStorage.setItem(
-
-
-
-        'beeCurrentUser',
-
-
-
-        JSON.stringify(su)
-
-
-
-      );
-
-
-
-
-
-
-
+    const target=routes[page]||routes.dashboard;
+    const url=new URL(target,window.location.href);
+    if(page==='projectDetail'&&arg)url.searchParams.set('project',arg);
+    if(page==='assetDetail'&&arg)url.searchParams.set('asset',arg);
+    if(page==='assets'&&arg)url.searchParams.set('status',arg);
+    const sidebarPages=[
+      'dashboard',
+      'projects',
+      'completedProjects',
+      'assets',
+      'review',
+      'notifications',
+      'integrations',
+      'resources',
+      'audit',
+      'users',
+      'architecture'
+    ];
+    if(
+      sidebarPages.includes(page)&&
+      sidebarPages.includes(state.page)&&
+      page!==state.page
+    ){
       sessionStorage.setItem(
-
-
-
-        'beeCurrentUser',
-
-
-
-        JSON.stringify(su)
-
-
-
+        'beePreviousSidebarPage',
+        state.page
       );
-
-
-
     }
-
-
-
-
-
-
-
-    if(typeof render === 'function' && document.body?.dataset.page !== 'login'){
-
-
-
+    state.page=page;
+    if(page==='projectDetail')state.selectedProjectId=arg||null;
+    if(page==='assetDetail')state.selectedAssetId=arg||null;
+    document.getElementById('sidebar')?.classList.remove('open');
+    Studio.persist();
+    window.location.href=url.href;
+  },
+  toggleForm(id){
+    const el=document.getElementById(id);
+    if(el)el.classList.toggle('hidden');
+  },
+  setFilter(key,val){
+    state.filter[key]=val;
+    if(document.body&&document.body.dataset.page==='assets')state.page='assets';
+    if(typeof render==='function')render();
+  },
+};
+window.addEventListener('beforeunload',()=>{try{Studio.persist();}catch(e){}});
+/* Restore active user session across separate page views */
+try{
+  const saved=localStorage.getItem('beeCurrentUser')||sessionStorage.getItem('beeCurrentUser');
+  if(saved){
+    const parsed=JSON.parse(saved);
+    const existing=DB.users.find(u=>u.id===parsed.id||u.email===parsed.email);
+    if(existing)DB.currentUser=existing;
+    else if(parsed.name&&parsed.role){
+      DB.users.push(parsed);
+      DB.currentUser=parsed;
+    }
+  }
+}catch(e){
+  sessionStorage.removeItem('beeCurrentUser');
+}
+async function loadServerState(){
+  try{
+    const res=await fetch(`${window.location.origin}/SIA/api/bootstrap.php`,{
+      credentials:'include'
+    });
+    const data=await parseApiResponse(res);
+    if(!data.success||!data.state)return false;
+    const server=data.state;
+    DB_PERSISTED_FIELDS.forEach(key=>{
+      if(!Array.isArray(server[key]))return;
+      DB[key]=key==='assets'
+        ?server[key].map(withVersions)
+        :server[key];
+    });
+    if(server.currentUser){
+      const su={
+        id:String(server.currentUser.id),
+        name:server.currentUser.full_name,
+        email:server.currentUser.email,
+        role:server.currentUser.role
+      };
+      DB.currentUser=su;
+      localStorage.setItem(
+        'beeCurrentUser',
+        JSON.stringify(su)
+      );
+      sessionStorage.setItem(
+        'beeCurrentUser',
+        JSON.stringify(su)
+      );
+    }
+    if(typeof render==='function'&&document.body?.dataset.page!=='login'){
       render();
-
-
-
     }
-
-
-
-
-
-
-
     return true;
-
-
-
-
-
-
-
   }catch(e){
-
-
-
-    console.warn('Server sync unavailable:', e);
-
-
-
+    console.warn('Server sync unavailable:',e);
     return false;
-
-
-
   }
-
-
-
 }
-
-
-
-
-
-
-
 async function loadAssetsFromDB(){
-
-  try {
-
-    const res = await fetch('/SIA/api/assets.php', {
-
-      credentials: 'include'
-
+  try{
+    const res=await fetch('/SIA/api/assets.php',{
+      credentials:'include'
     });
-
-
-
-    const data = await parseApiResponse(res);
-
-
-
-    if(!res.ok || !data.success || !data.state || !Array.isArray(data.state.assets)){
-
+    const data=await parseApiResponse(res);
+    if(!res.ok||!data.success||!data.state||!Array.isArray(data.state.assets)){
       return false;
-
     }
-
-
-
-    DB.assets = data.state.assets.map(withVersions);
-
+    DB.assets=data.state.assets.map(withVersions);
     return true;
-
-
-
-  } catch(e) {
-
-    console.warn('Assets sync unavailable:', e);
-
+  }catch(e){
+    console.warn('Assets sync unavailable:',e);
     return false;
-
   }
-
 }
-
-
-
-
-
-
-
 async function loadResourcesFromDB(){
-
-
-
-  try {
-
-
-
-    const res = await fetch('http://localhost/SIA/api/assets/resources.php', {
-
-
-
-      credentials: 'include'
-
-
-
+  try{
+    const res=await fetch('http://localhost/SIA/api/assets/resources.php',{
+      credentials:'include'
     });
-
-
-
-
-
-
-
-    const data = await parseApiResponse(res);
-
-
-
-
-
-
-
-    if(!data.success) return false;
-
-
-
-
-
-
-
-    DB.resources = (data.resources || []).map(r => ({
-
-
-
-      id: r.id,
-
-
-
-      project: r.project_id,
-
-
-
-      category: r.category,
-
-
-
-      desc: r.description,
-
-
-
-      cost: parseFloat(r.cost) || 0,
-
-
-
-      hours: parseFloat(r.hours) || 0
-
-
-
+    const data=await parseApiResponse(res);
+    if(!data.success)return false;
+    DB.resources=(data.resources||[]).map(r=>({
+      id:r.id,
+      project:r.project_id,
+      category:r.category,
+      desc:r.description,
+      cost:parseFloat(r.cost)||0,
+      hours:parseFloat(r.hours)||0
     }));
-
-
-
-
-
-
-
     return true;
-
-
-
-
-
-
-
-  } catch(e) {
-
-
-
-    console.warn('Resources sync unavailable:', e);
-
-
-
+  }catch(e){
+    console.warn('Resources sync unavailable:',e);
     return false;
-
-
-
   }
-
-
-
 }
-
-
-
-window.BEE_SERVER_READY=loadServerState();
-
-
-
-
-
-
-
-window.BEE_SERVER_READY.then(async () => {
-
-
-
-  await loadAssetsFromDB();
-
-
-
-  await loadResourcesFromDB();
-
-
-
-
-
-
-
-  if(typeof render === 'function' && document.body?.dataset.page !== 'login'){
-
-
-
-    render();
-
-
-
-  }
-
-
-
-});
-
-
-
-
-
-
-
-/* ---- Sidebar navigation menu ---- */
-
-
-
-const NAV = [
-
-
-
-  {section:'Workspace'},
-
-
-
-  {key:'dashboard', label:'Dashboard', icon:'⌂'},
-
-
-
-  {key:'projects', label:'Projects', icon:'▤'},
-
-
-
-  {key:'assets', label:'Assets', icon:'▥'},
-
-
-
-  {section:'Review & Collaboration'},
-
-
-
-  {key:'review', label:'Review Queue', icon:'✓', badgeFn:()=> (DB.assets || []).filter(a => a && latestVersion(a)?.status === 'For Review').length},
-
-
-
-  {key:'completedProjects', label:'Completed Projects', icon:'☑'},
-
-
-
-  {section:'Management', hideFor:['client','animator']},
-
-
-
-  {key:'integrations', label:'Integration Hub', icon:'⇄', perm:'runIntegrations'},
-
-
-
-  {key:'resources', label:'Resources & Budget', icon:'₱', perm:'manageResources'},
-
-
-
-  {key:'audit', label:'Audit Log', icon:'≡', perm:'viewAudit'},
-
-
-
-  {key:'users', label:'Team & Roles', icon:'☺', perm:'manageUsers'},
-
-
-
-];
-
-
-
-
-
-
-
-function renderSidebar(){
-
-
-
-  const demoUsers = document.getElementById('demoUsers');
-
-
-
-  if(demoUsers) demoUsers.innerHTML = DB.users.slice(0,8).map(u=>
-
-
-
-    '<button class="demo-card" onclick="Studio.quickLogin(\''+u.id+'\')"><b>'+esc(u.name)+'</b><span style="color:var(--'+(ROLE_COLOR_VAR[u.role]||'text-faint')+');">'+ROLE_LABELS[u.role]+'</span></button>'
-
-
-
-  ).join('');
-
-
-
-
-
-
-
-  const navlist = document.getElementById('navlist');
-
-
-
-  if(navlist){
-
-
-
-    const list = NAV.filter(n =>
-
-
-
-      (!n.hideFor || !DB.currentUser || !n.hideFor.includes(DB.currentUser.role)) &&
-
-
-
-      (n.section || !n.perm || can(n.perm))
-
-
-
+async function loadNotificationsFromDB(){
+  try{
+    const response=await fetch(
+      '/SIA/api/notifications.php?action=list',
+      {
+        method:'GET',
+        credentials:'include'
+      }
     );
-
-
-
-    navlist.innerHTML = list.map(n=>{
-
-
-
-      if(n.section) return '<div class="nav-section">'+n.section+'</div>';
-
-
-
-      const badge = n.badgeFn ? n.badgeFn() : 0;
-
-
-
-      const active = state.page===n.key || (state.page==='projectDetail'&&n.key==='projects') || (state.page==='assetDetail'&&n.key==='assets');
-
-
-
-      return '<button type="button" class="navitem'+(active?' active':'')+'" onclick="Studio.goto(\''+n.key+'\')">'+
-
-
-
-        '<span class="ic">'+n.icon+'</span><span>'+n.label+'</span>'+ (badge>0?'<span class="nb">'+badge+'</span>':'') + '</button>';
-
-
-
+    const data=await parseApiResponse(response);
+    if(
+      !response.ok||
+      !data.success||
+      !Array.isArray(data.data)
+    ){
+      return false;
+    }
+    DB.notifications=data.data.map(n=>({
+      ...n,
+      text:n.text??n.message??n.title??'',
+      date:n.date??n.created_at??'',
+      read:n.read??Boolean(Number(n.is_read))
+    }));
+    return true;
+  }catch(error){
+    console.warn(
+      'Notifications sync unavailable:',
+      error
+    );
+    return false;
+  }
+}
+async function loadProjectsFromDB(){
+  try{
+    const response=await fetch(
+      '/SIA/api/projects.php',
+      {
+        method:'GET',
+        credentials:'include'
+      }
+    );
+    const data=await parseApiResponse(response);
+    if(
+      !response.ok||
+      !data.success||
+      !Array.isArray(data.projects)
+    ){
+      return false;
+    }
+    DB.projects=data.projects;
+    return true;
+  }catch(error){
+    console.warn(
+      'Projects sync unavailable:',
+      error
+    );
+    return false;
+  }
+}
+window.BEE_SERVER_READY=loadServerState();
+window.BEE_SERVER_READY.then(async()=>{
+  await loadProjectsFromDB();
+  await loadAssetsFromDB();
+  await loadResourcesFromDB();
+  await loadNotificationsFromDB();
+  if(typeof render==='function'&&document.body?.dataset.page!=='login'){
+    render();
+  }
+});
+/* ---- Sidebar navigation menu ---- */
+const NAV=[
+  {section:'Workspace'},
+  {key:'dashboard',label:'Dashboard',icon:'⌂'},
+  {key:'projects',label:'Projects',icon:'▤'},
+  {key:'assets',label:'Assets',icon:'▥'},
+  {section:'Review & Collaboration'},
+  {key:'review',label:'Review Queue',icon:'✓',badgeFn:()=>(DB.assets||[]).filter(a=>a&&latestVersion(a)?.status==='For Review').length},
+  {key:'completedProjects',label:'Completed Projects',icon:'☑'},
+  {section:'Management',hideFor:['client','animator']},
+  {key:'integrations',label:'Integration Hub',icon:'⇄',perm:'runIntegrations'},
+  {key:'resources',label:'Resources & Budget',icon:'₱',perm:'manageResources'},
+  {key:'audit',label:'Audit Log',icon:'≡',perm:'viewAudit'},
+  {key:'users',label:'Team & Roles',icon:'☺',perm:'manageUsers'},
+];
+function renderSidebar(){
+  const demoUsers=document.getElementById('demoUsers');
+  if(demoUsers)demoUsers.innerHTML=DB.users.slice(0,8).map(u=>
+    '<button class="demo-card" onclick="Studio.quickLogin(\''+u.id+'\')"><b>'+esc(u.name)+'</b><span style="color:var(--'+(ROLE_COLOR_VAR[u.role]||'text-faint')+');">'+ROLE_LABELS[u.role]+'</span></button>'
+  ).join('');
+  const navlist=document.getElementById('navlist');
+  if(navlist){
+    const list=NAV.filter(n=>
+      (!n.hideFor||!DB.currentUser||!n.hideFor.includes(DB.currentUser.role))&&
+      (n.section||!n.perm||can(n.perm))
+    );
+    navlist.innerHTML=list.map(n=>{
+      if(n.section)return'<div class="nav-section">'+n.section+'</div>';
+      const badge=n.badgeFn?n.badgeFn():0;
+      const active=state.page===n.key||(state.page==='projectDetail'&&n.key==='projects')||(state.page==='assetDetail'&&n.key==='assets');
+      return'<button type="button" class="navitem'+(active?' active':'')+'" onclick="Studio.goto(\''+n.key+'\')">'+
+        '<span class="ic">'+n.icon+'</span><span>'+n.label+'</span>'+(badge>0?'<span class="nb">'+badge+'</span>':'')+'</button>';
     }).join('');
-
-
-
   }
-
-
-
-
-
-
-
   if(DB.currentUser){
-
-
-
-    const avatar = document.getElementById('sideAvatar');
-
-
-
-    const name = document.getElementById('sideName');
-
-
-
-    const role = document.getElementById('sideRole');
-
-
-
-    if(avatar) avatar.textContent = initials(DB.currentUser.name);
-
-
-
-    if(name) name.textContent = DB.currentUser.name;
-
-
-
-    if(role) role.textContent = ROLE_LABELS[DB.currentUser.role] || DB.currentUser.role;
-
-
-
+    const avatar=document.getElementById('sideAvatar');
+    const name=document.getElementById('sideName');
+    const role=document.getElementById('sideRole');
+    if(avatar)avatar.textContent=initials(DB.currentUser.name);
+    if(name)name.textContent=DB.currentUser.name;
+    if(role)role.textContent=ROLE_LABELS[DB.currentUser.role]||DB.currentUser.role;
   }
-
-
-
-
-
-
-
-  const TOPBAR_ONLY_TITLES = { notifications:'Notifications', architecture:'System Architecture' };
-
-
-
-  const current = NAV.find(n=>n.key===state.page) ||
-
-
-
-    NAV.find(n=>state.page==='projectDetail' && n.key==='projects') ||
-
-
-
-    NAV.find(n=>state.page==='assetDetail' && n.key==='assets') ||
-
-
-
-    (TOPBAR_ONLY_TITLES[state.page] ? {key:state.page, label:TOPBAR_ONLY_TITLES[state.page]} : null) ||
-
-
-
-    NAV.find(n=>n.key==='dashboard') || {label:'Overview',key:'overview'};
-
-
-
-  const topEyebrow = document.getElementById('topEyebrow');
-
-
-
-  const topTitle = document.getElementById('topTitle');
-
-
-
-  const clockChip = document.getElementById('clockChip');
-
-
-
-  if(topEyebrow) topEyebrow.textContent = current.key ? current.key.toUpperCase() : 'OVERVIEW';
-
-
-
-  if(topTitle) topTitle.textContent = current.label || 'Overview';
-
-
-
-  if(clockChip) clockChip.textContent = new Date().toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric'});
-
-
-
-
-
-
-
-  const notifBtn = document.getElementById('notifBtn');
-
-
-
+  const TOPBAR_ONLY_TITLES={notifications:'Notifications',architecture:'System Architecture'};
+  const current=NAV.find(n=>n.key===state.page)||
+    NAV.find(n=>state.page==='projectDetail'&&n.key==='projects')||
+    NAV.find(n=>state.page==='assetDetail'&&n.key==='assets')||
+    (TOPBAR_ONLY_TITLES[state.page]?{key:state.page,label:TOPBAR_ONLY_TITLES[state.page]}:null)||
+    NAV.find(n=>n.key==='dashboard')||{label:'Overview',key:'overview'};
+  const topEyebrow=document.getElementById('topEyebrow');
+  const topTitle=document.getElementById('topTitle');
+  const clockChip=document.getElementById('clockChip');
+  if(topEyebrow)topEyebrow.textContent=current.key?current.key.toUpperCase():'OVERVIEW';
+  if(topTitle)topTitle.textContent=current.label||'Overview';
+  if(clockChip)clockChip.textContent=new Date().toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric'});
+  const notifBtn=document.getElementById('notifBtn');
   if(notifBtn){
-
-
-
-    notifBtn.classList.toggle('active', state.page==='notifications');
-
-
-
-    const unread = (DB.notifications || []).filter(n=>!n.read).length;
-
-
-
-    const badge = document.getElementById('notifBadge');
-
-
-
+    notifBtn.classList.toggle('active',state.page==='notifications');
+    const unread=(DB.notifications||[]).filter(n=>!n.read).length;
+    const badge=document.getElementById('notifBadge');
     if(badge){
-
-
-
-      badge.textContent = unread;
-
-
-
-      badge.style.display = unread>0 ? 'inline-flex' : 'none';
-
-
-
+      badge.textContent=unread;
+      badge.style.display=unread>0?'inline-flex':'none';
     }
-
-
-
   }
-
-
-
-  const archBtn = document.getElementById('archBtn');
-
-
-
-  if(archBtn) archBtn.classList.toggle('active', state.page==='architecture');
-
-
-
-
-
-
-
-  document.querySelectorAll('.theme-toggle-btn').forEach(btn=>{ btn.onclick = ()=>Studio.toggleTheme(); });
-
-
-
+  const archBtn=document.getElementById('archBtn');
+  if(archBtn)archBtn.classList.toggle('active',state.page==='architecture');
+  document.querySelectorAll('.theme-toggle-btn').forEach(btn=>{btn.onclick=()=>Studio.toggleTheme();});
   Studio.applyTheme();
-
-
-
 }
-
-
-
-
-
-
-
 async function parseApiResponse(response){
-
-
-
-  const text = await response.text();
-
-
-
-  let data = null;
-
-
-
-  try { data = text ? JSON.parse(text) : null; } catch (_) {
-
-
-
-    throw new Error(`API returned invalid JSON (HTTP ${response.status}). ${text ? text.slice(0,180) : 'The server returned an empty response.'}`);
-
-
-
+  const text=await response.text();
+  let data=null;
+  try{data=text?JSON.parse(text):null;}catch(_){
+    throw new Error(`API returned invalid JSON (HTTP ${response.status}). ${text?text.slice(0,180):'The server returned an empty response.'}`);
   }
-
-
-
-  if (!data) throw new Error(`API returned an empty response (HTTP ${response.status}).`);
-
-
-
+  if(!data)throw new Error(`API returned an empty response (HTTP ${response.status}).`);
   return data;
-
-
-
 }
-
-
-
-
-
-
-
 /* ===== PROJECT ACTIONS: js/actions/projects.js ===== */
-
-
-
-Object.assign(Studio, {
-
-
-
+Object.assign(Studio,{
   createProject(){
-
-
-
-    if(!can('manageProjects')) return;
-
-
-
-
-
-
-
-    const name = document.getElementById('npName').value.trim();
-
-
-
-    const client = document.getElementById('npClient').value.trim();
-
-
-
-    const deadline = document.getElementById('npDeadline').value;
-
-
-
-    const budget = parseFloat(document.getElementById('npBudget').value) || 0;
-
-
-
-
-
-
-
-    if(!name || !client){
-
-
-
-      toast('Project name and client are required.','error');
-
-
-
+    if(!can('manageProjects'))return;
+    const name=
+      document
+        .getElementById('npName')
+        .value
+        .trim();
+    const clientSelect=
+      document.getElementById('npClient');
+    const clientId=
+      clientSelect.value;
+    const client=
+      clientSelect.options[
+        clientSelect.selectedIndex
+      ]?.dataset.name||'';
+    const deadline=
+      document
+        .getElementById('npDeadline')
+        .value;
+    const budget=
+      parseFloat(
+        document
+          .getElementById('npBudget')
+          .value
+      )||0;
+    if(!name||!clientId||!client){
+      toast(
+        'Project name and client are required.',
+        'error'
+      );
       return;
-
-
-
     }
-
-
-
-    if(!NAME_RE.test(client)){
-
-
-
-      toast('Client name can only contain letters, spaces, hyphens, and apostrophes.','error');
-
-
-
+    const todayISO=
+      new Date()
+        .toISOString()
+        .slice(0,10);
+    if(deadline&&deadline<todayISO){
+      toast(
+        'Deadline cannot be in the past.',
+        'error'
+      );
       return;
-
-
-
     }
-
-
-
-    const todayISO = new Date().toISOString().slice(0,10);
-
-
-
-    if(deadline && deadline < todayISO){
-
-
-
-      toast('Deadline cannot be in the past.','error');
-
-
-
-      return;
-
-
-
-    }
-
-
-
-
-
-
-
     Studio.openConfirm({
-
-
-
-      title:'Create this project?',
-
-
-
-      body:'“'+esc(name)+'” for '+esc(client)+' will be added to the board.'+(budget?' Budget: ₱'+budget.toLocaleString()+'.':''),
-
-
-
-      confirmLabel:'Create project',
-
-
-
-      onConfirm:()=>Studio._doCreateProject(name, client, deadline, budget)
-
-
-
+      title:
+        'Create this project?',
+      body:
+        '“'+
+        esc(name)+
+        '” for '+
+        esc(client)+
+        ' will be added to the board.'+
+        (
+          budget
+            ?' Budget: ₱'+
+              budget.toLocaleString()+
+              '.'
+            :''
+        ),
+      confirmLabel:
+        'Create project',
+      onConfirm:()=>Studio._doCreateProject(
+        name,
+        client,
+        clientId,
+        deadline,
+        budget
+      )
     });
-
-
-
   },
-
-
-
-
-
-
-
-  _doCreateProject(name, client, deadline, budget){
-
-
-
-    const project = {
-
-
-
-      name: name,
-
-
-
-      client: client,
-
-
-
-      status: 'Pre-Production',
-
-
-
-      deadline: deadline || null,
-
-
-
-      project_manager_id: null,
-
-
-
-      budget: budget
-
-
-
+  _doCreateProject(
+    name,
+    client,
+    clientId,
+    deadline,
+    budget
+  ){
+    // existing code continues here
+    const project={
+      name:name,
+      client:client,
+      client_id:clientId,
+      status:'Pre-Production',
+      deadline:deadline||null,
+      project_manager_id:null,
+      budget:budget
     };
-
-
-
-
-
-
-
-    fetch('http://localhost/SIA/api/projects.php', {
-
-
-
-      method: 'POST',
-
-
-
-      credentials: 'include',
-
-
-
-      headers: { 'Content-Type': 'application/json' },
-
-
-
-      body: JSON.stringify(project)
-
-
-
+    fetch('http://localhost/SIA/api/projects.php',{
+      method:'POST',
+      credentials:'include',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify(project)
     })
-
-
-
-    .then(response => parseApiResponse(response))
-
-
-
-    .then(data => {
-
-
-
+    .then(response=>parseApiResponse(response))
+    .then(data=>{
       if(data.success){
-
-
-
         pushAudit('Create','Project',name);
-
-
-
-        pushEvent('Project Created',{ project:name, by:DB.currentUser.name });
-
-
-
+        pushEvent('Project Created',{project:name,by:DB.currentUser.name});
         const created=data.project;
-
-
-
         if(created){
-
-
-
           DB.projects.push(created);
-
-
-
           Studio.persist();
-
-
-
         }
-
-
-
         toast('Project created: '+name,'success');
-
-
-
         Studio.goto('projects');
-
-
-
-      } else {
-
-
-
-        console.error('Project API Error:', data);
-
-
-
-        toast(data.error || data.message || 'Failed to create project.','error');
-
-
-
+      }else{
+        console.error('Project API Error:',data);
+        toast(data.error||data.message||'Failed to create project.','error');
       }
-
-
-
     })
-
-
-
-    .catch(error => {
-
-
-
-      console.error('Error creating project:', error);
-
-
-
+    .catch(error=>{
+      console.error('Error creating project:',error);
       toast('An error occurred while creating this project.','error');
-
-
-
     });
-
-
-
   },
-
-
-
 });
-
-
-
-
-
-
-
 /* ===== ASSET ACTIONS: js/actions/assets.js ===== */
-
-
-
-Object.assign(Studio, {
-
-
-
+Object.assign(Studio,{
   async submitAsset(){
-
-
-
     if(!can('submitAssets')){
-
-
-
       toast('Your role cannot submit assets.','error');
-
-
-
       return;
-
-
-
     }
-
-
-
-
-
-
-
-    const project = document.getElementById('saProject').value;
-
-
-
-    const existingId = document.getElementById('saExisting').value;
-
-
-
-    const title = document.getElementById('saTitle').value.trim();
-
-
-
-    const type = document.getElementById('saType').value;
-
-
-
-    const notes = document.getElementById('saNotes').value.trim();
-
-
-
-    const link = document.getElementById('saLink').value.trim();
-
-
-
-
-
-
-
-    if(existingId !== 'new'){
-
-
-
+    const project=document.getElementById('saProject').value;
+    const existingId=document.getElementById('saExisting').value;
+    const title=document.getElementById('saTitle').value.trim();
+    const type=document.getElementById('saType').value;
+    const notes=document.getElementById('saNotes').value.trim();
+    const link=document.getElementById('saLink').value.trim();
+    if(existingId!=='new'){
       if(!existingId){
-
-
-
         toast('Please select an existing asset.','error');
-
-
-
         return;
-
-
-
       }
-
-
-
-      const existingAsset = assetById(existingId);
-
-
-
+      const existingAsset=assetById(existingId);
       Studio.openConfirm({
-
-
-
         title:'Submit new version?',
-
-
-
         body:'A new version will be added to “'+esc(existingAsset?existingAsset.title:existingId)+'” and set to For Review.',
-
-
-
         confirmLabel:'Submit version',
-
-
-
-        onConfirm:()=>Studio._doSubmitVersion(existingId, notes)
-
-
-
+        onConfirm:()=>Studio._doSubmitVersion(existingId,notes)
       });
-
-
-
       return;
-
-
-
     }
-
-
-
-
-
-
-
-    if(!title || !project){
-
-
-
+    if(!title||!project){
       toast('Title and project are required.','error');
-
-
-
       return;
-
-
-
     }
-
-
-
-
-
-
-
     Studio.openConfirm({
-
-
-
       title:'Submit this asset?',
-
-
-
       body:'“'+esc(title)+'” will be submitted and set to For Review.',
-
-
-
       confirmLabel:'Submit asset',
-
-
-
-      onConfirm:()=>Studio._doSubmitNewAsset(project, title, type, link, notes)
-
-
-
+      onConfirm:()=>Studio._doSubmitNewAsset(project,title,type,link,notes)
     });
-
-
-
   },
-
-
-
-
-
-
-
-  async _doSubmitVersion(existingId, notes){
-
-
-
-    try {
-
-
-
-      const response = await fetch('/SIA/api/assets.php', {
-
-
-
+  async _doSubmitVersion(existingId,notes){
+    try{
+      const response=await fetch('/SIA/api/assets.php',{
         method:'POST',
-
-
-
         credentials:'include',
-
-
-
-        headers:{ 'Content-Type':'application/json' },
-
-
-
-        body:JSON.stringify({ action:'version', asset_id:existingId, notes:notes })
-
-
-
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({action:'version',asset_id:existingId,notes:notes})
       });
-
-
-
-
-
-
-
-      const data = await response.json();
-
-
-
-
-
-
-
-      if(!response.ok || !data.success){
-
-
-
-        toast(data.error || 'Failed to save new version.', 'error');
-
-
-
+      const data=await response.json();
+      if(!response.ok||!data.success){
+        toast(data.error||'Failed to save new version.','error');
         return;
-
-
-
       }
-
-
-
-
-
-
-
-      const asset = assetById(existingId);
-
-
-
+      const asset=assetById(existingId);
       if(asset){
-
-
-
-        asset.versions = asset.versions || [];
-
-
-
+        asset.versions=asset.versions||[];
         asset.versions.push(data.version);
-
-
-
       }
-
-
-
-
-
-
-
-      const v = data.version;
-
-
-
-      pushAudit('Upload', asset ? asset.title : existingId, 'Submitted v'+v.n+' (auto-status: For Review)');
-
-
-
-      pushEvent('Asset Uploaded', { asset:asset ? asset.title : existingId, version:'v'+v.n, by:DB.currentUser.name });
-
-
-
-      pushNotif('submission', 'New version submitted: “'+(asset ? asset.title : existingId)+'” v'+v.n+' is awaiting review.', existingId);
-
-
-
-      toast('New version submitted — status set to For Review.', 'success');
-
-
-
-      Studio.goto('assetDetail', existingId);
-
-
-
-
-
-
-
-    } catch(error) {
-
-
-
-      console.error('submitAsset version error:', error);
-
-
-
-      toast('Could not connect to the server.', 'error');
-
-
-
+      const v=data.version;
+      pushAudit('Upload',asset?asset.title:existingId,'Submitted v'+v.n+' (auto-status: For Review)');
+      pushEvent('Asset Uploaded',{asset:asset?asset.title:existingId,version:'v'+v.n,by:DB.currentUser.name});
+      pushNotif('submission','New version submitted: “'+(asset?asset.title:existingId)+'” v'+v.n+' is awaiting review.',existingId);
+      toast('New version submitted — status set to For Review.','success');
+      Studio.goto('assetDetail',existingId);
+    }catch(error){
+      console.error('submitAsset version error:',error);
+      toast('Could not connect to the server.','error');
     }
-
-
-
   },
-
-
-
-
-
-
-
-  async _doSubmitNewAsset(project, title, type, link, notes){
-
-
-
-    try {
-
-
-
-      const response = await fetch('/SIA/api/assets.php', {
-
-
-
+  async _doSubmitNewAsset(project,title,type,link,notes){
+    try{
+      const response=await fetch('/SIA/api/assets.php',{
         method:'POST',
-
-
-
         credentials:'include',
-
-
-
-        headers:{ 'Content-Type':'application/json' },
-
-
-
-        body:JSON.stringify({ project_id:project, title:title, type:type, external_link:link, notes:notes })
-
-
-
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({project_id:project,title:title,type:type,external_link:link,notes:notes})
       });
-
-
-
-
-
-
-
-      const data = await response.json();
-
-
-
-
-
-
-
-      if(!response.ok || !data.success){
-
-
-
-        toast(data.error || 'Failed to save asset.', 'error');
-
-
-
+      const data=await response.json();
+      if(!response.ok||!data.success){
+        toast(data.error||'Failed to save asset.','error');
         return;
-
-
-
       }
-
-
-
-
-
-
-
       DB.assets.push(withVersions(data.asset));
-
-
-
-      pushAudit('Upload', title, 'Submitted v1 (auto-status: For Review)');
-
-
-
-      pushEvent('Asset Uploaded', { asset:title, version:'v1', by:DB.currentUser.name });
-
-
-
-      pushNotif('submission', 'New submission: “'+title+'” is awaiting review.', data.asset.id);
-
-
-
-      toast('Asset submitted — workflow set status to “For Review”.', 'success');
-
-
-
-      Studio.goto('assetDetail', data.asset.id);
-
-
-
-
-
-
-
-    } catch(error) {
-
-
-
-      console.error('submitAsset error:', error);
-
-
-
-      toast('Could not connect to the server.', 'error');
-
-
-
+      pushAudit('Upload',title,'Submitted v1 (auto-status: For Review)');
+      pushEvent('Asset Uploaded',{asset:title,version:'v1',by:DB.currentUser.name});
+      pushNotif('submission','New submission: “'+title+'” is awaiting review.',data.asset.id);
+      toast('Asset submitted — workflow set status to “For Review”.','success');
+      Studio.goto('assetDetail',data.asset.id);
+    }catch(error){
+      console.error('submitAsset error:',error);
+      toast('Could not connect to the server.','error');
     }
-
-
-
   },
-
-
-
-
-
-
-
   onSaExistingChange(){
-
-
-
-    const v = document.getElementById('saExisting').value;
-
-
-
-    const wrap = document.getElementById('saNewFields');
-
-
-
-    if(wrap) wrap.style.display = v==='new' ? 'block' : 'none';
-
-
-
+    const v=document.getElementById('saExisting').value;
+    const wrap=document.getElementById('saNewFields');
+    if(wrap)wrap.style.display=v==='new'?'block':'none';
   },
-
-
-
 });
-
-
-
-
-
-
-
 /* ===== REVIEW ACTIONS: js/actions/review.js ===== */
-
-
-
-Object.assign(Studio, {
-
-
-
-  reviewAsset(assetId, decision){
-
-
-
-    if(!can('review')){ toast('Your role cannot review assets.','error'); return; }
-
-
-
-    const asset = assetById(assetId);
-
-  if(!asset){
-    console.error('Asset not found for review:', assetId, DB.assets);
-    toast('Asset could not be found. Please refresh the page.', 'error');
-    return;
-  }
-
-  const v = latestVersion(asset);
-
-
-
-    const commentBox = document.getElementById('reviewComment');
-
-
-
-    const text = commentBox ? commentBox.value.trim() : '';
-
-
-
-    const markFinal = document.getElementById('markFinal');
-
-
-
-    const asFinal = markFinal ? markFinal.checked : false;
-
-
-
-
-
-
-
-    if(decision==='approve'){
-
-
-
-      v.status = asFinal ? 'Final' : 'Approved';
-
-
-
-      pushAudit('Approval', asset.title, 'v'+v.n+(asFinal?' approved as FINAL':' approved'));
-
-
-
-      pushEvent(asFinal?'Final Output Approved':'Asset Approved', {asset:asset.title, version:'v'+v.n, by:DB.currentUser.name});
-
-
-
-      DB.webhooks.push({id:nid('w'), endpoint:'https://hooks.beeproduction.studio/asset-approved', status:200, payload:JSON.stringify({asset:asset.title, version:'v'+v.n, final:asFinal}), date:new Date().toISOString()});
-
-
-
-      fetch('http://localhost/SIA/api/integration_webhooks.php',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({asset_id:asset.id,endpoint:'https://hooks.beeproduction.studio/asset-approved',event_type:'asset-approved',status_code:200,payload:{asset:asset.title,version:'v'+v.n,final:asFinal}})}).catch(e=>console.error('Webhook log error:',e));
-
-
-
-      pushNotif('approval', (asFinal?'“'+asset.title+'” was approved as Final Output.':'“'+asset.title+'” v'+v.n+' was approved.'), asset.id);
-
-
-
-      toast(asFinal?'Marked as Final Output. Webhook fired.':'Approved. Webhook fired to production dashboard.','success');
-
-
-
-    } else if(decision==='reject'){
-
-
-
-      v.status = 'Rejected';
-
-
-
-      pushAudit('Rejection', asset.title, 'v'+v.n+' rejected');
-
-
-
-      pushEvent('Asset Rejected', {asset:asset.title, version:'v'+v.n, by:DB.currentUser.name});
-
-
-
-      pushNotif('revision', '“'+asset.title+'” v'+v.n+' was rejected.', asset.id);
-
-
-
-      toast('Marked as rejected.','error');
-
-
-
-    } else if(decision==='revise'){
-
-
-
-      v.status = 'Revision Requested';
-
-
-
-      pushAudit('Revision', asset.title, 'v'+v.n+' — revision requested');
-
-
-
-      pushEvent('Revision Requested', {asset:asset.title, version:'v'+v.n, by:DB.currentUser.name});
-
-
-
-      pushNotif('revision', 'Revision requested on “'+asset.title+'” v'+v.n+'.', asset.id);
-
-
-
-      toast('Revision requested.','success');
-
-
-
-    }
-
-
-
-    if(text){
-
-
-
-      DB.comments.push({id:nid('c'), asset:asset.id, by:DB.currentUser.id, text, date:new Date().toISOString().slice(0,10)});
-
-
-
-    }
-
-
-
-    if(typeof render === 'function') render();
-
-
-
-      Studio.persist();
-
-
-
-
-
-
-
-      fetch('http://localhost/SIA/api/assets.php', {
-
-
-
-        method: 'PUT',
-
-
-
-        credentials: 'include',
-
-
-
-        headers: {
-
-
-
-        'Content-Type': 'application/json'
-
-
-
-      },
-
-
-
-      body: JSON.stringify({
-
-
-
-      asset_id: asset.id,
-
-
-
-      version: v.n,
-
-
-
-      status: v.status,
-
-
-
-      approved_by: DB.currentUser.name
-
-
-
-      })
-
-
-
-    })
-
-
-
-    .then(response => parseApiResponse(response))
-
-
-
-    .then(async data => {
-
-
-
-    if(!data.success){
-
-
-
-      console.error('Failed to update asset status:', data);
-
-
-
-    }
-
-
-
-    await checkProjectCompletion(asset.project);  
-
-
-
-  })
-
-
-
-
-
-
-
-    .catch(error => {
-
-
-
-      console.error('Asset status update error:', error);
-
-
-
-    });
-
-
-
-      },
-
-
-
-
-
-
-
-      quickApprove(assetId){
-
-
-
-        state.selectedAssetId = assetId;
-
-
-
-        Studio.reviewAsset(assetId,'approve');
-
-
-
-        toast('Approved from Review Queue.','success');
-
-
-
-      },
-
-
-
-    });
-
-
-
-
-
-
-
-/* ===== FEEDBACK ACTIONS: js/actions/feedback.js ===== */
-
-
-
-Object.assign(Studio, {
-
-
-
-  addComment(assetId){
-
-
-
-    if(!can('comment')) return;
-
-
-
-    const box = document.getElementById('newComment');
-
-
-
-    const text = box.value.trim();
-
-
-
-    if(!text) return;
-
-
-
-    DB.comments.push({id:nid('c'), asset:assetId, by:DB.currentUser.id, text, date:new Date().toISOString().slice(0,10)});
-
-
-
-    box.value='';
-
-
-
-    pushAudit('Comment', assetById(assetId).title, 'Feedback added');
-
-
-
-    if(typeof render === 'function') render();
-
-
-
-    Studio.persist();
-
-
-
-  },
-
-
-
-
-
-
-
-  markRead(id){ const n = DB.notifications.find(x=>x.id===id); if(n) n.read=true; if(typeof render === 'function') render(); Studio.persist(); },
-
-
-
-  markAllRead(){ DB.notifications.forEach(n=>n.read=true); if(typeof render === 'function') render(); Studio.persist(); toast('All notifications marked as read.'); },
-
-
-
-});
-
-
-
-
-
-
-
-/* ===== INTEGRATION ACTIONS: js/actions/integrations.js ===== */
-
-
-
-Object.assign(Studio, {
-
-
-
-  apiSend(){
-
-
-
-    const sel = document.getElementById('apiAssetSelect');
-
-
-
-    const assetId = sel.value;
-
-
-
-    const asset = assetById(assetId);
-
-
-
-    if(!asset) return;
-
-
-
-    const v = latestVersion(asset);
-
-
-
-    const reqPayload = {asset:asset.title, version:'v'+v.n, status:v.status, project:projectById(asset.project).name};
-
-
-
-    DB.apiLogs.push({id:nid('api'), dir:'REQUEST', method:'POST', endpoint:'/api/v1/production-dashboard/assets', body:JSON.stringify(reqPayload), date:new Date().toISOString()});
-
-
-
-    if(typeof render === 'function') render();
-
-
-
-    Studio.persist();
-
-
-
-    toast('Request sent…');
-
-
-
-    setTimeout(()=>{
-
-
-
-      DB.apiLogs.push({id:nid('api'), dir:'RESPONSE', method:'POST', endpoint:'/api/v1/production-dashboard/assets', status:201, body:JSON.stringify({received:true, id:'dash_'+asset.id, syncedAt:new Date().toISOString()}), date:new Date().toISOString()});
-
-
-
-      pushAudit('Integration', asset.title, 'Synced to Production Dashboard via API');
-
-
-
-      pushEvent('Asset Synced to Dashboard', {asset:asset.title});
-
-
-
-      toast('201 Created — synced to Production Dashboard.','success');
-
-
-
-      if(typeof render === 'function') render();
-
-
-
-      Studio.persist();
-
-
-
-    }, 650);
-
-
-
-  },
-
-
-
-
-
-
-
-  runETL(){
-
-
-
-    const raw = document.getElementById('etlInput').value.trim();
-
-
-
-    const log = document.getElementById('etlLog');
-
-
-
-    if(!raw){ toast('Paste or keep the sample CSV first.','error'); return; }
-
-
-
-    const lines = raw.split('\n').map(l=>l.trim()).filter(Boolean);
-
-
-
-    const header = lines[0].split(',').map(h=>h.trim().toLowerCase());
-
-
-
-    const rows = lines.slice(1);
-
-
-
-    let steps = [];
-
-
-
-    steps.push('EXTRACT — read '+rows.length+' row(s) from source file.');
-
-
-
-    let loaded = 0, skipped = 0;
-
-
-
-    rows.forEach(line=>{
-
-
-
-      const cells = line.match(/(".*?"|[^,]+)/g) || [];
-
-
-
-      const clean = cells.map(c=>c.replace(/^"|"$/g,'').trim());
-
-
-
-      const rec = {};
-
-
-
-      header.forEach((h,i)=> rec[h] = clean[i] || '');
-
-
-
-      if(!rec.title || !rec.project){ skipped++; return; }
-
-
-
-      const proj = DB.projects.find(p=> p.name.toLowerCase().includes(rec.project.toLowerCase()) || rec.project.toLowerCase().includes(p.name.split(' ')[0].toLowerCase()));
-
-
-
-      const type = ['Storyboard','Animatic','Character Sheet','Background Asset','Animation Scene','Render','Audio','Design Draft'].includes(rec.type) ? rec.type : 'Design Draft';
-
-
-
-      const asset = {id:nid('a'), project: proj?proj.id:DB.projects[0].id, title:rec.title, type, link:'', versions:[{id:nid('v'), n:1, status:'For Review', notes:'Imported via ETL — assignee: '+(rec.assignee||'unassigned')+(rec.duedate?(', due '+rec.duedate):''), by:DB.currentUser.id, date:new Date().toISOString().slice(0,10)}]};
-
-
-
-      DB.assets.push(asset);
-
-
-
-      loaded++;
-
-
-
-    });
-
-
-
-    steps.push('TRANSFORM — validated required fields, normalized asset type, mapped project names ('+skipped+' row(s) skipped for missing data).');
-
-
-
-    steps.push('LOAD — inserted '+loaded+' new asset record(s), each auto-set to “For Review”.');
-
-
-
-    log.innerHTML = steps.map(s=>'<div class="log-line"><span class="t">›</span><span>'+esc(s)+'</span></div>').join('');
-
-
-
-    pushAudit('Integration','ETL Import', loaded+' asset(s) imported from CSV');
-
-
-
-    pushEvent('ETL Import Completed', {rows:rows.length, loaded, skipped});
-
-
-
-    toast('ETL run complete — '+loaded+' record(s) loaded.','success');
-
-
-
-    if(typeof render === 'function') render();
-
-
-
-    Studio.persist();
-
-
-
-  },
-
-
-
-});
-
-
-
-
-
-
-
-/* ===== RESOURCE ACTIONS: js/actions/resources.js ===== */
-
-
-
-
-
-
-
-
-
-
-
-/* ===== USER ACTIONS: js/actions/users.js ===== */
-
-
-
-Object.assign(Studio, {
-
-
-
-  addUser(){
-
-
-
-    if(!can('manageUsers')) return;
-
-
-
-    const name = document.getElementById('umName').value.trim();
-
-
-
-    const role = document.getElementById('umRole').value;
-
-
-
-    if(!name){ toast('Enter a name.','error'); return; }
-
-
-
-    if(!NAME_RE.test(name)){ toast('Name can only contain letters, spaces, hyphens, and apostrophes.','error'); return; }
-
-
-
-    const u = {id:nid('u'), name, role};
-
-
-
-    DB.users.push(u);
-
-
-
-    pushAudit('User', name, 'Added to team as '+ROLE_LABELS[role]);
-
-
-
-    toast('Team member added.','success');
-
-
-
-    document.getElementById('umName').value='';
-
-
-
-    if(typeof render === 'function') render();
-
-
-
-    Studio.persist();
-
-
-
-  },
-
-
-
-
-
-
-
-  changeRole(uid, role){
-
-
-
-    const u = userById(uid); if(!u) return;
-
-
-
-    u.role = role;
-
-
-
-    pushAudit('User', u.name, 'Role changed to '+ROLE_LABELS[role]);
-
-
-
-    toast(u.name+' is now '+(ROLE_LABELS[role]||role)+'.');
-
-
-
-    if(typeof render === 'function') render();
-
-
-
-    Studio.persist();
-
-
-
-  },
-
-
-
-
-
-
-
-  deleteUser(uid){
-
-
-
-    if(!can('manageUsers')) return;
-
-
-
-    if(DB.currentUser && DB.currentUser.id === uid){
-
-
-
-      toast('You can’t remove your own account while signed in.','error');
-
-
-
+Object.assign(Studio,{
+  reviewAsset(assetId,decision){
+    if(!can('review')){toast('Your role cannot review assets.','error');return;}
+    const asset=assetById(assetId);
+    if(!asset){
+      console.error('Asset not found for review:',assetId,DB.assets);
+      toast('Asset could not be found. Please refresh the page.','error');
       return;
-
-
-
     }
-
-
-
-    const u = userById(uid);
-
-
-
-    if(!u) return;
-
-
-
-    Studio.openConfirm({
-
-
-
-      title:'Remove team member?',
-
-
-
-      body:'“'+esc(u.name)+'” ('+esc(ROLE_LABELS[u.role]||u.role)+') will lose access to the studio. Their past uploads, comments, and approvals stay on record.',
-
-
-
-      confirmLabel:'Remove',
-
-
-
-      danger:true,
-
-
-
-      onConfirm:()=>{
-
-
-
-        DB.users = DB.users.filter(x=>x.id!==uid);
-
-
-
-        pushAudit('User', u.name, 'Removed from team');
-
-
-
-        toast(u.name+' removed from the team.','success');
-
-
-
-        if(typeof render === 'function') render();
-
-
-
-        Studio.persist();
-
-
-
+    const v=latestVersion(asset);
+    const commentBox=document.getElementById('reviewComment');
+    const text=commentBox?commentBox.value.trim():'';
+    const markFinal=document.getElementById('markFinal');
+    const asFinal=markFinal?markFinal.checked:false;
+    if(decision==='approve'){
+      v.status=asFinal?'Final':'Approved';
+      pushAudit('Approval',asset.title,'v'+v.n+(asFinal?' approved as FINAL':' approved'));
+      pushEvent(asFinal?'Final Output Approved':'Asset Approved',{asset:asset.title,version:'v'+v.n,by:DB.currentUser.name});
+      DB.webhooks.push({id:nid('w'),endpoint:'https://hooks.beeproduction.studio/asset-approved',status:200,payload:JSON.stringify({asset:asset.title,version:'v'+v.n,final:asFinal}),date:new Date().toISOString()});
+      fetch('http://localhost/SIA/api/integration_webhooks.php',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({asset_id:asset.id,endpoint:'https://hooks.beeproduction.studio/asset-approved',event_type:'asset-approved',status_code:200,payload:{asset:asset.title,version:'v'+v.n,final:asFinal}})}).catch(e=>console.error('Webhook log error:',e));
+      pushNotif('approval',(asFinal?'“'+asset.title+'” was approved as Final Output.':'“'+asset.title+'” v'+v.n+' was approved.'),asset.id);
+      toast(asFinal?'Marked as Final Output. Webhook fired.':'Approved. Webhook fired to production dashboard.','success');
+    }else if(decision==='reject'){
+      v.status='Rejected';
+      pushAudit('Rejection',asset.title,'v'+v.n+' rejected');
+      pushEvent('Asset Rejected',{asset:asset.title,version:'v'+v.n,by:DB.currentUser.name});
+      pushNotif('revision','“'+asset.title+'” v'+v.n+' was rejected.',asset.id);
+      toast('Marked as rejected.','error');
+    }else if(decision==='revise'){
+      v.status='Revision Requested';
+      pushAudit('Revision',asset.title,'v'+v.n+' — revision requested');
+      pushEvent('Revision Requested',{asset:asset.title,version:'v'+v.n,by:DB.currentUser.name});
+      pushNotif('revision','Revision requested on “'+asset.title+'” v'+v.n+'.',asset.id);
+      toast('Revision requested.','success');
+    }
+    if(text){
+      DB.comments.push({id:nid('c'),asset:asset.id,by:DB.currentUser.id,text,date:new Date().toISOString().slice(0,10)});
+    }
+    if(typeof render==='function')render();
+    Studio.persist();
+    fetch('http://localhost/SIA/api/assets.php',{
+      method:'PUT',
+      credentials:'include',
+      headers:{
+        'Content-Type':'application/json'
+      },
+      body:JSON.stringify({
+        asset_id:asset.id,
+        version:v.n,
+        status:v.status,
+        approved_by:DB.currentUser.name
+      })
+    })
+    .then(response=>parseApiResponse(response))
+    .then(async data=>{
+      if(!data.success){
+        console.error('Failed to update asset status:',data);
       }
-
-
-
+      
+    })
+    .catch(error=>{
+      console.error('Asset status update error:',error);
     });
-
-
-
   },
-
-
-
+  quickApprove(assetId){
+    state.selectedAssetId=assetId;
+    Studio.reviewAsset(assetId,'approve');
+    toast('Approved from Review Queue.','success');
+  },
+});
+/* ===== FEEDBACK ACTIONS: js/actions/feedback.js ===== */
+Object.assign(Studio,{
+  addComment(assetId){
+    if(!can('comment'))return;
+    const box=document.getElementById('newComment');
+    const text=box.value.trim();
+    if(!text)return;
+    DB.comments.push({id:nid('c'),asset:assetId,by:DB.currentUser.id,text,date:new Date().toISOString().slice(0,10)});
+    box.value='';
+    pushAudit('Comment',assetById(assetId).title,'Feedback added');
+    if(typeof render==='function')render();
+    Studio.persist();
+  },
+  markRead(id){const n=DB.notifications.find(x=>x.id===id);if(n)n.read=true;if(typeof render==='function')render();Studio.persist();},
+  markAllRead(){DB.notifications.forEach(n=>n.read=true);if(typeof render==='function')render();Studio.persist();toast('All notifications marked as read.');},
+});
+/* ===== INTEGRATION ACTIONS: js/actions/integrations.js ===== */
+Object.assign(Studio,{
+  apiSend(){
+    const sel=document.getElementById('apiAssetSelect');
+    const assetId=sel.value;
+    const asset=assetById(assetId);
+    if(!asset)return;
+    const v=latestVersion(asset);
+    const reqPayload={asset:asset.title,version:'v'+v.n,status:v.status,project:projectById(asset.project).name};
+    DB.apiLogs.push({id:nid('api'),dir:'REQUEST',method:'POST',endpoint:'/api/v1/production-dashboard/assets',body:JSON.stringify(reqPayload),date:new Date().toISOString()});
+    if(typeof render==='function')render();
+    Studio.persist();
+    toast('Request sent…');
+    setTimeout(()=>{
+      DB.apiLogs.push({id:nid('api'),dir:'RESPONSE',method:'POST',endpoint:'/api/v1/production-dashboard/assets',status:201,body:JSON.stringify({received:true,id:'dash_'+asset.id,syncedAt:new Date().toISOString()}),date:new Date().toISOString()});
+      pushAudit('Integration',asset.title,'Synced to Production Dashboard via API');
+      pushEvent('Asset Synced to Dashboard',{asset:asset.title});
+      toast('201 Created — synced to Production Dashboard.','success');
+      if(typeof render==='function')render();
+      Studio.persist();
+    },650);
+  },
+  async runETL(){
+    const raw=
+      document
+        .getElementById('etlInput')
+        .value
+        .trim();
+    const log=
+      document.getElementById('etlLog');
+    if(!raw){
+      toast(
+        'Paste or keep the sample CSV first.',
+        'error'
+      );
+      return;
+    }
+    const lines=
+      raw
+        .split('\n')
+        .map(line=>line.trim())
+        .filter(Boolean);
+    if(lines.length<2){
+      toast(
+        'Add at least one CSV data row.',
+        'error'
+      );
+      return;
+    }
+    const header=
+      lines[0]
+        .split(',')
+        .map(h=>
+          h.trim().toLowerCase()
+        );
+    const requiredHeaders=[
+      'title',
+      'project'
+    ];
+    const missingHeaders=
+      requiredHeaders.filter(
+        h=>!header.includes(h)
+      );
+    if(missingHeaders.length){
+      toast(
+        'CSV must include: title, project',
+        'error'
+      );
+      return;
+    }
+    const rows=
+      lines
+        .slice(1)
+        .map(line=>{
+          const cells=
+            line.match(/(".*?"|[^,]+)/g)
+            ||[];
+          const clean=
+            cells.map(cell=>
+              cell
+                .replace(/^"|"$/g,'')
+                .trim()
+            );
+          const record={};
+          header.forEach(
+            (name,index)=>{
+              record[name]=
+                clean[index]
+                ||'';
+            }
+          );
+          return record;
+        });
+    try{
+      if(log){
+        log.innerHTML=`
+          <div class="log-line">
+            <span class="t">›</span>
+            <span>Running ETL import...</span>
+          </div>
+        `;
+      }
+      const response=
+        await fetch(
+          '/SIA/api/integration_etl_logs.php',
+          {
+            method:'POST',
+            credentials:'include',
+            headers:{
+              'Content-Type':
+                'application/json'
+            },
+            body:JSON.stringify({
+              rows:rows
+            })
+          }
+        );
+      const data=
+        await parseApiResponse(
+          response
+        );
+      if(
+        !response.ok||
+        !data.success
+      ){
+        throw new Error(
+          data.error||
+          'ETL import failed.'
+        );
+      }
+      if(log){
+        log.innerHTML=
+          (data.details||[])
+            .map(step=>`
+              <div class="log-line">
+                <span class="t">›</span>
+                <span>${esc(step)}</span>
+              </div>
+            `)
+            .join('');
+      }
+      await loadAssetsFromDB();
+      pushEvent(
+        'ETL Import Completed',
+        {
+          rows:
+            data.total_rows,
+          loaded:
+            data.loaded_rows,
+          skipped:
+            data.skipped_rows
+        }
+      );
+      toast(
+        'ETL complete — '+
+        data.loaded_rows+
+        ' asset(s) saved to MySQL.',
+        'success'
+      );
+      if(
+        typeof render===
+        'function'
+      ){
+        render();
+      }
+    }catch(error){
+      console.error(
+        'ETL import error:',
+        error
+      );
+      if(log){
+        log.innerHTML=`
+          <div class="log-line">
+            <span class="t">!</span>
+            <span>${esc(error.message)}</span>
+          </div>
+        `;
+      }
+      toast(
+        error.message||
+        'ETL import failed.',
+        'error'
+      );
+    }
+  },
+});
+/* ===== RESOURCE ACTIONS: js/actions/resources.js ===== */
+/* ===== USER ACTIONS: js/actions/users.js ===== */
+Object.assign(Studio,{
+  addUser(){
+    if(!can('manageUsers'))return;
+    const name=document.getElementById('umName').value.trim();
+    const role=document.getElementById('umRole').value;
+    if(!name){toast('Enter a name.','error');return;}
+    if(!NAME_RE.test(name)){toast('Name can only contain letters, spaces, hyphens, and apostrophes.','error');return;}
+    const u={id:nid('u'),name,role};
+    DB.users.push(u);
+    pushAudit('User',name,'Added to team as '+ROLE_LABELS[role]);
+    toast('Team member added.','success');
+    document.getElementById('umName').value='';
+    if(typeof render==='function')render();
+    Studio.persist();
+  },
+  changeRole(uid,role){
+    const u=userById(uid);if(!u)return;
+    u.role=role;
+    pushAudit('User',u.name,'Role changed to '+ROLE_LABELS[role]);
+    toast(u.name+' is now '+(ROLE_LABELS[role]||role)+'.');
+    if(typeof render==='function')render();
+    Studio.persist();
+  },
+  deleteUser(uid){
+    if(!can('manageUsers'))return;
+    if(DB.currentUser&&DB.currentUser.id===uid){
+      toast('You can’t remove your own account while signed in.','error');
+      return;
+    }
+    const u=userById(uid);
+    if(!u)return;
+    Studio.openConfirm({
+      title:'Remove team member?',
+      body:'“'+esc(u.name)+'” ('+esc(ROLE_LABELS[u.role]||u.role)+') will lose access to the studio. Their past uploads, comments, and approvals stay on record.',
+      confirmLabel:'Remove',
+      danger:true,
+      onConfirm:()=>{
+        DB.users=DB.users.filter(x=>x.id!==uid);
+        pushAudit('User',u.name,'Removed from team');
+        toast(u.name+' removed from the team.','success');
+        if(typeof render==='function')render();
+        Studio.persist();
+      }
+    });
+  },
 });

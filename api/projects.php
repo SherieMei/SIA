@@ -1,4 +1,7 @@
 <?php
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
 header('Content-Type: application/json; charset=utf-8');
 
 $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
@@ -37,23 +40,119 @@ if (!isset($_SESSION['user'])) {
    AUDIT LOG
    ========================================================= */
 
-function createAuditLog($pdo, $action, $entity = null, $details = null) {
-    $userId = $_SESSION['user']['id'] ?? null;
+function createAuditLog(
+    $pdo,
+    $action,
+    $entity = null,
+    $details = null,
+    $projectId = null,
+    $clientId = null
+) {
 
-    $stmt = $pdo->prepare("
-        INSERT INTO audit_logs
-        (user_id, action, entity, detail)
-        VALUES (?, ?, ?, ?)
-    ");
+    try {
 
-    $stmt->execute([
-        $userId,
-        $action,
-        $entity,
-        $details
-    ]);
+        $userId =
+            $_SESSION['user']['id'] ?? null;
+
+
+        if ($projectId && !$clientId) {
+
+            $clientStmt = $pdo->prepare("
+                SELECT client_id
+                FROM projects
+                WHERE id = ?
+                LIMIT 1
+            ");
+
+            $clientStmt->execute([
+                $projectId
+            ]);
+
+            $projectRow =
+                $clientStmt->fetch(PDO::FETCH_ASSOC);
+
+            $clientId =
+                $projectRow['client_id'] ?? null;
+        }
+
+
+        $stmt = $pdo->prepare("
+            INSERT INTO audit_logs
+            (
+                user_id,
+                project_id,
+                client_id,
+                action,
+                entity,
+                detail
+            )
+            VALUES (?, ?, ?, ?, ?, ?)
+        ");
+
+
+        $stmt->execute([
+            $userId,
+            $projectId,
+            $clientId,
+            $action,
+            $entity,
+            $details
+        ]);
+
+    } catch (Exception $e) {
+
+        error_log(
+            'Audit log error: ' .
+            $e->getMessage()
+        );
+
+    }
 }
+/* =========================================================
+   CREATE USER NOTIFICATION
+   ========================================================= */
 
+function createUserNotification(
+    $pdo,
+    $userId,
+    $title,
+    $message,
+    $type = 'general'
+)
+{
+    if (!$userId) {
+        return;
+    }
+
+    try {
+
+        $stmt = $pdo->prepare("
+            INSERT INTO notifications
+            (
+                user_id,
+                title,
+                message,
+                type,
+                is_read
+            )
+            VALUES (?, ?, ?, ?, 0)
+        ");
+
+        $stmt->execute([
+            $userId,
+            $title,
+            $message,
+            $type
+        ]);
+
+    } catch (Exception $e) {
+
+        error_log(
+            'Notification error: ' .
+            $e->getMessage()
+        );
+    }
+}
 
 /* =========================================================
    GET PROJECTS
@@ -63,12 +162,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
 
     if ($_SESSION['user']['role'] === 'client') {
 
-        // Client can ONLY see projects assigned to their account
+        // Client can only see projects assigned to their account
         $stmt = $pdo->prepare("
             SELECT
                 id,
                 name,
                 client,
+                client_id,
                 producer,
                 status,
                 deadline,
@@ -85,12 +185,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
 
     } else {
 
-        // Admin / Producer / Project Manager can see all projects
+        // Admin / Project Manager can see all projects
         $stmt = $pdo->query("
             SELECT
                 id,
                 name,
                 client,
+                client_id,
                 producer,
                 status,
                 deadline,
@@ -101,71 +202,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         ");
     }
 
+
     $projects = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    /* =========================================================
-   AUTO UPDATE COMPLETED PROJECTS
-   ========================================================= */
 
-foreach ($projects as $p) {
-
-    $checkStmt = $pdo->prepare("
-        SELECT
-            COUNT(*) AS total_assets,
-            SUM(
-                CASE
-                    WHEN av.status IN ('Approved', 'Final')
-                    THEN 1
-                    ELSE 0
-                END
-            ) AS completed_assets
-        FROM assets a
-        LEFT JOIN asset_versions av
-            ON av.asset_id = a.id
-            AND av.version_no = (
-                SELECT MAX(version_no)
-                FROM asset_versions
-                WHERE asset_id = a.id
-            )
-        WHERE a.project_id = ?
-    ");
-
-    $checkStmt->execute([$p['id']]);
-    $check = $checkStmt->fetch(PDO::FETCH_ASSOC);
-
-    if (
-        $check &&
-        $check['total_assets'] > 0 &&
-        $check['total_assets'] == $check['completed_assets'] &&
-        $p['status'] !== 'Completed'
-    ) {
-
-        $updateStmt = $pdo->prepare("
-            UPDATE projects
-            SET status = 'Completed'
-            WHERE id = ?
-        ");
-
-        $updateStmt->execute([$p['id']]);
-
-    }
-}
 
     echo json_encode([
         'success' => true,
-        'projects' => array_map(function ($p) {
 
-            $p['pm'] = $p['project_manager_id'];
-            $p['team'] = [];
+        'projects' => array_map(
+            function ($p) {
 
-            return $p;
+                $p['pm'] =
+                    $p['project_manager_id'];
 
-        }, $projects)
+                $p['team'] = [];
+
+                return $p;
+            },
+            $projects
+        )
 
     ], JSON_UNESCAPED_UNICODE);
 
+
     exit;
 }
-
 
 /* =========================================================
    CREATE PROJECT
@@ -178,28 +239,85 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         true
     ) ?? [];
 
-    $name = trim($in['name'] ?? '');
-    $client = trim($in['client'] ?? '');
-    $deadline = $in['deadline'] ?? null;
-    $clientId = $in['client_id'] ?? null;
-    $budget = (float)($in['budget'] ?? 0);
+$name = trim($in['name'] ?? '');
+$deadline = $in['deadline'] ?? null;
+$clientId = trim($in['client_id'] ?? '');
+$budget = (float)($in['budget'] ?? 0);
+/* -----------------------------------------
+   VALIDATE SELECTED CLIENT ACCOUNT
+   ----------------------------------------- */
+
+if (!$clientId) {
+
+    http_response_code(400);
+
+    echo json_encode([
+        'success' => false,
+        'message' => 'Please select a client.'
+    ]);
+
+    exit;
+}
+
+
+$clientStmt = $pdo->prepare("
+    SELECT
+        id,
+        full_name
+    FROM app_users
+    WHERE id = ?
+      AND role = 'client'
+    LIMIT 1
+");
+
+
+$clientStmt->execute([
+    $clientId
+]);
+
+
+$clientUser =
+    $clientStmt->fetch(
+        PDO::FETCH_ASSOC
+    );
+
+
+if (!$clientUser) {
+
+    http_response_code(400);
+
+    echo json_encode([
+        'success' => false,
+        'message' => 'Selected client account is invalid.'
+    ]);
+
+    exit;
+}
+
+
+/*
+ * Do not trust the client name sent by JavaScript.
+ * Get the real name from app_users.
+ */
+
+$client =
+    $clientUser['full_name'];
 
     // Logged-in user becomes the producer
     $producer = $_SESSION['user']['full_name']
         ?? $_SESSION['user']['name']
         ?? '';
+if (!$name || !$clientId || !$client) {
 
-    if (!$name || !$client) {
+    http_response_code(400);
 
-        http_response_code(400);
+    echo json_encode([
+        'success' => false,
+        'message' => 'Project name and client are required.'
+    ]);
 
-        echo json_encode([
-            'success' => false,
-            'message' => 'Project name and client are required.'
-        ]);
-
-        exit;
-    }
+    exit;
+}
 
 
     /* Generate next project ID */
@@ -260,12 +378,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $budget
     ]);
 
-    createAuditLog(
+createAuditLog(
     $pdo,
     'Created',
     'Project',
-    "Created project {$id} - {$name}"
+    "Created project {$id} - {$name}",
+    $id,
+    $clientId
+);
+/* =========================================================
+   AUDIT LOG — BUDGET CHANGE
+   ========================================================= */
+
+$currentUserId =
+    $_SESSION['user']['id'] ?? null;
+
+if (
+    $clientId &&
+    (string)$clientId !== (string)$currentUserId
+) {
+
+    createUserNotification(
+        $pdo,
+        $clientId,
+        'New Project Assigned',
+        "You have been assigned to the project '{$name}'.",
+        'project_assigned'
     );
+}
 
 
     /* Return created project */
@@ -308,6 +448,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'PUT') {
     $status = $in['status'] ?? 'Pre-Production';
     $projectManager = $in['pm'] ?? $in['project_manager_id'] ?? null;
     $budget = (float)($in['budget'] ?? 0);
+    $oldProjectStmt = $pdo->prepare("
+    SELECT budget
+    FROM projects
+    WHERE id = ?
+    LIMIT 1
+");
+
+$oldProjectStmt->execute([
+    $id
+]);
+
+$oldProject = $oldProjectStmt->fetch(PDO::FETCH_ASSOC);
+
+$oldBudget = $oldProject
+    ? (float)$oldProject['budget']
+    : 0;
 
     // Mark project as Completed
     if (($in['status'] ?? '') === 'Completed') {
@@ -329,12 +485,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'PUT') {
 
         $stmt->execute([$id]);
 
-        createAuditLog(
-            $pdo,
-            'Completed',
-            'Project',
-            "Marked project {$id} as Completed"
-        );
+createAuditLog(
+    $pdo,
+    'Completed',
+    'Project',
+    "Marked project {$id} as Completed",
+    $id
+);
 
         echo json_encode([
             'success' => true,
@@ -378,13 +535,69 @@ if ($_SERVER['REQUEST_METHOD'] === 'PUT') {
         $budget,
         $id
     ]);
+$projectAction =
+    $status === 'Completed'
+        ? 'Completed'
+        : 'Updated';
+
+$projectDetail =
+    $status === 'Completed'
+        ? "Marked project {$id} - {$name} as Completed"
+        : "Updated project {$id} - {$name}";
+
+createAuditLog(
+    $pdo,
+    $projectAction,
+    'Project',
+    $projectDetail,
+    $id,
+    $clientId
+);
+if ($oldBudget != $budget) {
+
+    $oldBudgetFormatted = number_format($oldBudget, 2);
+    $newBudgetFormatted = number_format($budget, 2);
 
     createAuditLog(
         $pdo,
         'Updated',
-        'Project',
-        "Updated project {$id} - {$name}"
+        'Project Budget',
+        "Changed budget for {$name} from PHP {$oldBudgetFormatted} to PHP {$newBudgetFormatted}",
+        $id,
+        $clientId
     );
+}
+
+$currentUserId =
+    $_SESSION['user']['id'] ?? null;
+
+if (
+    $clientId &&
+    (string)$clientId !== (string)$currentUserId
+) {
+
+    if ($status === 'Completed') {
+
+        createUserNotification(
+            $pdo,
+            $clientId,
+            'Project Completed',
+            "Your project '{$name}' has been marked as completed.",
+            'project_completed'
+        );
+
+    } else {
+
+        createUserNotification(
+            $pdo,
+            $clientId,
+            'Project Updated',
+            "Your project '{$name}' was updated.",
+            'project_updated'
+        );
+
+    }
+}
 
     echo json_encode([
         'success' => true,
