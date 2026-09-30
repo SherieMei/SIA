@@ -220,64 +220,98 @@ function projectProgress(pid){
       : [];
 
 
-  /* ----------------------------------------------------------
-     STAGE 1 — HAS ASSET
-     0% → 30%
-     ---------------------------------------------------------- */
+  const project =
+    DB.projects.find(
+      p => String(p.id) === String(pid)
+    );
 
-  if(projectAssets.length === 0){
-    return 0;
+
+  let progress = 0;
+
+
+  /* ==========================================================
+     PART 1 — ASSET SUBMITTED
+     Maximum: 20%
+     ========================================================== */
+
+  if(projectAssets.length > 0){
+    progress += 20;
   }
 
-  let progress = 30;
+
+  /* ==========================================================
+     PART 2 — ASSET APPROVAL
+     Maximum: 40%
+     ========================================================== */
+
+  if(projectAssets.length > 0){
+
+    const approvedAssets =
+      projectAssets.filter(asset => {
+
+        const version =
+          latestVersion(asset);
+
+        if(!version){
+          return false;
+        }
+
+        return (
+          version.status === 'Approved' ||
+          version.status === 'Final'
+        );
+
+      }).length;
 
 
-  /* ----------------------------------------------------------
-     STAGE 2 — ALL ASSETS APPROVED / FINAL
-     30% → 70%
-     ---------------------------------------------------------- */
+    const approvalPercent =
+      approvedAssets /
+      projectAssets.length;
 
-  const allAssetsApproved =
-    projectAssets.every(asset => {
 
-      const version =
-        latestVersion(asset);
+    progress +=
+      approvalPercent * 40;
 
-      if(!version){
-        return false;
-      }
+  }
 
-      return (
-        version.status === 'Approved' ||
-        version.status === 'Final'
+
+  /* ==========================================================
+     PART 3 — RESOURCE / BUDGET USAGE
+     Maximum: 40%
+     ========================================================== */
+
+  const budget =
+    Number(project?.budget || 0);
+
+
+  const spent =
+    projectResources.reduce(
+      (total, resource) =>
+        total + Number(resource.cost || 0),
+      0
+    );
+
+
+  if(budget > 0){
+
+    const budgetPercent =
+      Math.min(
+        1,
+        spent / budget
       );
 
-    });
 
+    progress +=
+      budgetPercent * 40;
 
-  if(allAssetsApproved){
-    progress = 70;
   }
 
 
-  /* ----------------------------------------------------------
-     STAGE 3 — RESOURCE / COST ENTRY ADDED
-     70% → 100%
-     ---------------------------------------------------------- */
+  return Math.min(
+    100,
+    Math.round(progress)
+  );
 
-  const hasResources =
-    projectResources.length > 0;
-
-
-  if(
-    allAssetsApproved &&
-    hasResources
-  ){
-    progress = 100;
-  }
-
-
-  return progress;
 }
 /* ===== NAVIGATION: js/core/nav.js ===== */
 /* ==========================================================================

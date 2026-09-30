@@ -75,12 +75,38 @@ function pageAssets(){
     `).join('')}
   </select>
 </div>
-        <div class="field"><label>This is</label>
-          <select id="saExisting" onchange="Studio.onSaExistingChange()">
-            <option value="new">A new asset</option>
-            ${activeAssets.map(a=>`<option value="${a.id}">New version of: ${esc(a.title)}</option>`).join('')}
-          </select>
-        </div>
+<div class="field">
+  <label>This is</label>
+
+  <select
+    id="saExisting"
+    onchange="Studio.onSaExistingChange()"
+  >
+
+    <option value="new">
+      A new asset
+    </option>
+
+    ${
+      activeAssets
+        .filter(a => {
+          const latest = latestVersion(a);
+
+          return (
+            latest &&
+            latest.status === 'Revision Requested'
+          );
+        })
+        .map(a => `
+          <option value="${a.id}">
+            New version of: ${esc(a.title)}
+          </option>
+        `)
+        .join('')
+    }
+
+  </select>
+</div>
       </div>
       <div id="saNewFields">
         <div class="field-row">

@@ -10,7 +10,9 @@ function pageResources(){
         const items = DB.resources.filter(r=>r.project===p.id);
         const spent = items.reduce((s,r)=>s+r.cost,0);
         const hours = items.reduce((s,r)=>s+r.hours,0);
-        const pct = Math.min(100, Math.round(spent/p.budget*100));
+        const pct =
+          projectProgress(p.id);
+
         return `<div class="card" style="padding:18px;">
           <h3 style="font-size:14.5px;margin:0 0 8px;">${esc(p.name)}</h3>
           <div class="progress-track"><div class="progress-fill" style="width:${pct}%;background:${pct>90?'var(--crimson)':'linear-gradient(90deg,var(--coral),var(--cyan))'};"></div></div>
@@ -32,9 +34,48 @@ function pageResources(){
       </div>
       <div class="field-row">
         <div class="field"><label>Description</label><input id="rsDesc" placeholder="e.g. Freelance colorist — 3 days"></div>
-        <div class="field"><label>Cost (PHP)</label><input id="rsCost" type="number" placeholder="750" step="250" min="0"></div>
+
+        <div class="field">
+          <label>Cost (PHP)</label>
+          <input
+            id="rsCost"
+            type="number"
+            placeholder="750"
+            min="750"
+            max="99999"
+            step="1"
+            oninput="
+              if(this.value.length > 5){
+                this.value = this.value.slice(0,5);
+              }
+              if(Number(this.value) > 99999){
+                this.value = 99999;
+              }
+            "
+          >
+        </div>
       </div>
-      <div class="field"><label>Hours (optional)</label><input id="rsHours" type="number" placeholder="24"></div>
+
+      <div class="field">
+        <label>Hours (optional)</label>
+        <input
+          id="rsHours"
+          type="number"
+          placeholder="24"
+          min="0"
+          max="99"
+          step="1"
+          oninput="
+            if(this.value.length > 2){
+              this.value = this.value.slice(0,2);
+            }
+            if(Number(this.value) > 99){
+              this.value = 99;
+            }
+          "
+        >
+      </div>
+
       <button class="btn btn-primary" onclick="Studio.addResource()">Log entry</button>
     </div>` : ''}
 

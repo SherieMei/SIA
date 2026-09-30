@@ -465,42 +465,206 @@ $oldBudget = $oldProject
     ? (float)$oldProject['budget']
     : 0;
 
-    // Mark project as Completed
-    if (($in['status'] ?? '') === 'Completed') {
+// Mark project as Completed
+if (($in['status'] ?? '') === 'Completed') {
 
-        if (!$id) {
-            http_response_code(400);
-            echo json_encode([
-                'success' => false,
-                'message' => 'Project ID is required.'
-            ]);
-            exit;
-        }
+    if (!$id) {
 
-        $stmt = $pdo->prepare("
-            UPDATE projects
-            SET status = 'Completed'
-            WHERE id = ?
-        ");
-
-        $stmt->execute([$id]);
-
-createAuditLog(
-    $pdo,
-    'Completed',
-    'Project',
-    "Marked project {$id} as Completed",
-    $id
-);
+        http_response_code(400);
 
         echo json_encode([
-            'success' => true,
-            'message' => 'Project marked as Completed.'
-        ], JSON_UNESCAPED_UNICODE);
+            'success' => false,
+            'message' => 'Project ID is required.'
+        ]);
 
         exit;
     }
 
+
+    /* =========================================================
+       CHECK PROJECT PROGRESS BEFORE COMPLETING
+       ========================================================= */
+
+    $projectStmt = $pdo->prepare("
+        SELECT budget
+        FROM projects
+        WHERE id = ?
+        LIMIT 1
+    ");
+
+    $projectStmt->execute([$id]);
+
+    $projectRow =
+        $projectStmt->fetch(PDO::FETCH_ASSOC);
+
+
+    if (!$projectRow) {
+
+        http_response_code(404);
+
+        echo json_encode([
+            'success' => false,
+            'message' => 'Project not found.'
+        ]);
+
+        exit;
+    }
+
+
+    $projectBudget =
+        (float)($projectRow['budget'] ?? 0);
+
+
+    /* =========================================================
+       CHECK ASSETS
+       ========================================================= */
+
+    $assetStmt = $pdo->prepare("
+        SELECT
+            COUNT(a.id) AS total_assets,
+            SUM(
+                CASE
+                    WHEN av.status IN ('Approved', 'Final')
+                    THEN 1
+                    ELSE 0
+                END
+            ) AS approved_assets
+        FROM assets a
+
+        LEFT JOIN asset_versions av
+            ON av.asset_id = a.id
+            AND av.version_no = (
+                SELECT MAX(av2.version_no)
+                FROM asset_versions av2
+                WHERE av2.asset_id = a.id
+            )
+
+        WHERE a.project_id = ?
+    ");
+
+    $assetStmt->execute([$id]);
+
+    $assetData =
+        $assetStmt->fetch(PDO::FETCH_ASSOC);
+
+
+    $totalAssets =
+        (int)($assetData['total_assets'] ?? 0);
+
+    $approvedAssets =
+        (int)($assetData['approved_assets'] ?? 0);
+
+
+    /* =========================================================
+       CHECK RESOURCE COST
+       ========================================================= */
+
+    $resourceStmt = $pdo->prepare("
+        SELECT
+            COALESCE(SUM(cost), 0) AS total_spent
+        FROM resources
+        WHERE project_id = ?
+    ");
+
+    $resourceStmt->execute([$id]);
+
+    $resourceData =
+        $resourceStmt->fetch(PDO::FETCH_ASSOC);
+
+
+    $totalSpent =
+        (float)($resourceData['total_spent'] ?? 0);
+
+
+    /* =========================================================
+       CALCULATE SAME PROGRESS AS FRONTEND
+       ========================================================= */
+
+    $progress = 0;
+
+
+    // 20% once at least one asset exists
+    if ($totalAssets > 0) {
+        $progress += 20;
+    }
+
+
+    // 40% based on approved/final assets
+    if ($totalAssets > 0) {
+
+        $approvalRatio =
+            $approvedAssets / $totalAssets;
+
+        $progress +=
+            $approvalRatio * 40;
+    }
+
+
+    // 40% based on budget usage
+    if ($projectBudget > 0) {
+
+        $budgetRatio =
+            min(
+                1,
+                $totalSpent / $projectBudget
+            );
+
+        $progress +=
+            $budgetRatio * 40;
+    }
+
+
+    $progress =
+        min(
+            100,
+            round($progress)
+        );
+
+
+    if ($progress < 100) {
+
+        http_response_code(400);
+
+        echo json_encode([
+            'success' => false,
+            'message' =>
+                "Project progress is only {$progress}%. Complete it before finishing."
+        ]);
+
+        exit;
+    }
+
+
+    /* =========================================================
+       COMPLETE PROJECT
+       ========================================================= */
+
+    $stmt = $pdo->prepare("
+        UPDATE projects
+        SET status = 'Completed'
+        WHERE id = ?
+    ");
+
+    $stmt->execute([$id]);
+
+
+    createAuditLog(
+        $pdo,
+        'Completed',
+        'Project',
+        "Marked project {$id} as Completed",
+        $id
+    );
+
+
+    echo json_encode([
+        'success' => true,
+        'message' => 'Project marked as Completed.'
+    ], JSON_UNESCAPED_UNICODE);
+
+
+    exit;
+}
     if (!$id || !$name || !$client) {
         http_response_code(400);
         echo json_encode([

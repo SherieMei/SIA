@@ -368,9 +368,7 @@ const hasResourceEntry =
   projectResources.length > 0;
 
 const canFinishProject =
-  assetCount > 0 &&
-  !hasPendingAsset &&
-  hasResourceEntry;
+  pct === 100;
 
 
               return `
@@ -440,7 +438,7 @@ const canFinishProject =
                   </div>
 
 ${
-  can('manageProjects') && assetCount > 0
+  can('manageProjects') && canFinishProject
     ? `
       <div
         style="
@@ -449,24 +447,18 @@ ${
           justify-content:flex-end;
         "
       >
+
         <button
           type="button"
           class="btn btn-primary btn-sm"
-          ${canFinishProject ? '' : 'disabled'}
           onclick="
             event.stopPropagation();
             finishProject('${p.id}');
           "
-          title="${
-            hasPendingAsset
-              ? 'Resolve all asset reviews or revision requests first.'
-              : !hasResourceEntry
-                ? 'Add a resource or cost entry first.'
-                : 'Finish project'
-          }"
         >
           Finish project
         </button>
+
       </div>
     `
     : ''
