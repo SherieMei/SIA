@@ -96,6 +96,7 @@ const DB_PERSIST_KEY='beeDB';
 const DB_PERSISTED_FIELDS=[
   'users',
   'projects',
+  'assets',
   'comments',
   'auditLog',
   'events',
@@ -848,7 +849,7 @@ Object.assign(Studio,{
     if(!can('manageProjects'))return;
     const name=
       document
-        .getElementById('npName')
+        .getElementById('npProjectName')
         .value
         .trim();
     const clientSelect=
@@ -973,6 +974,8 @@ Object.assign(Studio,{
     const type=document.getElementById('saType').value;
     const notes=document.getElementById('saNotes').value.trim();
     const link=document.getElementById('saLink').value.trim();
+    const assignedEditor=document.getElementById('saAssignedEditor').value;
+    const assignedAnimator=document.getElementById('saAssignedAnimator').value;
     if(existingId!=='new'){
       if(!existingId){
         toast('Please select an existing asset.','error');
@@ -987,15 +990,23 @@ Object.assign(Studio,{
       });
       return;
     }
-    if(!title||!project){
-      toast('Title and project are required.','error');
+    if(!title||!project||!assignedEditor||!assignedAnimator){
+      toast('Title, project, editor, and animator are required.','error');
       return;
     }
     Studio.openConfirm({
       title:'Submit this asset?',
       body:'“'+esc(title)+'” will be submitted and set to For Review.',
       confirmLabel:'Submit asset',
-      onConfirm:()=>Studio._doSubmitNewAsset(project,title,type,link,notes)
+      onConfirm:()=>Studio._doSubmitNewAsset(
+        project,
+        title,
+        type,
+        link,
+        notes,
+        assignedEditor,
+      assignedAnimator
+    )
     });
   },
   async _doSubmitVersion(existingId,notes){
@@ -1027,13 +1038,29 @@ Object.assign(Studio,{
       toast('Could not connect to the server.','error');
     }
   },
-  async _doSubmitNewAsset(project,title,type,link,notes){
+  async _doSubmitNewAsset(
+    project,
+    title,
+    type,
+    link,
+    notes,
+    assignedEditor,
+    assignedAnimator
+  ){
     try{
       const response=await fetch('/SIA/api/assets.php',{
         method:'POST',
         credentials:'include',
         headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({project_id:project,title:title,type:type,external_link:link,notes:notes})
+        body:JSON.stringify({
+          project_id:project,
+          title:title,
+          type:type,
+          external_link:link,
+          notes:notes,
+          assigned_editor:assignedEditor,
+          assigned_animator:assignedAnimator
+        })
       });
       const data=await response.json();
       if(!response.ok||!data.success){

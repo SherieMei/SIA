@@ -84,6 +84,52 @@ async function loadClientsFromDB(){
 
 }
 
+let registeredEditors = [];
+let registeredAnimators = [];
+
+
+/* ==========================================================================
+   LOAD PROJECT ASSIGNEES
+   ========================================================================== */
+
+async function loadProjectAssignees(){
+
+  try{
+
+    const response = await fetch(
+      '../api/auth.php?action=users',
+      {
+        credentials:'include'
+      }
+    );
+
+    const data = await parseApiResponse(response);
+
+    if(!data.success || !Array.isArray(data.users)){
+      throw new Error('Unable to load users.');
+    }
+
+    registeredEditors = data.users.filter(
+      user => user.role === 'editor'
+    );
+
+    registeredAnimators = data.users.filter(
+      user => user.role === 'animator'
+    );
+
+  }catch(error){
+
+    console.error(
+      'Error loading project assignees:',
+      error
+    );
+
+    registeredEditors = [];
+    registeredAnimators = [];
+
+  }
+
+}
 
 /* ==========================================================================
    LOAD PROJECTS
@@ -214,60 +260,85 @@ function pageProjects(){
               New project
             </h3>
 
-
             <div class="field-row">
 
-              <div class="field">
+            <div class="field">
                 <label>
-                  Project name
+                  Project Name
                 </label>
 
                 <input
-                  id="npName"
-                  placeholder="e.g. Skybound Chronicles — Ep. 5"
+                  id="npProjectName"
+                  placeholder="e.g. Meridian Animation Network"
                 >
+              </div>
+
+              <div class="field">
+              <label>
+                Client
+              </label>
+
+              <select id="npClient">
+              <option value="">
+                Select client
+              </option>
+
+              ${
+              registeredClients.map(user => `
+              <option value="${esc(user.id)}" data-name="${esc(user.full_name)}">
+                ${esc(user.full_name)}
+              </option>
+              `).join('')
+            }
+
+          </select>
+          </div>
+
+            </div>
+
+              <div class="field-row">
+
+              <div class="field">
+                <label>
+                  Editor
+                </label>
+
+                <select id="nEditor">
+                <option value="">
+                  Select editor
+                </option>
+
+                ${
+                  registeredEditors.map(user => `
+                  <option value="${esc(user.id)}">
+                  ${esc(user.full_name)}
+                  </option>
+                  `).join('')
+            }
+
+            </select>
               </div>
 
 
               <div class="field">
                 <label>
-                  Client
+                  Animator
                 </label>
 
-                <select id="npClient">
-
-                  <option value="">
-                    Select client
-                  </option>
-
-                  ${
-                    registeredClients.map(client => `
-                      <option
-                        value="${esc(client.id)}"
-                        data-name="${esc(client.full_name)}"
-                      >
-                        ${esc(client.full_name)}
-                      </option>
-                    `).join('')
-                  }
-
-                </select>
+                <select id="npAnimator">
+                <option value="">
+                  Select animator
+                </option>
 
                 ${
-                  registeredClients.length === 0
-                    ? `
-                      <small
-                        style="
-                          color:var(--text-faint);
-                          margin-top:5px;
-                        "
-                      >
-                        No client accounts registered yet.
-                      </small>
-                    `
-                    : ''
+                  registeredAnimators.map(user => `
+                <option value="${esc(user.id)}">
+                  ${esc(user.full_name)}
+                </option>
+                `).join('')
                 }
 
+            </select>
               </div>
 
             </div>
@@ -295,16 +366,16 @@ function pageProjects(){
                 </label>
 
                 <input
-  id="npBudget"
-  type="number"
-  min="5000"
-  max="999999"
-  step="1"
-  placeholder="5000"
-  oninput="
-    if(Number(this.value) > 999999) this.value = 999999;
-  "
->
+                  id="npBudget"
+                  type="number"
+                  min="5000"
+                  max="999999"
+                  step="1"
+                  placeholder="5000"
+                  oninput="
+                    if(Number(this.value) > 999999) this.value = 999999;
+                  "
+                >
               </div>
 
             </div>
@@ -1282,8 +1353,24 @@ document.addEventListener(
     */
 
     await loadClientsFromDB();
+await loadProjectsFromDB();
 
-    await loadProjectsFromDB();
+const clientSelect =
+  document.getElementById('npClient');
+
+if(clientSelect){
+
+  clientSelect.innerHTML =
+  '<option value="">Select client</option>' +
+  registeredClients.map(user => `
+    <option value="${esc(user.id)}" data-name="${esc(user.full_name)}">
+      ${esc(user.full_name)}
+    </option>
+  `).join('');
+
+}
+
+await loadProjectAssignees();
 
   }
 );
