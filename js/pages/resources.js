@@ -11,7 +11,11 @@ function pageResources(){
         const items = DB.resources.filter(r=>r.project===p.id);
         const spent = items.reduce((s,r)=>s+r.cost,0);
         const hours = items.reduce((s,r)=>s+r.hours,0);
-        const pct = Math.min(100, Math.round(spent/p.budget*100));
+        const pct = p.budget > 0
+  ? (spent >= p.budget
+      ? 100
+      : Math.round((spent / p.budget) * 100))
+  : 0;
         return `<div class="card" style="padding:18px;">
           <h3 style="font-size:14.5px;margin:0 0 8px;">${esc(p.name)}</h3>
           <div class="progress-track"><div class="progress-fill" style="width:${pct}%;background:${pct>90?'var(--crimson)':'linear-gradient(90deg,var(--coral),var(--cyan))'};"></div></div>
@@ -25,7 +29,15 @@ function pageResources(){
       <h3 style="margin-top:0;font-size:15px;">Log a resource / cost entry</h3>
       <div class="field-row">
         <div class="field"><label>Project</label>
-          <select id="rsProject">${DB.projects.map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join('')}</select>
+          <select id="rsProject">
+  ${DB.projects
+    .filter(p => p.status !== 'Completed')
+    .map(p => `
+      <option value="${p.id}">
+        ${esc(p.name)}
+      </option>
+    `).join('')}
+</select>
         </div>
         <div class="field"><label>Category</label>
           <select id="rsCategory"><option>Labor</option><option>Equipment</option><option>Software</option><option>Procurement</option></select>

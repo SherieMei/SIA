@@ -295,12 +295,16 @@ function pageProjects(){
                 </label>
 
                 <input
-                  id="npBudget"
-                  type="number"
-                  step="500"
-                  min="0"
-                  placeholder="30000"
-                >
+  id="npBudget"
+  type="number"
+  min="5000"
+  max="999999"
+  step="1"
+  placeholder="5000"
+  oninput="
+    if(Number(this.value) > 999999) this.value = 999999;
+  "
+>
               </div>
 
             </div>
@@ -367,8 +371,11 @@ function pageProjects(){
 const hasResourceEntry =
   projectResources.length > 0;
 
+const completion =
+  getProjectCompletionInfo(p.id);
+
 const canFinishProject =
-  pct === 100;
+  completion.canFinish;
 
 
               return `
@@ -438,7 +445,7 @@ const canFinishProject =
                   </div>
 
 ${
-  can('manageProjects') && canFinishProject
+  can('manageProjects')
     ? `
       <div
         style="
@@ -455,6 +462,15 @@ ${
             event.stopPropagation();
             finishProject('${p.id}');
           "
+          title="${
+  completion.missingTypes.length
+    ? 'Missing asset types: ' + completion.missingTypes.join(', ')
+    : completion.pendingAssets.length
+      ? 'Resolve all For Review or Revision Requested assets first.'
+      : completion.spent < completion.budget
+        ? 'Budget is not yet fully used.'
+        : 'Finish project'
+}"
         >
           Finish project
         </button>
@@ -511,6 +527,9 @@ function pageProjectDetail(){
 
   const pct =
     projectProgress(p.id);
+
+    const completion =
+  getProjectCompletionInfo(p.id);
 
 
   const pm =
@@ -641,6 +660,107 @@ function pageProjectDetail(){
         >
           ${pct}% project progress
         </div>
+        ${!completion.canFinish ? `
+
+  <div
+    style="
+      margin-top:14px;
+      padding:14px 16px;
+      border:1px solid rgba(240,73,90,.25);
+      border-radius:12px;
+      background:rgba(240,73,90,.04);
+    "
+  >
+
+    <div
+      style="
+        font-weight:700;
+        font-size:13px;
+        margin-bottom:7px;
+      "
+    >
+      Project requirements not yet complete
+    </div>
+
+
+    ${
+      completion.missingTypes.length
+        ? `
+          <div
+            style="
+              font-size:12.5px;
+              margin-top:5px;
+            "
+          >
+            Missing asset types:
+            <b>
+              ${completion.missingTypes
+                .map(type => esc(type))
+                .join(', ')}
+            </b>
+          </div>
+        `
+        : ''
+    }
+
+
+    ${
+      completion.pendingAssets.length
+        ? `
+          <div
+            style="
+              font-size:12.5px;
+              margin-top:5px;
+            "
+          >
+            ${completion.pendingAssets.length}
+            asset(s) still need review or revision.
+          </div>
+        `
+        : ''
+    }
+
+
+    ${
+      completion.budget > 0 &&
+      completion.spent < completion.budget
+        ? `
+          <div
+            style="
+              font-size:12.5px;
+              margin-top:5px;
+            "
+          >
+            Budget remaining:
+            <b>
+              ₱${(
+                completion.budget -
+                completion.spent
+              ).toLocaleString()}
+            </b>
+          </div>
+        `
+        : ''
+    }
+
+  </div>
+
+` : `
+
+  <div
+    style="
+      margin-top:14px;
+      padding:14px 16px;
+      border-radius:12px;
+      background:rgba(43,217,201,.08);
+      font-size:12.5px;
+      font-weight:600;
+    "
+  >
+    All project requirements are complete.
+  </div>
+
+`}
 
       </div>
 
@@ -858,6 +978,42 @@ function finishProject(projectId){
   if(!project){
     return;
   }
+  const completion =
+  getProjectCompletionInfo(projectId);
+
+if(!completion.canFinish){
+
+  if(completion.missingTypes.length){
+    toast(
+      'Missing asset types: ' +
+      completion.missingTypes.join(', '),
+      'error'
+    );
+    return;
+  }
+
+  if(completion.pendingAssets.length){
+    toast(
+      'Resolve all For Review or Revision Requested assets first.',
+      'error'
+    );
+    return;
+  }
+
+  if(completion.spent < completion.budget){
+    toast(
+      'Budget is not yet fully used.',
+      'error'
+    );
+    return;
+  }
+
+  toast(
+    'Project requirements are not yet complete.',
+    'error'
+  );
+  return;
+}
 
   const projectAssets =
     DB.assets.filter(

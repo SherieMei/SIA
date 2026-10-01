@@ -1,12 +1,61 @@
+function resourceProjectIsFinished(p){
+  if(!p) return false;
+
+  // Actual database status
+  if(String(p.status || '').toLowerCase() === 'completed'){
+    return true;
+  }
+
+  // Manual finished record
+  try{
+    const saved = JSON.parse(
+      localStorage.getItem('beeManuallyFinishedProjects') || '{}'
+    );
+
+    // Old array format
+    if(Array.isArray(saved)){
+      return saved.includes(String(p.id));
+    }
+
+    // Current format:
+    // { projectId: projectName }
+    if(saved && typeof saved === 'object'){
+      return saved[String(p.id)] === p.name;
+    }
+
+  }catch(e){
+    console.warn(
+      'Unable to read finished projects:',
+      e
+    );
+  }
+
+  return false;
+}
+
 /* Page-specific BEE PRODUCTION controller. Shared runtime is loaded before this file. */
 /* ==========================================================================
    PAGE — Resources & Budget (ERP-style tracking)
    ========================================================================== */
+   function resourceProjectIsFinished(p){
+  if(!p) return false;
+
+  return String(p.status || '')
+    .trim()
+    .toLowerCase() === 'completed';
+}
+function isCompletedProject(p){
+  return String(p?.status || '')
+    .trim()
+    .toLowerCase() === 'completed';
+}
 function pageResources(){
   return `
       <div style="display:flex;align-items:center;gap:10px;"><button type="button" title="Back" aria-label="Go back" onclick="Studio.goBack('dashboard')" style="border:none;background:none;padding:0;color:var(--text-muted);font-size:24px;cursor:pointer;">&larr;</button><div class="section-title">Resources & Budget</div></div>
     <div class="proj-grid" style="margin-top:18px;">
-      ${DB.projects.map(p=>{
+      ${DB.projects
+  .filter(p => !resourceProjectIsFinished(p))
+  .map(p=>{
         const items = DB.resources.filter(r=>r.project===p.id);
         const spent = items.reduce((s,r)=>s+r.cost,0);
         const hours = items.reduce((s,r)=>s+r.hours,0);
@@ -26,7 +75,15 @@ function pageResources(){
       <h3 style="margin-top:0;font-size:15px;">Log a resource / cost entry</h3>
       <div class="field-row">
         <div class="field"><label>Project</label>
-          <select id="rsProject">${DB.projects.map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join('')}</select>
+<select id="rsProject">
+  ${DB.projects
+    .filter(p => !isCompletedProject(p))
+    .map(p => `
+      <option value="${p.id}">
+        ${esc(p.name)}
+      </option>
+    `).join('')}
+</select>
         </div>
         <div class="field"><label>Category</label>
           <select id="rsCategory"><option>Labor</option><option>Equipment</option><option>Software</option><option>Procurement</option></select>
@@ -99,7 +156,167 @@ function pageResources(){
     </div>
   `;
 }
+Studio.addResource = async function(){
 
+  if(!can('manageResources')){
+    toast('You are not allowed to add resources.','error');
+    return;
+  }
+
+  const projectId =
+    document.getElementById('rsProject')?.value;
+
+  const category =
+    document.getElementById('rsCategory')?.value || '';
+
+  const desc =
+    document.getElementById('rsDesc')?.value.trim() || '';
+
+  const cost =
+    Number(document.getElementById('rsCost')?.value || 0);
+
+  const hours =
+    Number(document.getElementById('rsHours')?.value || 0);
+
+
+  const project =
+    DB.projects.find(p => p.id === projectId);
+
+
+  if(!project){
+    toast('Please select a project.','error');
+    return;
+  }
+
+
+  if(resourceProjectIsFinished(project)){
+    toast(
+      'Completed projects can no longer accept resource or cost entries.',
+      'error'
+    );
+    return;
+  }
+
+
+  if(!desc){
+    toast('Description is required.','error');
+    return;
+  }
+
+
+  if(cost < 750){
+    toast('Minimum cost is ₱750.','error');
+    return;
+  }
+
+
+  if(cost > 99999){
+    toast('Maximum cost is ₱99,999.','error');
+    return;
+  }
+
+
+  if(hours < 0 || hours > 99){
+    toast('Hours must be between 0 and 99.','error');
+    return;
+  }
+
+
+  const items =
+    DB.resources.filter(
+      r => r.project === projectId
+    );
+
+  const spent =
+    items.reduce(
+      (sum,r) => sum + Number(r.cost || 0),
+      0
+    );
+
+
+  if(spent >= Number(project.budget || 0)){
+    toast(
+      'This project has already reached its budget limit.',
+      'error'
+    );
+    return;
+  }
+
+
+  if(
+    spent + cost >
+    Number(project.budget || 0)
+  ){
+    toast(
+      'This entry would exceed the project budget.',
+      'error'
+    );
+    return;
+  }
+
+
+  try{
+
+    const response =
+      await fetch(
+        '../api/assets/resources.php',
+        {
+          method:'POST',
+          credentials:'include',
+          headers:{
+            'Content-Type':'application/json'
+          },
+          body:JSON.stringify({
+            project_id:projectId,
+            category:category,
+            description:desc,
+            cost:cost,
+            hours:hours
+          })
+        }
+      );
+
+
+    const data =
+      await parseApiResponse(response);
+
+
+    if(!data.success){
+      toast(
+        data.error ||
+        data.message ||
+        'Failed to add resource.',
+        'error'
+      );
+      return;
+    }
+
+
+    await loadResourcesFromDB();
+
+    toast(
+      'Resource entry added.',
+      'success'
+    );
+
+    render();
+
+
+  }catch(error){
+
+    console.error(
+      'Error adding resource:',
+      error
+    );
+
+    toast(
+      'Unable to add resource.',
+      'error'
+    );
+
+  }
+
+};
 
 function render(){
   if(!DB.currentUser) return;
@@ -124,19 +341,65 @@ function render(){
   }
 }
 
-document.addEventListener('DOMContentLoaded',()=>{
+document.addEventListener('DOMContentLoaded', async ()=>{
+
   if(!DB.currentUser){ 
     window.location.assign('../login/login.html'); 
     return; 
   }
 
   const menu=document.getElementById('menuButton');
-  if(menu) {
+
+  if(menu){
     menu.addEventListener('click',()=>{
       document.getElementById('sidebar')?.classList.toggle('open');
     });
   }
 
-  // Render the actual page after the separated HTML document loads.
+
+  // Load latest projects directly from database
+  try{
+
+    const response = await fetch(
+      '../api/projects.php',
+      {
+        method:'GET',
+        credentials:'include'
+      }
+    );
+
+    const data =
+      await parseApiResponse(response);
+
+    if(
+      response.ok &&
+      data.success &&
+      Array.isArray(data.projects)
+    ){
+      DB.projects = data.projects;
+    }
+
+  }catch(error){
+
+    console.error(
+      'Unable to load projects:',
+      error
+    );
+
+  }
+
+
+  // Load latest resource entries
+  try{
+    await loadResourcesFromDB();
+  }catch(error){
+    console.error(
+      'Unable to load resources:',
+      error
+    );
+  }
+
+
   render();
+
 });

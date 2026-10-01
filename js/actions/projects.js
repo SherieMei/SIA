@@ -12,6 +12,16 @@ Object.assign(Studio, {
     const deadline = document.getElementById('npDeadline').value;
     const budget = parseFloat(document.getElementById('npBudget').value) || 0;
 
+    if(budget < 5000){
+        toast('Minimum project budget is ₱5,000.','error');
+        return;
+    }
+
+    if(budget > 999999){
+        toast('Maximum project budget is ₱999,999.','error');
+        return;
+    }
+
     if(!name || !client){
         toast('Project name and client are required.','error');
         return;
@@ -46,13 +56,17 @@ Object.assign(Studio, {
 
             toast('Project created: ' + name, 'success');
             Studio.goto('projects');
+
         } else {
             toast(data.message || 'Failed to create project.', 'error');
         }
+
     })
     .catch(error => {
         console.error('Error creating project:', error);
         toast('An error occurred while creating the project.', 'error');
     });
-}
+
+  }
+
 });

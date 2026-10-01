@@ -194,124 +194,161 @@ function toast(msg,kind){
   wrap.appendChild(el);
   setTimeout(()=>{el.style.opacity='0';el.style.transition='.25s';setTimeout(()=>el.remove(),260);},3200);
 }
-function projectProgress(pid){
+/* =========================================================
+   REQUIRED ASSET TYPES
+   ========================================================= */
 
-  const projectAssets =
+const REQUIRED_ASSET_TYPES = [
+  'Storyboard',
+  'Animatic',
+  'Character Sheet',
+  'Background Asset',
+  'Animation Scene',
+  'Render',
+  'Audio',
+  'Design Draft'
+];
+
+
+/* =========================================================
+   PROJECT COMPLETION INFO
+   ========================================================= */
+
+function getProjectCompletionInfo(pid){
+
+  const project =
+    projectById(pid);
+
+  const assets =
     Array.isArray(DB.assets)
       ? DB.assets.filter(
           a =>
-            String(
-              a.project ??
-              a.project_id
-            ) === String(pid)
+            String(a.project) === String(pid) ||
+            String(a.project_id) === String(pid)
         )
       : [];
 
+  const presentTypes =
+    new Set(
+      assets
+        .map(a => a.type || a.asset_type)
+        .filter(Boolean)
+    );
 
-  const projectResources =
+  const missingTypes =
+    REQUIRED_ASSET_TYPES.filter(
+      type => !presentTypes.has(type)
+    );
+
+  const pendingAssets =
+    assets.filter(a => {
+
+      const status =
+        latestVersion(a)?.status || '';
+
+      return (
+        status === 'For Review' ||
+        status === 'Revision Requested'
+      );
+    });
+
+  const resolvedAssets =
+    assets.filter(a => {
+
+      const status =
+        latestVersion(a)?.status || '';
+
+      return (
+        status === 'Approved' ||
+        status === 'Final' ||
+        status === 'Rejected'
+      );
+    });
+
+  const resources =
     Array.isArray(DB.resources)
       ? DB.resources.filter(
           r =>
-            String(
-              r.project ??
-              r.project_id
-            ) === String(pid)
+            String(r.project) === String(pid) ||
+            String(r.project_id) === String(pid)
         )
       : [];
 
-
-  const project =
-    DB.projects.find(
-      p => String(p.id) === String(pid)
+  const spent =
+    resources.reduce(
+      (sum, r) =>
+        sum + Number(r.cost || 0),
+      0
     );
-
-
-  let progress = 0;
-
-
-  /* ==========================================================
-     PART 1 — ASSET SUBMITTED
-     Maximum: 20%
-     ========================================================== */
-
-  if(projectAssets.length > 0){
-    progress += 20;
-  }
-
-
-  /* ==========================================================
-     PART 2 — ASSET APPROVAL
-     Maximum: 40%
-     ========================================================== */
-
-  if(projectAssets.length > 0){
-
-    const approvedAssets =
-      projectAssets.filter(asset => {
-
-        const version =
-          latestVersion(asset);
-
-        if(!version){
-          return false;
-        }
-
-        return (
-          version.status === 'Approved' ||
-          version.status === 'Final'
-        );
-
-      }).length;
-
-
-    const approvalPercent =
-      approvedAssets /
-      projectAssets.length;
-
-
-    progress +=
-      approvalPercent * 40;
-
-  }
-
-
-  /* ==========================================================
-     PART 3 — RESOURCE / BUDGET USAGE
-     Maximum: 40%
-     ========================================================== */
 
   const budget =
     Number(project?.budget || 0);
 
 
-  const spent =
-    projectResources.reduce(
-      (total, resource) =>
-        total + Number(resource.cost || 0),
-      0
+  /* 40% = required asset types */
+  const assetTypeProgress =
+    (
+      presentTypes.size /
+      REQUIRED_ASSET_TYPES.length
+    ) * 40;
+
+
+  /* 20% = resolved reviews */
+  const reviewProgress =
+    assets.length > 0
+      ? (
+          resolvedAssets.length /
+          assets.length
+        ) * 20
+      : 0;
+
+
+  /* 40% = budget usage */
+  const budgetProgress =
+    budget > 0
+      ? Math.min(
+          1,
+          spent / budget
+        ) * 40
+      : 0;
+
+
+  let progress =
+    Math.round(
+      assetTypeProgress +
+      reviewProgress +
+      budgetProgress
     );
 
 
-  if(budget > 0){
-
-    const budgetPercent =
-      Math.min(
-        1,
-        spent / budget
-      );
+  const canFinish =
+    missingTypes.length === 0 &&
+    pendingAssets.length === 0 &&
+    budget > 0 &&
+    spent >= budget;
 
 
-    progress +=
-      budgetPercent * 40;
-
+  if(canFinish){
+    progress = 100;
+  }else{
+    progress = Math.min(progress, 99);
   }
 
 
-  return Math.min(
-    100,
-    Math.round(progress)
-  );
+  return {
+    progress,
+    missingTypes,
+    pendingAssets,
+    resolvedAssets,
+    spent,
+    budget,
+    canFinish
+  };
+}
 
+
+function projectProgress(pid){
+  return getProjectCompletionInfo(pid).progress;
 }
 /* ===== NAVIGATION: js/core/nav.js ===== */
 /* ==========================================================================

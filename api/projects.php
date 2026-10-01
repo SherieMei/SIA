@@ -243,6 +243,17 @@ $name = trim($in['name'] ?? '');
 $deadline = $in['deadline'] ?? null;
 $clientId = trim($in['client_id'] ?? '');
 $budget = (float)($in['budget'] ?? 0);
+if ($budget < 5000 || $budget > 999999) {
+
+    http_response_code(400);
+
+    echo json_encode([
+        'success' => false,
+        'message' => 'Budget must be between PHP 5,000 and PHP 999,999.'
+    ]);
+
+    exit;
+}
 /* -----------------------------------------
    VALIDATE SELECTED CLIENT ACCOUNT
    ----------------------------------------- */
@@ -481,160 +492,289 @@ if (($in['status'] ?? '') === 'Completed') {
     }
 
 
-    /* =========================================================
-       CHECK PROJECT PROGRESS BEFORE COMPLETING
-       ========================================================= */
+ /* =========================================================
+   CHECK PROJECT PROGRESS BEFORE COMPLETING
+   ========================================================= */
 
-    $projectStmt = $pdo->prepare("
-        SELECT budget
-        FROM projects
-        WHERE id = ?
-        LIMIT 1
-    ");
+$projectStmt = $pdo->prepare("
+    SELECT budget
+    FROM projects
+    WHERE id = ?
+    LIMIT 1
+");
 
-    $projectStmt->execute([$id]);
+$projectStmt->execute([$id]);
 
-    $projectRow =
-        $projectStmt->fetch(PDO::FETCH_ASSOC);
+$projectRow =
+    $projectStmt->fetch(PDO::FETCH_ASSOC);
+
+if (!$projectRow) {
+
+    http_response_code(404);
+
+    echo json_encode([
+        'success' => false,
+        'message' => 'Project not found.'
+    ]);
+
+    exit;
+}
+
+$projectBudget =
+    (float)($projectRow['budget'] ?? 0);
 
 
-    if (!$projectRow) {
+/* =========================================================
+   REQUIRED ASSET TYPES
+   ========================================================= */
 
-        http_response_code(404);
+$requiredAssetTypes = [
+    'Storyboard',
+    'Animatic',
+    'Character Sheet',
+    'Background Asset',
+    'Animation Scene',
+    'Render',
+    'Audio',
+    'Design Draft'
+];
 
-        echo json_encode([
-            'success' => false,
-            'message' => 'Project not found.'
-        ]);
 
-        exit;
+/* =========================================================
+   GET PROJECT ASSETS + LATEST STATUS
+   ========================================================= */
+
+$assetStmt = $pdo->prepare("
+    SELECT
+        a.id,
+        a.asset_type,
+        (
+            SELECT av.status
+            FROM asset_versions av
+            WHERE av.asset_id = a.id
+            ORDER BY av.version_number DESC
+            LIMIT 1
+        ) AS latest_status
+    FROM assets a
+    WHERE a.project_id = ?
+");
+
+$assetStmt->execute([$id]);
+
+$assetRows =
+    $assetStmt->fetchAll(PDO::FETCH_ASSOC);
+
+
+/* =========================================================
+   CHECK PRESENT / MISSING ASSET TYPES
+   ========================================================= */
+
+$presentTypes = [];
+
+foreach ($assetRows as $asset) {
+
+    if (!empty($asset['asset_type'])) {
+        $presentTypes[] =
+            $asset['asset_type'];
+    }
+}
+
+$presentTypes =
+    array_values(
+        array_unique($presentTypes)
+    );
+
+$missingTypes =
+    array_values(
+        array_diff(
+            $requiredAssetTypes,
+            $presentTypes
+        )
+    );
+
+
+/* =========================================================
+   CHECK ASSET REVIEW STATUS
+   ========================================================= */
+
+$pendingAssets = [];
+$resolvedAssets = 0;
+
+foreach ($assetRows as $asset) {
+
+    $latestStatus =
+        $asset['latest_status'] ?? '';
+
+    if (
+        $latestStatus === 'For Review' ||
+        $latestStatus === 'Revision Requested'
+    ) {
+
+        $pendingAssets[] = $asset;
+
     }
 
+    if (
+        $latestStatus === 'Approved' ||
+        $latestStatus === 'Final' ||
+        $latestStatus === 'Rejected'
+    ) {
 
-    $projectBudget =
-        (float)($projectRow['budget'] ?? 0);
-
-
-    /* =========================================================
-       CHECK ASSETS
-       ========================================================= */
-
-    $assetStmt = $pdo->prepare("
-        SELECT
-            COUNT(a.id) AS total_assets,
-            SUM(
-                CASE
-                    WHEN av.status IN ('Approved', 'Final')
-                    THEN 1
-                    ELSE 0
-                END
-            ) AS approved_assets
-        FROM assets a
-
-        LEFT JOIN asset_versions av
-            ON av.asset_id = a.id
-            AND av.version_no = (
-                SELECT MAX(av2.version_no)
-                FROM asset_versions av2
-                WHERE av2.asset_id = a.id
-            )
-
-        WHERE a.project_id = ?
-    ");
-
-    $assetStmt->execute([$id]);
-
-    $assetData =
-        $assetStmt->fetch(PDO::FETCH_ASSOC);
-
-
-    $totalAssets =
-        (int)($assetData['total_assets'] ?? 0);
-
-    $approvedAssets =
-        (int)($assetData['approved_assets'] ?? 0);
-
-
-    /* =========================================================
-       CHECK RESOURCE COST
-       ========================================================= */
-
-    $resourceStmt = $pdo->prepare("
-        SELECT
-            COALESCE(SUM(cost), 0) AS total_spent
-        FROM resources
-        WHERE project_id = ?
-    ");
-
-    $resourceStmt->execute([$id]);
-
-    $resourceData =
-        $resourceStmt->fetch(PDO::FETCH_ASSOC);
-
-
-    $totalSpent =
-        (float)($resourceData['total_spent'] ?? 0);
-
-
-    /* =========================================================
-       CALCULATE SAME PROGRESS AS FRONTEND
-       ========================================================= */
-
-    $progress = 0;
-
-
-    // 20% once at least one asset exists
-    if ($totalAssets > 0) {
-        $progress += 20;
+        $resolvedAssets++;
     }
+}
+
+$totalAssets =
+    count($assetRows);
 
 
-    // 40% based on approved/final assets
-    if ($totalAssets > 0) {
+/* =========================================================
+   CHECK RESOURCE COST
+   ========================================================= */
 
-        $approvalRatio =
-            $approvedAssets / $totalAssets;
+$resourceStmt = $pdo->prepare("
+    SELECT
+        COALESCE(SUM(cost), 0) AS total_spent
+    FROM resources
+    WHERE project_id = ?
+");
 
-        $progress +=
-            $approvalRatio * 40;
-    }
+$resourceStmt->execute([$id]);
+
+$resourceData =
+    $resourceStmt->fetch(PDO::FETCH_ASSOC);
+
+$totalSpent =
+    (float)($resourceData['total_spent'] ?? 0);
 
 
-    // 40% based on budget usage
-    if ($projectBudget > 0) {
+/* =========================================================
+   CALCULATE PROGRESS
+   40% = required asset types
+   20% = reviewed/resolved assets
+   40% = budget usage
+   ========================================================= */
 
-        $budgetRatio =
-            min(
-                1,
-                $totalSpent / $projectBudget
-            );
+$assetTypeProgress =
+    (
+        count($presentTypes) /
+        count($requiredAssetTypes)
+    ) * 40;
 
-        $progress +=
-            $budgetRatio * 40;
-    }
 
+$reviewProgress = 0;
+
+if ($totalAssets > 0) {
+
+    $reviewProgress =
+        (
+            $resolvedAssets /
+            $totalAssets
+        ) * 20;
+}
+
+
+$budgetProgress = 0;
+
+if ($projectBudget > 0) {
+
+    $budgetRatio =
+        min(
+            1,
+            $totalSpent / $projectBudget
+        );
+
+    $budgetProgress =
+        $budgetRatio * 40;
+}
+
+
+$progress =
+    round(
+        $assetTypeProgress +
+        $reviewProgress +
+        $budgetProgress
+    );
+
+
+/* =========================================================
+   FINAL COMPLETION RULE
+   ========================================================= */
+
+$canFinish =
+    count($missingTypes) === 0 &&
+    count($pendingAssets) === 0 &&
+    $projectBudget > 0 &&
+    $totalSpent >= $projectBudget;
+
+
+if ($canFinish) {
+
+    $progress = 100;
+
+} else {
 
     $progress =
         min(
-            100,
-            round($progress)
+            $progress,
+            99
         );
+}
 
 
-    if ($progress < 100) {
+/* =========================================================
+   BLOCK COMPLETION + SHOW WHAT IS MISSING
+   ========================================================= */
 
-        http_response_code(400);
+if (!$canFinish) {
 
-        echo json_encode([
-            'success' => false,
-            'message' =>
-                "Project progress is only {$progress}%. Complete it before finishing."
-        ]);
+    $problems = [];
 
-        exit;
+    if (count($missingTypes) > 0) {
+
+        $problems[] =
+            'Missing asset types: ' .
+            implode(', ', $missingTypes);
     }
 
+    if (count($pendingAssets) > 0) {
 
+        $problems[] =
+            count($pendingAssets) .
+            ' asset(s) still need review or revision.';
+    }
+
+    if (
+        $projectBudget > 0 &&
+        $totalSpent < $projectBudget
+    ) {
+
+        $remaining =
+            $projectBudget - $totalSpent;
+
+        $problems[] =
+            'Budget remaining: PHP ' .
+            number_format(
+                $remaining,
+                2
+            );
+    }
+
+    http_response_code(400);
+
+    echo json_encode([
+        'success' => false,
+        'progress' => $progress,
+        'missing_asset_types' => $missingTypes,
+        'pending_assets' => count($pendingAssets),
+        'budget' => $projectBudget,
+        'spent' => $totalSpent,
+        'message' =>
+            implode(' ', $problems)
+    ], JSON_UNESCAPED_UNICODE);
+
+    exit;
+}
     /* =========================================================
        COMPLETE PROJECT
        ========================================================= */
