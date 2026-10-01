@@ -8,11 +8,6 @@
  * --------------------------------------------------------------------------
  * All dashboard numbers are calculated from DB.
  *
- * This keeps the UI database-ready:
- * - DB.projects can later come from your database/API
- * - DB.assets can later come from your database/API
- * - The cards will calculate their values automatically
- *
  * Active:
  *   Projects that are currently active and not completed/cancelled.
  *
@@ -28,18 +23,71 @@
  * Overdue Deadline:
  *   Projects whose deadline has already passed and are not 100% complete.
  */
+
+
+/*
+ * DASHBOARD PROJECT FILTER
+ * --------------------------------------------------------------------------
+ * Keeps Completed Projects out of the Dashboard Production Progress.
+ *
+ * This does NOT depend on isProjectManuallyFinished(), because that helper
+ * may only exist on the Projects page and can cause the Dashboard to go blank.
+ *
+ * It checks both:
+ * 1. project.status
+ * 2. beeManuallyFinishedProjects in localStorage
+ */
+function getDashboardActiveProjects(db = DB){
+
+  let manuallyFinished = {};
+
+  try{
+    manuallyFinished = JSON.parse(
+      localStorage.getItem('beeManuallyFinishedProjects') || '{}'
+    );
+
+    if(
+      !manuallyFinished ||
+      typeof manuallyFinished !== 'object' ||
+      Array.isArray(manuallyFinished)
+    ){
+      manuallyFinished = {};
+    }
+
+  }catch(error){
+    manuallyFinished = {};
+  }
+
+  return db.projects.filter(project => {
+
+    const status = String(project.status || '')
+      .trim()
+      .toLowerCase();
+
+    const completedByStatus =
+      status === 'completed' ||
+      status === 'complete' ||
+      status === 'cancelled' ||
+      status === 'canceled';
+
+    const completedManually =
+      Object.prototype.hasOwnProperty.call(
+        manuallyFinished,
+        String(project.id)
+      ) ||
+      Object.prototype.hasOwnProperty.call(
+        manuallyFinished,
+        project.id
+      );
+
+    return !completedByStatus && !completedManually;
+  });
+}
+
+
 function getDashboardStats(db = DB, now = new Date()) {
 
-  const activeProjects = db.projects.filter(project => {
-    const status = String(project.status || '').toLowerCase();
-
-    return (
-      status !== 'completed' &&
-      status !== 'complete' &&
-      status !== 'cancelled' &&
-      status !== 'canceled'
-    );
-  });
+  const activeProjects = getDashboardActiveProjects(db);
 
   const assetsWithLatestVersion = db.assets
     .map(asset => ({
@@ -62,7 +110,7 @@ function getDashboardStats(db = DB, now = new Date()) {
     item.version.status === 'Rejected'
   ).length;
 
-  const overdueDeadline = db.projects.filter(project => {
+  const overdueDeadline = activeProjects.filter(project => {
 
     if (!project.deadline) return false;
 
@@ -72,16 +120,7 @@ function getDashboardStats(db = DB, now = new Date()) {
 
     const progress = projectProgress(project.id);
 
-    const status = String(project.status || '').toLowerCase();
-
-    const finished =
-      progress >= 100 ||
-      status === 'completed' ||
-      status === 'complete' ||
-      status === 'cancelled' ||
-      status === 'canceled';
-
-    return deadline < now && !finished;
+    return deadline < now && progress < 100;
 
   }).length;
 
@@ -100,12 +139,13 @@ function getDashboardStats(db = DB, now = new Date()) {
  */
 function pageDashboard(){
 
-  /*
-   * Get all dashboard numbers from one function.
-   * This makes it easier to connect the same dashboard
-   * to your database/API later.
-   */
   const dashboardStats = getDashboardStats();
+
+  /*
+   * Same project list used by the Active card.
+   * Completed/manual-finished projects are excluded here.
+   */
+  const dashboardProjects = getDashboardActiveProjects();
 
   const stats = [
     {
@@ -174,36 +214,41 @@ function pageDashboard(){
         </div>
 
         <div style="display:flex;flex-direction:column;gap:16px;margin-top:14px;">
-          ${DB.projects.map(p=>{
-            const pct = projectProgress(p.id);
+          ${
+            dashboardProjects.length
+              ? dashboardProjects.map(p=>{
 
-            return `
-              <div>
-                <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px;">
-                  <b
-                    style="cursor:pointer;"
-                    onclick="Studio.goto('projectDetail','${p.id}')"
-                  >
-                    ${esc(p.name)}
-                  </b>
+                  const pct = projectProgress(p.id);
 
-                  <span
-                    class="mono"
-                    style="color:var(--text-faint);"
-                  >
-                    ${pct}%
-                  </span>
-                </div>
+                  return `
+                    <div>
+                      <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px;">
+                        <b
+                          style="cursor:pointer;"
+                          onclick="Studio.goto('projectDetail','${p.id}')"
+                        >
+                          ${esc(p.name)}
+                        </b>
 
-                <div class="progress-track">
-                  <div
-                    class="progress-fill"
-                    style="width:${pct}%"
-                  ></div>
-                </div>
-              </div>
-            `;
-          }).join('')}
+                        <span
+                          class="mono"
+                          style="color:var(--text-faint);"
+                        >
+                          ${pct}%
+                        </span>
+                      </div>
+
+                      <div class="progress-track">
+                        <div
+                          class="progress-fill"
+                          style="width:${pct}%"
+                        ></div>
+                      </div>
+                    </div>
+                  `;
+                }).join('')
+              : '<div class="empty">No active projects.</div>'
+          }
         </div>
       </div>
 
@@ -313,7 +358,7 @@ document.addEventListener('DOMContentLoaded',()=>{
     window.location.assign('../login/login.html');
     return;
   }
-  
+
   // Render the actual page after the separated HTML document loads.
   render();
 

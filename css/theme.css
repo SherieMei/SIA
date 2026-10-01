@@ -1,29 +1,45 @@
 :root{
-  --ink:#f6f7fb;
+  --ink:#f5fbfc;
   --ink-2:#ffffff;
+
   --panel:#ffffff;
-  --panel-2:#f8f9fc;
-  --panel-3:#eef1f6;
-  --line:#dfe4ec;
-  --line-soft:#edf0f4;
+  --panel-2:#f4f9fb;
+  --panel-3:#e9f2f4;
+
+  --line:#d7e3e8;
+  --line-soft:#eaf0f3;
+
   --paper:#ffffff;
-  --coral:#d85f78;
-  --coral-dim:#b84961;
-  --coral-glow:rgba(216,95,120,.11);
-  --cyan:#3f9f92;
-  --cyan-glow:rgba(63,159,146,.11);
-  --crimson:#cf5963;
-  --crimson-glow:rgba(207,89,99,.11);
-  --violet:#7569c2;
-  --violet-glow:rgba(117,105,194,.11);
-  --gold:#c18a2c;
-  --text:#273246;
-  --text-dim:#667085;
-  --text-faint:#98a2b3;
+
+  /* MAIN BRAND — TEAL */
+  --coral:#1f9d9a;
+  --coral-dim:#147a78;
+  --coral-glow:rgba(31,157,154,.12);
+
+  /* SECONDARY TEAL */
+  --cyan:#46b8b2;
+  --cyan-glow:rgba(70,184,178,.12);
+
+  /* STATUS COLORS */
+  --crimson:#d85d68;
+  --crimson-glow:rgba(216,93,104,.12);
+
+  --violet:#49627a;
+  --violet-glow:rgba(73,98,122,.12);
+
+  --gold:#c89435;
+
+  /* NAVY TEXT */
+  --text:#18324a;
+  --text-dim:#52697d;
+  --text-faint:#8a9aa8;
+
   --font-display:'Bebas Neue',sans-serif;
   --font-body:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
   --font-mono:'JetBrains Mono',monospace;
+
   --radius:14px;
-  --shadow:0 8px 26px rgba(37,48,68,.065);
-  --shadow-hover:0 16px 36px rgba(37,48,68,.105);
+
+  --shadow:0 8px 26px rgba(24,50,74,.07);
+  --shadow-hover:0 16px 36px rgba(24,50,74,.12);
 }
