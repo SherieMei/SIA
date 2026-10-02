@@ -16,6 +16,7 @@ Object.assign(Studio, {
   const type = document.getElementById('saType').value;
   const notes = document.getElementById('saNotes').value.trim();
   const link = document.getElementById('saLink').value.trim();
+  const dueDate = document.getElementById('saDueDate').value;
 
   const fileInput = document.getElementById('saFile');
   const fileName = fileInput && fileInput.files.length
@@ -114,7 +115,8 @@ Object.assign(Studio, {
         title: title,
         type: type,
         external_link: link,
-        notes: notes
+        notes: notes,
+        due_date: dueDate
       })
     });
 

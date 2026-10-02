@@ -2,7 +2,27 @@
 /* ==========================================================================
    PAGE — Assets (list + submission form) + Asset Detail
    ========================================================================== */
-function pageAssets(){
+function assetDueLabel(dueDate){
+  if(!dueDate) return '';
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const due = new Date(dueDate + 'T00:00:00');
+  const diff = Math.ceil((due - today) / 86400000);
+
+  if(diff < 0){
+    const days = Math.abs(diff);
+    return `Overdue by ${days} day${days === 1 ? '' : 's'}`;
+  }
+
+  if(diff === 0) return 'Due today';
+  if(diff === 1) return 'Due tomorrow';
+
+  return `${diff} days left`;
+}
+
+  function pageAssets(){
   const params=
     new URLSearchParams(
       window.location.search
@@ -121,6 +141,12 @@ function pageAssets(){
         <div class="field"><label>Attach file (simulated)</label><input id="saFile" type="file"></div>
       </div>
       <div class="field"><label>Notes for reviewers</label><textarea id="saNotes" placeholder="What changed, what to check..."></textarea></div>
+
+      <div class="field">
+        <label>Due Date</label>
+        <input type="date" id="saDueDate">
+      </div>
+
       <button class="btn btn-primary" onclick="Studio.submitAsset()">Submit — sets status to “For Review”</button>
       <span style="font-size:11.5px;color:var(--text-faint);margin-left:10px;">Workflow automation will move this asset into the review queue automatically.</span>
     </div>`:''}

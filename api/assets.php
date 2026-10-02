@@ -367,6 +367,8 @@ function notifyManagement(
 
                 "created_at" => $row['created_at'] ?? null,
 
+                "due_date" => $row['due_date'] ?? null,
+
                 "versions" => $versionsByAsset[$row['id']] ?? []
             ];
         }
@@ -483,6 +485,10 @@ function notifyManagement(
         $notes =
             $input['notes']
             ?? '';
+
+        $dueDate =
+            $input['due_date']
+            ?? null;
 
 
         /* =====================================================
@@ -833,10 +839,11 @@ if (
                 project_id,
                 asset_title,
                 asset_type,
-                external_link
+                external_link,
+                due_date
             )
 
-            VALUES (?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?)
 
         ");
 
@@ -849,7 +856,9 @@ if (
 
             $type,
 
-            $link
+            $link,
+
+            $dueDate
 
         ]);
 

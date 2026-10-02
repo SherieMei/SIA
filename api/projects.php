@@ -158,72 +158,89 @@ function createUserNotification(
    GET PROJECTS
    ========================================================= */
 
+
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
 
-    if ($_SESSION['user']['role'] === 'client') {
+    $role = strtolower(trim($_SESSION['user']['role'] ?? ''));
+    $userId = $_SESSION['user']['id'] ?? null;
 
-        // Client can only see projects assigned to their account
+    $selectFields = "
+        p.id,
+        p.name,
+        p.client,
+        p.client_id,
+        p.producer,
+        p.status,
+        p.deadline,
+        p.budget,
+        p.pm AS project_manager_id
+    ";
+
+    if ($role === 'client') {
+
         $stmt = $pdo->prepare("
-            SELECT
-                id,
-                name,
-                client,
-                client_id,
-                producer,
-                status,
-                deadline,
-                budget,
-                pm AS project_manager_id
-            FROM projects
-            WHERE client_id = ?
-            ORDER BY created_at DESC
+            SELECT $selectFields
+            FROM projects p
+            WHERE p.client_id = ?
+            ORDER BY p.created_at DESC
         ");
+        $stmt->execute([$userId]);
 
-        $stmt->execute([
-            $_SESSION['user']['id']
-        ]);
+    } elseif ($role === 'editor') {
+
+        $stmt = $pdo->prepare("
+            SELECT DISTINCT $selectFields
+            FROM projects p
+            INNER JOIN assets a ON a.project_id = p.id
+            WHERE a.assigned_editor = ?
+            ORDER BY p.created_at DESC
+        ");
+        $stmt->execute([$userId]);
+
+    } elseif ($role === 'animator') {
+
+        $stmt = $pdo->prepare("
+            SELECT DISTINCT $selectFields
+            FROM projects p
+            INNER JOIN assets a ON a.project_id = p.id
+            WHERE a.assigned_animator = ?
+            ORDER BY p.created_at DESC
+        ");
+        $stmt->execute([$userId]);
+
+    } elseif ($role === 'project_manager') {
+
+        $stmt = $pdo->prepare("
+            SELECT $selectFields
+            FROM projects p
+            WHERE p.pm = ?
+            ORDER BY p.created_at DESC
+        ");
+        $stmt->execute([$userId]);
 
     } else {
 
-        // Admin / Project Manager can see all projects
+        // Admin and other existing roles retain the current behavior.
         $stmt = $pdo->query("
-            SELECT
-                id,
-                name,
-                client,
-                client_id,
-                producer,
-                status,
-                deadline,
-                budget,
-                pm AS project_manager_id
-            FROM projects
-            ORDER BY created_at DESC
+            SELECT $selectFields
+            FROM projects p
+            ORDER BY p.created_at DESC
         ");
     }
 
-
     $projects = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
 
     echo json_encode([
         'success' => true,
-
         'projects' => array_map(
             function ($p) {
-
-                $p['pm'] =
-                    $p['project_manager_id'];
-
+                $p['pm'] = $p['project_manager_id'];
                 $p['team'] = [];
-
                 return $p;
             },
             $projects
         )
-
     ], JSON_UNESCAPED_UNICODE);
-
 
     exit;
 }
