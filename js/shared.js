@@ -974,8 +974,11 @@ Object.assign(Studio,{
     const type=document.getElementById('saType').value;
     const notes=document.getElementById('saNotes').value.trim();
     const link=document.getElementById('saLink').value.trim();
-    const assignedEditor=document.getElementById('saAssignedEditor').value;
-    const assignedAnimator=document.getElementById('saAssignedAnimator').value;
+    const assignedEditor =
+      document.getElementById('saAssignedEditor')?.value || '';
+
+    const assignedAnimator =
+      document.getElementById('saAssignedAnimator')?.value || '';
     if(existingId!=='new'){
       if(!existingId){
         toast('Please select an existing asset.','error');
@@ -990,8 +993,8 @@ Object.assign(Studio,{
       });
       return;
     }
-    if(!title||!project||!assignedEditor||!assignedAnimator){
-      toast('Title, project, editor, and animator are required.','error');
+    if(!title || !project){
+      toast('Title and project are required.','error');
       return;
     }
     Studio.openConfirm({
