@@ -1,6 +1,26 @@
 /* BEE PRODUCTION Login — MySQL connected controller */
 document.addEventListener('DOMContentLoaded', () => {
 
+const loginScreen = document.getElementById('loginScreen');
+
+if (loginScreen) {
+  loginScreen.addEventListener('mousemove', event => {
+    const rect = loginScreen.getBoundingClientRect();
+    if (!rect.width || !rect.height) return;
+
+    const x = ((event.clientX - rect.left) / rect.width) * 100;
+    const y = ((event.clientY - rect.top) / rect.height) * 100;
+
+    loginScreen.style.setProperty('--mouse-x', `${x}%`);
+    loginScreen.style.setProperty('--mouse-y', `${y}%`);
+  });
+
+  loginScreen.addEventListener('mouseleave', () => {
+    loginScreen.style.setProperty('--mouse-x', '50%');
+    loginScreen.style.setProperty('--mouse-y', '50%');
+  });
+}
+
 const grid = document.getElementById('demoUsers');
 
 let registeredUsers = [];

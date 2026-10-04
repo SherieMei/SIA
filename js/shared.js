@@ -1171,8 +1171,65 @@ Object.assign(Studio,{
     if(typeof render==='function')render();
     Studio.persist();
   },
-  markRead(id){const n=DB.notifications.find(x=>x.id===id);if(n)n.read=true;if(typeof render==='function')render();Studio.persist();},
-  markAllRead(){DB.notifications.forEach(n=>n.read=true);if(typeof render==='function')render();Studio.persist();toast('All notifications marked as read.');},
+  async markRead(notificationId){
+    try{
+      const notification=DB.notifications.find(
+        item=>String(item.id)===String(notificationId)
+      );
+      if(!notification||notification.id==null){
+        throw new Error('Notification is missing an ID.');
+      }
+      const response=await fetch(
+        '/SIA/api/notifications.php?action=mark_read',
+        {
+          method:'POST',
+          credentials:'include',
+          headers:{
+            'Content-Type':'application/json'
+          },
+          body:JSON.stringify({id:notification.id})
+        }
+      );
+      const data=typeof parseApiResponse==='function'
+        ? await parseApiResponse(response)
+        : await response.json();
+      if(!response.ok||!data||!data.success){
+        throw new Error(data?.error||'Failed to mark notification as read.');
+      }
+      notification.read=true;
+      notification.is_read=1;
+      if(typeof render==='function')render();
+    }catch(error){
+      toast('Unable to mark notification as read.','error');
+      throw error;
+    }
+  },
+  async markAllRead(){
+    try{
+      const response=await fetch(
+        '/SIA/api/notifications.php?action=mark_all_read',
+        {
+          method:'POST',
+          credentials:'include'
+        }
+      );
+      const data=typeof parseApiResponse==='function'
+        ? await parseApiResponse(response)
+        : await response.json();
+      if(!response.ok||!data||!data.success){
+        throw new Error(data?.error||'Failed to mark all notifications as read.');
+      }
+      DB.notifications.forEach(notification=>{
+        notification.read=true;
+        notification.is_read=1;
+      });
+      if(typeof render==='function')render();
+      toast('All notifications marked as read.','success');
+    }catch(error){
+      toast('Unable to mark notifications as read.','error');
+      console.error('Unable to mark all notifications as read:',error);
+    }
+  },
 });
 /* ===== INTEGRATION ACTIONS: js/actions/integrations.js ===== */
 Object.assign(Studio,{

@@ -150,7 +150,7 @@ function pageNotifications() {
    OPEN NOTIFICATION
    ========================================================================== */
 
-Studio.openNotification = function(notificationId) {
+Studio.openNotification = async function(notificationId) {
   const notification = Array.isArray(DB.notifications)
     ? DB.notifications.find(
         n => String(n.id) === String(notificationId)
@@ -171,12 +171,13 @@ Studio.openNotification = function(notificationId) {
     notification
   );
 
-  /* Mark as read */
-  notification.read = true;
-  notification.is_read = 1;
-
-  if (typeof Studio.persist === 'function') {
-    Studio.persist();
+  try {
+    await Studio.markRead(notification.id);
+  } catch (error) {
+    console.warn(
+      'Could not persist notification read state; continuing navigation:',
+      error
+    );
   }
 
   const type = String(
