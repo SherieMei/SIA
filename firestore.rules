@@ -12,14 +12,14 @@ service cloud.firestore {
     function project(id) { return get(/databases/$(database)/documents/projects/$(id)).data; }
     function projectAfter(id) { return getAfter(/databases/$(database)/documents/projects/$(id)).data; }
     function scope(data) { return admin() || (staff() && request.auth.uid in data.access_ids); }
-    function assetScope(data) { return staff() && request.auth.uid in data.access_ids; }
+    function assetScope(data) { return admin() || (staff() && request.auth.uid in data.access_ids); }
     function projectScope(id) { return scope(project(id)); }
     function validScope(data) { return data.access_ids == projectAfter(data.project_id).access_ids; }
     function unchangedProject() { return request.resource.data.project_id == resource.data.project_id; }
     function assigned(asset) {
-      return staff() && request.auth.uid in project(asset.project_id).access_ids && (manages(project(asset.project_id)) ||
+      return admin() || (staff() && request.auth.uid in project(asset.project_id).access_ids && (manages(project(asset.project_id)) ||
         (staff() && role() == 'editor' && (asset.assigned_editor != null ? asset.assigned_editor == request.auth.uid : project(asset.project_id).artist_id == request.auth.uid)) ||
-        (staff() && role() == 'animator' && (asset.assigned_animator != null ? asset.assigned_animator == request.auth.uid : project(asset.project_id).animator_id == request.auth.uid)));
+        (staff() && role() == 'animator' && (asset.assigned_animator != null ? asset.assigned_animator == request.auth.uid : project(asset.project_id).animator_id == request.auth.uid))));
     }
     function publicProjectValid(id, data) {
       let p = projectAfter(id);
@@ -40,7 +40,7 @@ service cloud.firestore {
     }
     match /projects/{id} {
       allow read: if scope(resource.data);
-      allow create: if active() && (admin() || (role() == 'project_manager' && request.resource.data.pm == request.auth.uid)) &&
+      allow create: if admin() &&
         request.resource.data.id == id;
       allow update: if manages(resource.data) && request.resource.data.id == resource.data.id &&
         (admin() || request.resource.data.pm == resource.data.pm) &&
@@ -57,7 +57,7 @@ service cloud.firestore {
         return (data.assigned_editor == null || data.assigned_editor in projectAfter(data.project_id).access_ids) &&
           (data.assigned_animator == null || data.assigned_animator in projectAfter(data.project_id).access_ids);
       }
-      allow read: if staff() && request.auth.uid in resource.data.access_ids;
+      allow read: if scope(resource.data);
       allow create: if staff() && projectScope(request.resource.data.project_id) && assigned(request.resource.data) && validScope(request.resource.data) && validAssignees(request.resource.data);
       allow update: if staff() && assigned(resource.data) && unchangedProject() && validScope(request.resource.data) &&
         request.resource.data.id == resource.data.id &&
@@ -84,7 +84,7 @@ service cloud.firestore {
           getAfter(/databases/$(database)/documents/client_assets/$(resource.data.asset_id)).data.versions[0].approved_by == data.approved_by &&
           getAfter(/databases/$(database)/documents/client_assets/$(resource.data.asset_id)).data.versions[0].approved_at == data.approved_at);
       }
-      allow read: if staff() && request.auth.uid in resource.data.access_ids;
+      allow read: if scope(resource.data);
       allow create: if staff() && projectScope(request.resource.data.project_id) && validScope(request.resource.data) &&
         assigned(getAfter(/databases/$(database)/documents/assets/$(request.resource.data.asset_id)).data) &&
         request.resource.data.status == 'For Review' && request.resource.data.uploaded_by == request.auth.uid && validNextVersion(request.resource.data);
@@ -110,7 +110,7 @@ service cloud.firestore {
           v.asset_id == asset.id && data.versions.size() == 1 &&
           data.versions[0].keys().hasOnly(['id', 'n', 'status', 'date', 'media_url', 'review_feedback', 'approval_id', 'approved_by', 'approved_at']) && data.versions[0].id == v.id && data.versions[0].n == v.version_number && data.versions[0].status == v.status;
       }
-      allow read: if active() && ((role() == 'client' && resource.data.client_id == request.auth.uid) ||
+      allow read: if active() && (admin() || (role() == 'client' && resource.data.client_id == request.auth.uid) ||
         (staff() && request.auth.uid in resource.data.reader_ids));
       allow create: if staff() && assigned(getAfter(/databases/$(database)/documents/assets/$(id)).data) && safeView(request.resource.data);
       allow update: if (staff() && assigned(getAfter(/databases/$(database)/documents/assets/$(id)).data) && safeView(request.resource.data) &&
@@ -129,7 +129,7 @@ service cloud.firestore {
       allow delete: if false;
     }
     match /comments/{id} {
-      allow read: if active() && request.auth.uid in resource.data.reader_ids;
+      allow read: if admin() || (active() && request.auth.uid in resource.data.reader_ids);
       allow create: if active() && request.resource.data.user_id == request.auth.uid &&
         request.resource.data.text is string && request.resource.data.text.size() > 0 && request.resource.data.text.size() <= 10000 &&
         request.resource.data.reader_ids == get(/databases/$(database)/documents/client_assets/$(request.resource.data.asset_id)).data.reader_ids &&

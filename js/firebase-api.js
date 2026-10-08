@@ -34,12 +34,12 @@ const requireRoles = (user, roles) => {
   if (!roles.includes(user.role)) throw fail('You do not have permission to perform this action.', 403);
 };
 async function scoped(name, user) {
-  if (user.role === 'admin' && name === 'projects') return list(name);
+  if (user.role === 'admin') return list(name);
   return list(name, [where('access_ids', 'array-contains', user.id)]);
 }
 async function scopedBy(name, user, field, value) {
   const constraints = [where(field, '==', value)];
-  if (user.role !== 'admin' || name !== 'projects') constraints.push(where('access_ids', 'array-contains', user.id));
+  if (user.role !== 'admin') constraints.push(where('access_ids', 'array-contains', user.id));
   return list(name, constraints);
 }
 async function projects(user) {
@@ -51,7 +51,9 @@ async function assets(user) {
   const rows = user.role === 'client'
     ? await list('client_assets', [where('client_id', '==', user.id)])
     : await scoped('assets', user);
-  const comments = await list('comments', [where('reader_ids', 'array-contains', user.id)]);
+  const comments = user.role === 'admin'
+    ? await list('comments')
+    : await list('comments', [where('reader_ids', 'array-contains', user.id)]);
   if (user.role === 'client') return rows.map(row => ({ ...row, comments: comments.filter(c => String(c.asset_id) === String(row.id)) }));
   const versions = await scoped('asset_versions', user);
   return rows.map(row => assetView(row, versions.filter(v => String(v.asset_id) === String(row.id)),
@@ -152,7 +154,7 @@ async function saveAsset(user, input) {
   if (input.asset_id && !existing) throw fail('Asset not found.', 404);
   if (existing && input.project_id && String(input.project_id) !== String(existing.project_id)) throw fail('A revision must stay in its original project.', 403);
   const project = await projectFor(user, existing?.project_id || input.project_id);
-  if (!project.access_ids?.includes(user.id)) throw fail('You must be assigned to this project to submit assets.', 403);
+  if (user.role !== 'admin' && !project.access_ids?.includes(user.id)) throw fail('You must be assigned to this project to submit assets.', 403);
   const link = assertMediaLink(input.link || input.external_link);
   if (existing && !['admin', 'project_manager'].includes(user.role)) {
     const assigned = user.role === 'editor' ? existing.assigned_editor || project.artist_id : existing.assigned_animator || project.animator_id;
@@ -381,9 +383,10 @@ async function startRealtime(user) {
   for (const name of user.role === 'client' ? ['client_projects', 'client_assets', 'comments', 'notifications'] : ['projects', 'assets', 'asset_versions', 'comments', 'notifications']) {
     const source = collection(db, name);
     const constraint = name === 'notifications' ? where('user_id', '==', user.id)
+      : user.role === 'admin' ? null
       : name === 'comments' ? where('reader_ids', 'array-contains', user.id)
       : user.role === 'client' ? where('client_id', '==', user.id)
-      : (user.role !== 'admin' || name !== 'projects') ? where('access_ids', 'array-contains', user.id) : null;
+      : where('access_ids', 'array-contains', user.id);
     let first = true;
     unsubscribe.push(onSnapshot(constraint ? query(source, constraint) : source, () => {
       if (first) { first = false; return; }

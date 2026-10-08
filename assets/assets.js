@@ -194,9 +194,10 @@ ASSETS — ASSET LIST
     params.get('type')||'';
   const f=state.filter;
   const isClient=DB.currentUser?.role==='client';
+  const isAdmin=DB.currentUser?.role==='admin';
   const canSubmitAsset=can('uploadAsset')&&DB.currentUser?.role!=='animator'&&
     (DB.currentUser?.role!=='editor'||Boolean(submitSequence));
-  const activeProjects=DB.projects.filter(p=>p.status!=='Completed' && (isClient || (p.access_ids||p.team||[]).includes(DB.currentUser?.id)));
+  const activeProjects=DB.projects.filter(p=>p.status!=='Completed' && (isAdmin || isClient || (p.access_ids||p.team||[]).includes(DB.currentUser?.id)));
   const activeProjectIds=new Set(activeProjects.map(p=>String(p.id)));
   const activeAssets=DB.assets.filter(a=>activeProjectIds.has(String(a.project??a.project_id)));
   let list=[...activeAssets];
