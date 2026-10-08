@@ -13,3 +13,5 @@ tools/firebase-migration/node_modules/
 firebase-public/
 firebase-debug.log
 .firebase/
+.vercel
+.env*

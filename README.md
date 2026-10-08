@@ -56,6 +56,13 @@ access metadata. Financial records remain in the staff collections.
 
 ### Production workflows
 
+Vercel production is available at https://siaa-ten.vercel.app. `vercel.json`
+builds the same static frontend into `firebase-public`; `.vercelignore` excludes
+server files and migration dependencies. Firebase still provides authentication
+and database access. Deploy updates to the linked `siaa` project with
+`vercel deploy --prod`. Keep `siaa-ten.vercel.app` in Firebase Authentication's
+authorized domains.
+
 Animators update assigned Animation Scene progress and submit revision media links.
 Editors build sequences from approved Animation Scene and Audio assets, then submit
 Render cuts through the Assets form. Clients review the latest version; team members

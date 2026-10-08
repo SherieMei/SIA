@@ -2,6 +2,12 @@
 
 Target: siaa-20635.
 
+- Vercel production: https://siaa-ten.vercel.app, deployment
+  dpl_EfEhxdPwWRk62QUh6NWRLCsm7omS reported READY on 2026-10-09.
+  Firebase Authentication authorized domains include siaa-ten.vercel.app.
+  Vercel's security checkpoint blocked automated live checks from this connection;
+  live browser login verification remains unconfirmed.
+
 - Firestore: 723 records copied and read back for verification.
 - Authentication: six bcrypt accounts imported; IDs, normalized emails, display
   names and password providers verified.
