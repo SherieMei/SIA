@@ -152,6 +152,110 @@ function renderAssetCardPreview(asset){
   return `<div class="asset-card-placeholder"><span class="asset-card-placeholder-mark">PREVIEW</span><strong>${esc(asset.title||'Preview unavailable')}</strong></div>`;
 }
 
+async function loadDeletedAssets(){
+
+  const panel =
+    document.getElementById('deletedAssetsPanel');
+
+  if(!panel) return;
+
+  try{
+
+    const response = await fetch(
+      'http://localhost/SIA/api/assets.php?action=trash_assets',
+      {
+        credentials:'include'
+      }
+    );
+
+    const data =
+      await parseApiResponse(response);
+
+    if(!response.ok || !data.success){
+      throw new Error(
+        data.error ||
+        data.message ||
+        'Unable to load deleted assets.'
+      );
+    }
+
+    const deletedAssets =
+      Array.isArray(data.assets)
+        ? data.assets
+        : [];
+
+    if(!deletedAssets.length){
+
+      panel.innerHTML = `
+        <div class="empty">
+          No deleted assets.
+        </div>
+      `;
+
+      return;
+    }
+
+    panel.innerHTML =
+      deletedAssets.map(item => {
+
+        const asset =
+          item.asset || {};
+
+        return `
+          <div
+            class="card"
+            style="
+              padding:14px;
+              margin-bottom:10px;
+              display:flex;
+              justify-content:space-between;
+              align-items:center;
+              gap:12px;
+            "
+          >
+            <div>
+              <strong>
+                ${esc(asset.asset_title || 'Untitled asset')}
+              </strong>
+
+              <div
+                style="
+                  font-size:12px;
+                  color:var(--text-faint);
+                  margin-top:4px;
+                "
+              >
+                Deleted ${esc(item.deleted_at || '')}
+              </div>
+            </div>
+
+            <button
+              type="button"
+              class="btn btn-primary btn-sm"
+              onclick="Studio.recoverAsset('${esc(item.trash_id)}')"
+            >
+              Recover
+            </button>
+           
+          </div>
+        `;
+      }).join('');
+
+  }catch(error){
+
+    console.error(
+      'Load deleted assets error:',
+      error
+    );
+
+    panel.innerHTML = `
+      <div class="empty">
+        Unable to load deleted assets.
+      </div>
+    `;
+  }
+}
+
 /* =========================================================
 ASSETS — ASSET LIST
 ========================================================= */
@@ -379,13 +483,55 @@ ASSETS — ASSET LIST
             <div class="editor-asset-submitter">Submitted by ${esc(assetSubmitterName(v))}</div>
             ${resolvedVersions.length?`<div class="editor-asset-version-history">Previous decisions: ${resolvedVersions.map(version=>`${esc(version.status)} V${String(version.n).padStart(2,'0')}`).join(' · ')}</div>`:''}
             <div class="editor-asset-footer">
-              <span class="vtag">v${String(v.n||1).padStart(2,'0')}</span>
-              <span class="badge ${STATUS_CLASS[v.status]||'b-role'}">${esc(v.status)}</span>
-            </div>
+  <span>
+    <span class="vtag">
+      v${String(v.n||1).padStart(2,'0')}
+    </span>
+
+    <span class="badge ${STATUS_CLASS[v.status]||'b-role'}">
+      ${esc(v.status)}
+    </span>
+  </span>
+
+  ${
+    can('manageProjects')
+      ? `
+        <span
+          class="asset-delete-action"
+          onclick="
+            event.stopPropagation();
+            Studio.deleteAsset('${esc(a.id)}');
+          "
+          title="Delete asset"
+        >
+          ✕
+        </span>
+      `
+      : ''
+    }
+</div>
           </div>
         </button>`;
       }).join(''):`<div class="editor-assets-empty">${isClient?'No assets from your assigned projects match these filters.':'No assets match these filters.'}</div>`}
     </div>
+    ${
+      can('manageProjects')
+        ? `
+          <div class="card" style="margin-top:20px;padding:20px;">
+            <h3 style="margin:0 0 6px;">Recently Deleted</h3>
+            <div class="section-sub" style="margin-bottom:14px;">
+              Deleted assets can be recovered from Trash.
+            </div>
+
+            <div id="deletedAssetsPanel">
+              <div class="empty">
+                Loading deleted assets...
+              </div>
+            </div>
+          </div>
+        `
+        : ''
+    }
   `;
 }
 
@@ -1045,7 +1191,10 @@ function render(){
     case 'dashboard':el.innerHTML=pageDashboard();break;
     case 'projects':el.innerHTML=pageProjects();break;
     case 'projectDetail':el.innerHTML=pageProjectDetail();break;
-    case 'assets':el.innerHTML=pageAssets();break;
+    case 'assets':
+      el.innerHTML = pageAssets();
+      loadDeletedAssets();
+    break;
     case 'assetDetail':el.innerHTML=pageAssetDetail();break;
     case 'review':el.innerHTML=pageReview();break;
     case 'notifications':el.innerHTML=pageNotifications();break;

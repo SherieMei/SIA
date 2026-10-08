@@ -1026,6 +1026,92 @@ Object.assign(Studio,{
       )
     });
   },
+
+  async deleteAsset(assetId){
+
+  if(!can('manageProjects')) return;
+
+  const asset = DB.assets.find(
+    a => String(a.id) === String(assetId)
+  );
+
+  if(!asset) return;
+
+  Studio.openConfirm({
+    title:'Delete asset?',
+    body:'“'+esc(asset.title)+'” will be moved to Trash.',
+    confirmLabel:'Delete',
+    danger:true,
+
+    onConfirm:async()=>{
+
+      try{
+
+        const response = await fetch(
+          'http://localhost/SIA/api/assets.php',
+          {
+            method:'POST',
+            credentials:'include',
+            headers:{
+              'Content-Type':'application/json'
+            },
+            body:JSON.stringify({
+              action:'delete_asset',
+              asset_id:String(assetId)
+            })
+          }
+        );
+
+        const data =
+          await parseApiResponse(response);
+
+        if(!response.ok || !data.success){
+          throw new Error(
+            data.error ||
+            data.message ||
+            'Unable to delete asset.'
+          );
+        }
+
+        DB.assets =
+          DB.assets.filter(
+            a => String(a.id) !== String(assetId)
+          );
+
+        pushAudit(
+          'Deleted',
+          'Asset',
+          asset.title + ' moved to Trash'
+        );
+
+        toast(
+          asset.title+' moved to Trash.',
+          'success'
+        );
+
+        Studio.persist();
+
+        if(typeof render === 'function'){
+          render();
+        }
+
+      }catch(error){
+
+        console.error(
+          'Delete asset error:',
+          error
+        );
+
+        toast(
+          error.message ||
+          'Unable to delete asset.',
+          'error'
+        );
+      }
+    }
+  });
+},
+
   async deleteProject(projectId){
   if(!can('manageProjects')) return;
 
@@ -1886,5 +1972,59 @@ async recoverUser(trashId){
       }
     }
   });
+},
+
+async recoverAsset(trashId){
+
+  if(!can('manageProjects')) return;
+
+  try{
+
+    const response = await fetch(
+      'http://localhost/SIA/api/assets.php',
+      {
+        method:'POST',
+        credentials:'include',
+        headers:{
+          'Content-Type':'application/json'
+        },
+        body:JSON.stringify({
+          action:'recover_asset',
+          trash_id:String(trashId)
+        })
+      }
+    );
+
+    const data =
+      await parseApiResponse(response);
+
+    if(!response.ok || !data.success){
+      throw new Error(
+        data.error ||
+        data.message ||
+        'Unable to recover asset.'
+      );
+    }
+
+    toast(
+      'Asset recovered successfully.',
+      'success'
+    );
+
+    window.location.reload();
+
+  }catch(error){
+
+    console.error(
+      'Recover asset error:',
+      error
+    );
+
+    toast(
+      error.message ||
+      'Unable to recover asset.',
+      'error'
+    );
+  }
 },
 });

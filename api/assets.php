@@ -638,11 +638,63 @@ function notifyManagement(
        GET
        ========================================================= */
 
-    if ($method === 'GET') {
+    if (
+    $method === 'GET' &&
+    ($_GET['action'] ?? '') === 'trash_assets'
+) {
 
-        respondWithState($pdo);
+    api_require_roles(
+        $currentUser,
+        ['admin', 'project_manager']
+    );
+
+    $stmt = $pdo->query("
+        SELECT
+            id,
+            item_type,
+            item_id,
+            item_data,
+            deleted_at,
+            deleted_by
+        FROM app_trash
+        WHERE item_type = 'asset'
+        ORDER BY deleted_at DESC
+    ");
+
+    $assets = [];
+
+    while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+
+        $assetData = json_decode(
+            $row['item_data'],
+            true
+        );
+
+        if (!is_array($assetData)) {
+            continue;
+        }
+
+        $assets[] = [
+            'trash_id'   => $row['id'],
+            'item_id'    => $row['item_id'],
+            'deleted_at' => $row['deleted_at'],
+            'deleted_by' => $row['deleted_by'],
+            'asset'      => $assetData
+        ];
     }
 
+    echo json_encode([
+        'success' => true,
+        'assets' => $assets
+    ], JSON_UNESCAPED_UNICODE);
+
+    exit;
+}
+
+if ($method === 'GET') {
+
+    respondWithState($pdo);
+}
 
     /* =========================================================
        POST
@@ -715,6 +767,8 @@ function notifyManagement(
             api_require_roles($currentUser, ['client']);
         } elseif ($action === 'version') {
             api_require_roles($currentUser, ['admin', 'project_manager', 'editor', 'animator']);
+        } elseif ($action === 'delete_asset' || $action === 'recover_asset') {
+            api_require_roles($currentUser, ['admin', 'project_manager']);
         } elseif ($action !== '') {
             http_response_code(400);
             echo json_encode([
@@ -832,6 +886,267 @@ function notifyManagement(
         $dueDate =
             $input['due_date']
             ?? null;
+
+                /* =====================================================
+           DELETE ASSET
+           ===================================================== */
+
+        if (($input['action'] ?? '') === 'delete_asset') {
+
+            $assetId = $input['asset_id'] ?? null;
+
+            if (!$assetId) {
+                http_response_code(400);
+
+                echo json_encode([
+                    'success' => false,
+                    'error' => 'Asset ID is required.'
+                ]);
+
+                exit;
+            }
+
+            if (!api_can_access_asset($pdo, $currentUser, $assetId)) {
+                http_response_code(403);
+
+                echo json_encode([
+                    'success' => false,
+                    'error' => 'You do not have permission to delete this asset.'
+                ]);
+
+                exit;
+            }
+
+            $assetStmt = $pdo->prepare("
+                SELECT *
+                FROM assets
+                WHERE id = ?
+                LIMIT 1
+            ");
+
+            $assetStmt->execute([
+                $assetId
+            ]);
+
+            $asset = $assetStmt->fetch(PDO::FETCH_ASSOC);
+
+            if (!$asset) {
+                http_response_code(404);
+
+                echo json_encode([
+                    'success' => false,
+                    'error' => 'Asset not found.'
+                ]);
+
+                exit;
+            }
+
+            try {
+
+                $pdo->beginTransaction();
+
+                $trashStmt = $pdo->prepare("
+                    INSERT INTO app_trash
+                    (
+                        item_type,
+                        item_id,
+                        item_data,
+                        deleted_by
+                    )
+                    VALUES (?, ?, ?, ?)
+                ");
+
+                $trashStmt->execute([
+                    'asset',
+                    $asset['id'],
+                    json_encode(
+                        $asset,
+                        JSON_UNESCAPED_UNICODE
+                    ),
+                    $currentUser['id'] ?? null
+                ]);
+
+                $deleteStmt = $pdo->prepare("
+                    DELETE FROM assets
+                    WHERE id = ?
+                ");
+
+                $deleteStmt->execute([
+                    $assetId
+                ]);
+
+                createAuditLog(
+                    $pdo,
+                    'Deleted',
+                    'Asset',
+                    "Moved asset {$assetId} - {$asset['asset_title']} to Trash",
+                    $asset['project_id'] ?? null
+                );
+
+                $pdo->commit();
+
+                echo json_encode([
+                    'success' => true,
+                    'message' => 'Asset moved to Trash.'
+                ], JSON_UNESCAPED_UNICODE);
+
+                exit;
+
+            } catch (Throwable $e) {
+
+                if ($pdo->inTransaction()) {
+                    $pdo->rollBack();
+                }
+
+                error_log(
+                    'Delete asset error: ' .
+                    $e->getMessage()
+                );
+
+                http_response_code(500);
+
+                echo json_encode([
+                    'success' => false,
+                    'error' => 'Unable to delete asset.',
+                    'message' => $e->getMessage()
+                ]);
+
+                exit;
+            }
+        }
+
+        /* =====================================================
+   RECOVER ASSET
+   ===================================================== */
+
+if (($input['action'] ?? '') === 'recover_asset') {
+
+    $trashId = $input['trash_id'] ?? null;
+
+    if (!$trashId) {
+        http_response_code(400);
+        echo json_encode([
+            'success' => false,
+            'error' => 'Trash ID is required.'
+        ]);
+        exit;
+    }
+
+    try {
+
+        $trashStmt = $pdo->prepare("
+            SELECT *
+            FROM app_trash
+            WHERE id = ?
+              AND item_type = 'asset'
+            LIMIT 1
+        ");
+
+        $trashStmt->execute([$trashId]);
+
+        $trash = $trashStmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$trash) {
+            http_response_code(404);
+            echo json_encode([
+                'success' => false,
+                'error' => 'Deleted asset not found.'
+            ]);
+            exit;
+        }
+
+        $asset = json_decode(
+            $trash['item_data'],
+            true
+        );
+
+        if (!is_array($asset)) {
+            throw new Exception(
+                'Invalid asset data in Trash.'
+            );
+        }
+
+        $pdo->beginTransaction();
+
+        $restoreStmt = $pdo->prepare("
+            INSERT INTO assets
+            (
+                id,
+                project_id,
+                asset_title,
+                asset_type,
+                assigned_to,
+                assigned_editor,
+                assigned_animator,
+                due_date,
+                external_link,
+                created_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ");
+
+        $restoreStmt->execute([
+            $asset['id'],
+            $asset['project_id'] ?? null,
+            $asset['asset_title'] ?? null,
+            $asset['asset_type'] ?? null,
+            $asset['assigned_to'] ?? null,
+            $asset['assigned_editor'] ?? null,
+            $asset['assigned_animator'] ?? null,
+            $asset['due_date'] ?? null,
+            $asset['external_link'] ?? null,
+            $asset['created_at'] ?? null
+        ]);
+
+        $deleteTrashStmt = $pdo->prepare("
+            DELETE FROM app_trash
+            WHERE id = ?
+              AND item_type = 'asset'
+        ");
+
+        $deleteTrashStmt->execute([
+            $trashId
+        ]);
+
+        createAuditLog(
+            $pdo,
+            'Recovered',
+            'Asset',
+            "Recovered asset {$asset['id']} - {$asset['asset_title']}",
+            $asset['project_id'] ?? null
+        );
+
+        $pdo->commit();
+
+        echo json_encode([
+            'success' => true,
+            'message' => 'Asset recovered successfully.'
+        ], JSON_UNESCAPED_UNICODE);
+
+        exit;
+
+    } catch (Throwable $e) {
+
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+
+        error_log(
+            'Recover asset error: ' .
+            $e->getMessage()
+        );
+
+        http_response_code(500);
+
+        echo json_encode([
+            'success' => false,
+            'error' => 'Unable to recover asset.',
+            'message' => $e->getMessage()
+        ]);
+
+        exit;
+    }
+}
 
 
         /* =====================================================
