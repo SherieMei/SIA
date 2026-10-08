@@ -5,7 +5,7 @@
 Object.assign(Studio, {
 
   async submitAsset(){
-  if(!can('submitAssets')){
+  if(!can('uploadAsset')){
     toast('Your role cannot submit assets.','error');
     return;
   }

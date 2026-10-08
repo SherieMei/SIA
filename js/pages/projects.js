@@ -383,10 +383,13 @@ function pageProjectDetail(){
   return `
 
     <button
-      class="btn btn-ghost btn-sm"
+      type="button"
+      class="klay-back-btn"
+      title="Go back"
+      aria-label="Go back"
       onclick="Studio.goto('projects')"
     >
-      ← All projects
+      ←
     </button>
 
 
@@ -489,7 +492,7 @@ function pageProjectDetail(){
 
 
       ${
-        can('submitAssets')
+        can('uploadAsset')
           ? `
             <button
               class="btn btn-primary btn-sm"

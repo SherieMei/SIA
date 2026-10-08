@@ -22,6 +22,12 @@ if (loginScreen) {
 }
 
 const grid = document.getElementById('demoUsers');
+const isLocalDevelopment =
+  ['localhost', '127.0.0.1', '::1'].includes(window.location.hostname);
+
+if(grid&&!isLocalDevelopment){
+  grid.closest('.demo-section')?.remove();
+}
 
 let registeredUsers = [];
 
@@ -32,7 +38,7 @@ let registeredUsers = [];
 
 async function loadUsers() {
 
-  if (!grid) return;
+  if (!grid || !isLocalDevelopment) return;
 
   try {
 
@@ -139,25 +145,9 @@ if (grid) {
     const passwordInput =
       document.getElementById('loginPassword');
 
-    const roleInput =
-      document.getElementById('loginRole');
-
     if (emailInput) {
       emailInput.value =
         selectedUser.email || '';
-    }
-
-    if (roleInput) {
-
-      roleInput.value =
-        selectedUser.role || 'viewer';
-
-      roleInput.dispatchEvent(
-        new Event('change', {
-          bubbles: true
-        })
-      );
-
     }
 
     if (passwordInput) {
@@ -401,9 +391,6 @@ if (grid) {
     const passwordInput =
       document.getElementById('loginPassword');
 
-    const roleInput =
-      document.getElementById('loginRole');
-
     const name =
       nameInput
         ? nameInput.value.trim()
@@ -418,12 +405,6 @@ if (grid) {
       passwordInput
         ? passwordInput.value
         : '';
-
-    const role =
-      roleInput
-        ? roleInput.value
-        : 'viewer';
-
 
     if (!name) {
       showError(
@@ -474,8 +455,7 @@ if (grid) {
             action: 'register',
             name: name,
             email: email,
-            password: password,
-            role: role
+            password: password
           })
         }
       );
@@ -632,7 +612,7 @@ if (grid) {
       helpText.textContent =
         isSignup
           ? 'Create an account that will be saved in the MySQL database.'
-          : 'Sign in using an account stored in the MySQL database.';
+          : 'Sign in using your registered account to continue.';
     }
 
 
@@ -881,6 +861,6 @@ if (pwToggle && pwInput) {
   // START
   // --------------------------------------------------
 
-  loadUsers();
+  if(isLocalDevelopment)loadUsers();
 
 });

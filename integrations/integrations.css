@@ -324,6 +324,36 @@ table{width:100%;border-collapse:collapse;font-size:13px}th{text-align:left;font
 
 .page-integrations { }
 
+.page-integrations .etl-help{
+  color:var(--text-faint);
+  font-size:11px;
+  line-height:1.5;
+}
+
+.page-integrations .etl-error{
+  color:var(--crimson);
+  font-size:12px;
+  line-height:1.5;
+}
+
+.page-integrations .api-console{
+  min-width:0;
+  overflow-x:hidden;
+}
+
+.page-integrations .api-log-entry{
+  display:grid;
+  grid-template-columns:max-content max-content minmax(0,1fr);
+  align-items:baseline;
+}
+
+.page-integrations .api-log-body{
+  grid-column:2 / -1;
+  min-width:0;
+  overflow-wrap:anywhere;
+  white-space:pre-wrap;
+}
+
 
 
 .app-page{display:block;}

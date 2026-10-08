@@ -32,11 +32,13 @@ function pageArchitecture(){
       <table class="arch-table">
         <tbody>
           <tr><td style="width:220px;"><span class="check">✓</span> API Integration</td><td>Asset submission → Production Dashboard API (Integration Hub → API console)</td></tr>
-          <tr><td><span class="check">✓</span> ETL Integration</td><td>CSV of tasks/assets → cleaned, transformed, and loaded as assets (Integration Hub → ETL import)</td></tr>
+          <tr><td><span class="check">✓</span> ETL Integration</td><td>CSV or JSON asset records → validated and loaded into assigned projects as new assets (Integration Hub → ETL import)</td></tr>
           <tr><td><span class="check">✓</span> Workflow Automation</td><td>Every upload auto-sets status to "For Review" with no manual step</td></tr>
           <tr><td><span class="check">✓</span> Webhook Simulation</td><td>Every approval fires a webhook entry to an external "hooks" endpoint</td></tr>
           <tr><td><span class="check">✓</span> Messaging Simulation</td><td>Event Stream publishes Asset Uploaded / Revision Requested / Final Output Approved, etc.</td></tr>
           <tr><td><span class="check">✓</span> External Storage Integration</td><td>Assets can carry a Drive/Dropbox/local link, listed in the Integration Hub</td></tr>
+          <tr><td><span class="check">✓</span> Animator Studio Galeria</td><td>Assigned animators browse scenes, track shot progress, submit versions, and see review feedback through the existing approval workflow</td></tr>
+          <tr><td><span class="check">✓</span> Editor Sequence Editor</td><td>Editors assemble approved animation and audio assets into sequence drafts, then submit final cuts for existing asset review</td></tr>
           <tr><td><span class="check">✓</span> ERP / Resource Integration</td><td>Resources &amp; Budget module ties labor, equipment, and cost to each project</td></tr>
         </tbody>
       </table>

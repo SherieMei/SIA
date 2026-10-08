@@ -7,7 +7,7 @@ function pageArchitecture(){
     <div style="display:flex;align-items:center;gap:10px;">
       <button
         type="button"
-        class="simple-arrow-btn"
+        class="klay-back-btn"
         title="Back"
         aria-label="Go back"
         onclick="Studio.goBack('dashboard')"
@@ -45,6 +45,8 @@ function pageArchitecture(){
       <ul style="color:var(--text-dim);font-size:13.5px;line-height:1.9;margin:8px 0 0;padding-left:20px;">
         <li><b>Project Management</b> – Create and manage production projects.</li>
         <li><b>Asset Management</b> – Upload, organize, review, and track project assets.</li>
+        <li><b>Animator Studio Galeria</b> – Browse assigned animation scenes, submit versions, monitor review feedback, and manage production progress.</li>
+        <li><b>Editor Sequence Editor</b> – Arrange approved shots and audio into sequence drafts and submit final cuts through the existing review workflow.</li>
         <li><b>Approval Workflow</b> – Approve, reject, or request revisions for submitted assets.</li>
         <li><b>Version Tracking</b> – Keep track of different versions of an asset.</li>
         <li><b>Comments</b> – Add feedback and communicate about project assets.</li>
@@ -65,7 +67,7 @@ function pageArchitecture(){
 
       <ul style="color:var(--text-dim);font-size:13.5px;line-height:1.9;margin:8px 0 0;padding-left:20px;">
         <li><b>API Integration</b> – Sends approved asset information to an external production dashboard.</li>
-        <li><b>ETL Import</b> – Imports asset and task information from CSV files.</li>
+        <li><b>ETL Import</b> – Imports asset records from CSV or JSON into projects assigned to the current user.</li>
         <li><b>Workflow Automation</b> – Automatically updates asset status after submission.</li>
         <li><b>Webhook Simulation</b> – Generates webhook events when important actions occur.</li>
         <li><b>Event Stream</b> – Records system events such as asset uploads, revisions, and approvals.</li>

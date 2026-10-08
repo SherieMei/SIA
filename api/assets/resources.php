@@ -43,59 +43,32 @@ try {
     exit;
 }
 
-if (!isset($_SESSION['user'])) {
-    http_response_code(401);
-    echo json_encode([
-        'success' => false,
-        'message' => 'Not authenticated.'
-    ]);
-    exit;
-}
-
-$currentUser = $_SESSION['user'];
-$role = $currentUser['role'] ?? '';
+require_once __DIR__ . '/../../includes/api_auth.php';
+$currentUser = api_require_user($pdo);
+$role = $currentUser['role'];
 
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
+    api_require_roles($currentUser, ['admin', 'project_manager', 'editor', 'animator']);
 
     try {
-        if ($role === 'client') {
-
-            $stmt = $pdo->prepare("
-                SELECT
-                    r.id,
-                    r.project_id,
-                    r.category,
-                    r.description,
-                    r.cost,
-                    r.hours,
-                    r.logged_by,
-                    r.created_at
-                FROM resources r
-                INNER JOIN projects p
-                    ON r.project_id = p.id
-                WHERE p.client_id = ?
-                ORDER BY r.id DESC
-            ");
-
-            $stmt->execute([
-                $currentUser['id']
-            ]);
-
-        } else {
-
+        if ($role === 'admin') {
             $stmt = $pdo->query("
-                SELECT
-                    id,
-                    project_id,
-                    category,
-                    description,
-                    cost,
-                    hours,
-                    logged_by,
-                    created_at
+                SELECT id, project_id, category, description, cost, hours, logged_by, created_at
                 FROM resources
                 ORDER BY id DESC
             ");
+        } else {
+            $scope = $role === 'project_manager'
+                ? 'p.pm = ?'
+                : "EXISTS (SELECT 1 FROM assets a WHERE a.project_id = r.project_id AND a." . ($role === 'editor' ? 'assigned_editor' : 'assigned_animator') . ' = ?)';
+            $stmt = $pdo->prepare("
+                SELECT r.id, r.project_id, r.category, r.description, r.cost, r.hours, r.logged_by, r.created_at
+                FROM resources r
+                INNER JOIN projects p ON p.id = r.project_id
+                WHERE {$scope}
+                ORDER BY r.id DESC
+            ");
+            $stmt->execute([$currentUser['id']]);
         }
 
         $resources = $stmt->fetchAll();
@@ -186,6 +159,14 @@ $projectStmt = $pdo->prepare("
             'message' => 'Project not found.'
         ]);
 
+        exit;
+    }
+    if (!api_can_access_project($pdo, $currentUser, $projectId)) {
+        http_response_code(403);
+        echo json_encode([
+            'success' => false,
+            'message' => 'You do not have permission to add resources to this project.'
+        ]);
         exit;
     }
 $resourceId = 'r' . bin2hex(random_bytes(6));

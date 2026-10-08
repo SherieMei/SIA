@@ -5,6 +5,38 @@ body::before{content:"";position:fixed;inset:0;pointer-events:none;background:ra
 ::selection{background:var(--coral-glow);color:var(--coral-dim)}
 a{color:inherit}
 button{font-family:inherit;cursor:pointer;outline:none}
+.klay-back-btn {
+  appearance: none;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  padding: 0;
+  margin: 0;
+  width: 18px;
+  min-width: 18px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted, #8b98aa);
+  font-family: inherit;
+  font-size: 22px;
+  font-weight: 400;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0.85;
+  transition: color 0.18s ease, opacity 0.18s ease, transform 0.18s ease;
+}
+.klay-back-btn:hover {
+  color: var(--accent, #2fb8b2);
+  opacity: 1;
+  transform: translateX(-2px);
+}
+.klay-back-btn:focus-visible {
+  outline: 2px solid var(--accent, #2fb8b2);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
 input,select,textarea{font-family:inherit}
 ::-webkit-scrollbar{width:9px;height:9px}
 ::-webkit-scrollbar-thumb{background:#cbd3df;border-radius:9px}
@@ -51,6 +83,14 @@ input,select,textarea{font-family:inherit}
 button.navitem{font-family:inherit;text-align:left;width:100%;cursor:pointer}
 button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid var(--coral-glow);outline-offset:1px}
 .panel-head h3{color:var(--text)}
+.feedback-entry-card{display:grid;gap:8px;min-width:0;padding:14px;border:1px solid var(--line);border-radius:10px;background:var(--panel)}
+.feedback-entry-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.feedback-entry-title{min-width:0}
+.feedback-entry-context{display:block;color:var(--text-faint);font-family:var(--font-mono);font-size:10px;letter-spacing:.04em;text-transform:uppercase;overflow-wrap:anywhere}
+.feedback-entry-title h3{margin:4px 0 0;color:var(--text);font-size:14px;overflow-wrap:anywhere}
+.feedback-entry-meta{color:var(--text-faint);font-family:var(--font-mono);font-size:10px;line-height:1.5;overflow-wrap:anywhere}
+.feedback-entry-text{margin:0;color:var(--text-dim);font-size:13px;line-height:1.55;white-space:pre-wrap;overflow-wrap:anywhere}
+.feedback-entry-action{margin-top:2px}
 
 /* ===== GLOBAL SIDEBAR FIX ===== */
 

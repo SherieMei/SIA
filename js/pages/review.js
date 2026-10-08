@@ -18,7 +18,7 @@ function pageReview(){
             <div class="row-sub">${proj?esc(proj.name):''} · v${String(v.n).padStart(2,'0')} · submitted ${fmtDate(v.date)}</div>
           </div>
           <span class="badge ${STATUS_CLASS[v.status]}">${v.status}</span>
-          ${can('review') ? `<button class="btn btn-cyan btn-sm" onclick="Studio.quickApprove('${a.id}')">Quick approve</button>
+          ${can('approveAsset') ? `<button class="btn btn-cyan btn-sm" onclick="Studio.quickApprove('${a.id}')">Quick approve</button>
           <button class="btn btn-ghost btn-sm" onclick="Studio.goto('assetDetail','${a.id}')">Review →</button>` : `<button class="btn btn-ghost btn-sm" onclick="Studio.goto('assetDetail','${a.id}')">Open →</button>`}
         </div>`;
       }).join('') : `<div class="empty">Nothing pending. The queue is clear.</div>`}

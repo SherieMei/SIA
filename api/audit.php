@@ -29,41 +29,18 @@ try {
         ]
     );
 
+    require_once __DIR__ . '/../includes/api_auth.php';
+    $currentUser = api_require_user($pdo);
+    api_require_roles($currentUser, ['admin', 'project_manager']);
 
-    /* =========================================================
-       CHECK LOGIN
-       ========================================================= */
-
-    if (!isset($_SESSION['user'])) {
-
-        ob_clean();
-
-        http_response_code(401);
-
-        echo json_encode([
-            'success' => false,
-            'error' => 'Not authenticated.'
-        ]);
-
-        exit();
+    $auditScope = '';
+    $auditParams = [];
+    if ($currentUser['role'] === 'project_manager') {
+        $auditScope = 'WHERE al.project_id IN (SELECT id FROM projects WHERE pm = ?)';
+        $auditParams[] = $currentUser['id'];
     }
 
-
-    $currentUserId =
-        $_SESSION['user']['id'] ?? null;
-
-    $currentRole =
-        $_SESSION['user']['role'] ?? 'viewer';
-
-
-    /* =========================================================
-       CLIENT AUDIT LOG
-       Only records connected to the client's projects
-       ========================================================= */
-
-    if ($currentRole === 'client') {
-
-        $stmt = $pdo->prepare("
+    $stmt = $pdo->prepare("
             SELECT
                 al.id,
                 al.user_id,
@@ -86,79 +63,12 @@ try {
             LEFT JOIN projects p
                 ON p.id = al.project_id
 
-            WHERE al.client_id = ?
-
+            {$auditScope}
             ORDER BY
                 al.created_at DESC,
                 al.id DESC
         ");
-
-        $stmt->execute([
-            $currentUserId
-        ]);
-
-    }
-
-
-    /* =========================================================
-       ADMIN / PROJECT MANAGER AUDIT LOG
-       Can see all records
-       ========================================================= */
-
-    elseif (
-        $currentRole === 'admin'
-        ||
-        $currentRole === 'project_manager'
-    ) {
-
-        $stmt = $pdo->query("
-            SELECT
-                al.id,
-                al.user_id,
-                al.project_id,
-                al.client_id,
-                al.action,
-                al.entity,
-                al.detail,
-                al.created_at,
-                COALESCE(
-                    u.full_name,
-                    'System'
-                ) AS user_name,
-                p.name AS project_name
-            FROM audit_logs al
-
-            LEFT JOIN app_users u
-                ON u.id = al.user_id
-
-            LEFT JOIN projects p
-                ON p.id = al.project_id
-
-            ORDER BY
-                al.created_at DESC,
-                al.id DESC
-        ");
-
-    }
-
-
-    /* =========================================================
-       OTHER ROLES
-       ========================================================= */
-
-    else {
-
-        ob_clean();
-
-        http_response_code(403);
-
-        echo json_encode([
-            'success' => false,
-            'error' => 'You do not have permission to view audit logs.'
-        ]);
-
-        exit();
-    }
+    $stmt->execute($auditParams);
 
 
     $rows = $stmt->fetchAll();

@@ -1,0 +1,58 @@
+{
+	"folders": [
+		{
+			"path": "../api"
+		},
+		{
+			"path": "../architecture"
+		},
+		{
+			"path": "../assets"
+		},
+		{
+			"path": "../audit"
+		},
+		{
+			"path": "../completed-projects"
+		},
+		{
+			"path": "../config"
+		},
+		{
+			"path": "../css"
+		},
+		{
+			"path": "../dashboard"
+		},
+		{
+			"path": "../database"
+		},
+		{
+			"path": "../includes"
+		},
+		{
+			"path": "../integrations"
+		},
+		{
+			"path": "../js"
+		},
+		{
+			"path": "../login"
+		},
+		{
+			"path": "../notifications"
+		},
+		{
+			"path": "."
+		},
+		{
+			"path": "../resources"
+		},
+		{
+			"path": "../review"
+		},
+		{
+			"path": "../users"
+		}
+	]
+}

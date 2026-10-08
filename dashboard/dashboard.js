@@ -134,30 +134,10 @@ function getDashboardStats(db = DB, now = new Date()) {
 }
 
 
-function openDashboardView(view){
-  const url = new URL(window.location.href);
-  url.searchParams.set('view', view);
-  window.location.href = url.href;
-}
-
-function getDashboardView(){
-  try{
-    return new URLSearchParams(window.location.search).get('view') || 'overview';
-  }catch(error){
-    return 'overview';
-  }
-}
-
-function openDashboardOverview(){
-  const url = new URL(window.location.href);
-  url.searchParams.delete('view');
-  window.location.href = url.href;
-}
-
 function dashboardPageHeader(title){
   return `
     <div class="dashboard-subpage-header">
-      <button type="button" class="dashboard-back-btn" onclick="openDashboardOverview()" aria-label="Back to dashboard overview">←</button>
+      <button type="button" class="klay-back-btn" onclick="openDashboardOverview()" aria-label="Back to dashboard overview" title="Go back">←</button>
       <div>
         <div class="dashboard-breadcrumb">Dashboard / ${esc(title)}</div>
         <h1 class="dashboard-subpage-title">${esc(title)}</h1>
@@ -298,7 +278,6 @@ function getSelectedPendingAsset(assets = getPendingDashboardAssets()){
 
 function openPendingAsset(assetId){
   const url = new URL(window.location.href);
-  url.searchParams.set('view', 'pending');
   url.searchParams.set('asset', assetId);
   window.location.href = url.href;
 }
@@ -314,7 +293,6 @@ function renderPendingPreview(asset){
             <span>No direct image or video preview is available for this submission.</span>
           </div>
         </div>
-        ${renderPendingActions(null)}
       </section>
     `;
   }
@@ -322,7 +300,11 @@ function renderPendingPreview(asset){
   const version = latestVersion(asset);
   const project = dashboardAssetProject(asset);
   const submitter = version.by ? userById(version.by) : null;
-  const submitterName = submitter?.name || version.by || 'Unknown';
+  const submitterName =
+    version.submitted_by ||
+    submitter?.name ||
+    version.by ||
+    'Unknown';
   return `
     <section class="card pending-preview">
       <div class="dashboard-preview-meta">
@@ -343,7 +325,6 @@ function renderPendingPreview(asset){
           <span>▶</span><span class="dashboard-preview-track"><i></i></span><span>REVIEW PLAYER</span>
         </div>
       </div>
-      ${renderPendingActions(asset)}
     </section>
   `;
 }
@@ -405,22 +386,6 @@ function renderPendingNotes(asset){
       </div>
       <div class="dashboard-notes-sync">Notes sync with the review workspace.</div>
     </aside>
-  `;
-}
-
-function renderPendingActions(asset){
-  if(!asset){
-    return `<div class="pending-actions"><button type="button" class="btn" onclick="Studio.goto('review')">Open Full Review</button></div>`;
-  }
-  const assetId = esc(asset.id);
-  return `
-    <div class="pending-actions">
-      <button type="button" class="btn btn-primary" onclick="Studio.reviewAsset('${assetId}','approve')">Approve</button>
-      <button type="button" class="btn" onclick="Studio.reviewAsset('${assetId}','revise')">Request Changes</button>
-      <button type="button" class="btn" onclick="Studio.goto('review')">Hold</button>
-      <button type="button" class="btn" disabled title="No previous-version compare view is available.">Compare Previous</button>
-      <button type="button" class="btn btn-ghost" onclick="Studio.goto('review')">Open Full Review</button>
-    </div>
   `;
 }
 
@@ -685,14 +650,210 @@ function pageDashboardOverdue(){
 /*
  * DASHBOARD
  */
-function pageDashboard(){
+const editorDashboardData={
+  loading:false,
+  loaded:false,
+  error:'',
+  projects:[],
+  library:[],
+  sequences:[]
+};
 
-  const dashboardView = getDashboardView();
-  if(dashboardView === 'active') return pageDashboardActive();
-  if(dashboardView === 'pending') return pageDashboardPending();
-  if(dashboardView === 'approved') return pageDashboardApproved();
-  if(dashboardView === 'rejected') return pageDashboardRejected();
-  if(dashboardView === 'overdue') return pageDashboardOverdue();
+async function loadEditorDashboardData(){
+  if(DB.currentUser?.role!=='editor'||editorDashboardData.loading||editorDashboardData.loaded)return;
+  editorDashboardData.loading=true;
+  editorDashboardData.error='';
+  try{
+    const response=await fetch('/SIA/api/editor_sequences.php',{credentials:'include'});
+    const data=await parseApiResponse(response);
+    if(
+      !response.ok||
+      !data.success||
+      !Array.isArray(data.projects)||
+      !Array.isArray(data.library)||
+      !Array.isArray(data.sequences)
+    ){
+      throw new Error(data.error||'Could not load your editing queue.');
+    }
+    editorDashboardData.projects=data.projects;
+    editorDashboardData.library=data.library;
+    editorDashboardData.sequences=data.sequences;
+    editorDashboardData.loaded=true;
+  }catch(error){
+    console.error('Editor dashboard load error:',error);
+    editorDashboardData.error=error.message||'Could not load your editing queue.';
+  }finally{
+    editorDashboardData.loading=false;
+    if(document.body?.dataset.page==='dashboard'&&state.page==='dashboard')render();
+  }
+}
+
+function pageAnimatorDashboard(){
+  const shots=Array.isArray(DB.animationShots)?DB.animationShots:[];
+  const groups=[
+    {label:'TO DO',status:'Not Started',color:'var(--gold)'},
+    {label:'IN PROGRESS',status:'In Progress',color:'var(--cyan)'},
+    {label:'REVISION NEEDED',status:'Revision Required',color:'var(--violet)'},
+    {label:'FOR REVIEW',status:'For Review',color:'var(--coral)'},
+    {label:'COMPLETED',status:'Completed',color:'var(--cyan)'}
+  ].map(group=>({
+    ...group,
+    items:shots.filter(shot=>(shot.workflow_status||'Not Started')===group.status)
+  }));
+  const activeCount=shots.filter(shot=>['Not Started','In Progress','Revision Required'].includes(shot.workflow_status||'Not Started')).length;
+  const visibleGroups=groups.filter(group=>group.items.length>0);
+  return `
+    <div class="section-title">Welcome back, ${esc(DB.currentUser.name.split(' ')[0])}</div>
+    <div class="section-sub">Your assigned animation scenes, next steps, and review feedback.</div>
+    ${DB.animationShotsError?`<div class="empty role-dashboard-error" role="alert">${esc(DB.animationShotsError)}</div>`:''}
+    <section class="role-dashboard">
+      <div class="role-dashboard-header">
+        <div>
+          <span class="eyebrow">ANIMATION WORKSPACE</span>
+          <h2>Tasks by Status</h2>
+          <p>${activeCount?`${activeCount} scene${activeCount===1?'':'s'} need your work or attention.`:`${shots.length} assigned scene${shots.length===1?'':'s'} in your queue.`}</p>
+        </div>
+        <button type="button" class="btn btn-primary btn-sm" onclick="Studio.goto('shotTracker')">Open Studio Galeria →</button>
+      </div>
+      ${DB.animationShots===null?'<div class="empty">Loading your assigned scenes…</div>':shots.length?`
+        <div class="role-dashboard-status-cards" aria-label="Tasks by status">
+          ${groups.map(group=>`
+            <div class="role-dashboard-status-card">
+              <span><i style="--task-accent:${group.color}"></i>${group.label}</span>
+              <strong>${group.items.length}</strong>
+            </div>
+          `).join('')}
+        </div>
+        ${activeCount===0?`
+          <div class="role-dashboard-caught-up">
+            <strong>You're all caught up</strong>
+            <span>No scenes need action right now. We'll show new assignments and requested revisions here.</span>
+          </div>
+        `:''}
+        ${visibleGroups.length?`<div class="role-dashboard-groups">
+          ${visibleGroups.map(group=>`
+            <section class="role-dashboard-group">
+              <div class="role-dashboard-group-heading">
+                <span><i style="--task-accent:${group.color}"></i>${group.label}</span>
+              </div>
+              ${group.items.map(shot=>`
+                <article class="role-dashboard-shot">
+                  <button type="button" class="role-dashboard-shot-main" onclick="Studio.goto('assetDetail','${esc(shot.asset_id)}')">
+                    <span><strong>${esc(shot.title||'Untitled scene')}</strong><small>${esc(shot.project_name||'Assigned project')} · ${esc(shot.stage||'Blocking')}${shot.due_date?` · Due ${esc(fmtDate(shot.due_date))}`:''}</small></span>
+                    <span class="badge ${STATUS_CLASS[shot.workflow_status]||'b-role'}">${esc(shot.workflow_status||'Not Started')}</span>
+                  </button>
+                  ${group.status==='Revision Required'&&shot.latest_feedback?`<p class="role-dashboard-feedback">“${esc(shot.latest_feedback)}”</p>`:''}
+                  ${group.status==='In Progress'?`<div class="role-dashboard-progress"><span style="width:${Math.min(100,Math.max(0,Number(shot.progress)||0))}%"></span></div>`:''}
+                </article>
+              `).join('')}
+            </section>
+          `).join('')}
+        </div>`:''}
+      `:'<div class="empty">No animation scenes are assigned to you yet.</div>'}
+    </section>
+  `;
+}
+
+function pageEditorDashboard(){
+  const library=editorDashboardData.library;
+  const sequences=editorDashboardData.sequences;
+  const needsEdit=sequences.filter(sequence=>!sequence.cut_asset_id||sequence.cut_status==='Revision Requested');
+  const submitted=sequences.filter(sequence=>sequence.cut_asset_id&&sequence.cut_status!=='Revision Requested');
+  const revisions=needsEdit.filter(sequence=>sequence.cut_status==='Revision Requested');
+  const drafts=needsEdit.filter(sequence=>!sequence.cut_asset_id);
+  const hasEditingTasks=revisions.length>0||drafts.length>0;
+  const editorGroups=[
+    {
+      label:'CUTS TO REVISE',
+      accent:'var(--violet)',
+      items:revisions,
+      empty:'No cuts need revisions.'
+    },
+    {
+      label:'SEQUENCES TO BUILD',
+      accent:'var(--gold)',
+      items:drafts,
+      empty:'No sequence drafts waiting to be built.'
+    },
+    {
+      label:'APPROVED MEDIA READY',
+      accent:'var(--cyan)',
+      items:library,
+      empty:'Approved animation and audio will appear here.'
+    },
+    {
+      label:'SUBMITTED CUTS',
+      accent:'var(--coral)',
+      items:submitted,
+      empty:'No final cuts submitted yet.'
+    }
+  ].filter(group=>group.items.length>0);
+  const editorStatusCards=[
+    {label:'TO BUILD',count:drafts.length,color:'var(--gold)'},
+    {label:'REVISION REQUESTED',count:revisions.length,color:'var(--violet)'},
+    {label:'APPROVED MEDIA',count:library.length,color:'var(--cyan)'},
+    {label:'SUBMITTED CUTS',count:submitted.length,color:'var(--coral)'}
+  ];
+  return `
+    <div class="section-title">Welcome back, ${esc(DB.currentUser.name.split(' ')[0])}</div>
+    <div class="section-sub">Your edit queue, approved media, and submitted final cuts.</div>
+    <section class="role-dashboard">
+      <div class="role-dashboard-header">
+        <div>
+          <span class="eyebrow">EDITOR WORKSPACE</span>
+          <h2>Tasks by Status</h2>
+          <p>Build sequences from approved animation and audio, then submit or revise final cuts.</p>
+        </div>
+        <button type="button" class="btn btn-primary btn-sm" onclick="Studio.goto('editorSequences')">Open Sequence Editor →</button>
+      </div>
+      ${editorDashboardData.error?`<div class="empty role-dashboard-error" role="alert">${esc(editorDashboardData.error)} <button type="button" class="btn btn-sm" onclick="loadEditorDashboardData()">Retry</button></div>`:''}
+      ${editorDashboardData.loading?'<div class="empty">Loading your editing queue…</div>':editorDashboardData.loaded?`
+        <div class="role-dashboard-status-cards role-dashboard-status-cards--editor" aria-label="Editing tasks by status">
+          ${editorStatusCards.map(card=>`
+            <div class="role-dashboard-status-card">
+              <span><i style="--task-accent:${card.color}"></i>${card.label}</span>
+              <strong>${card.count}</strong>
+            </div>
+          `).join('')}
+        </div>
+        ${!hasEditingTasks?`
+          <div class="role-dashboard-caught-up">
+            <strong>You're caught up on edits</strong>
+            <span>New sequences and requested revisions will show up here when they need your attention.</span>
+          </div>
+        `:''}
+        ${editorGroups.length?`<div class="role-dashboard-groups role-dashboard-editor-groups">
+          ${editorGroups.map(group=>`
+            <section class="role-dashboard-group">
+              <div class="role-dashboard-group-heading"><span><i style="--task-accent:${group.accent}"></i>${group.label}</span></div>
+              ${group.label==='CUTS TO REVISE'||group.label==='SEQUENCES TO BUILD'?group.items.map(sequence=>`
+                <button type="button" class="role-dashboard-sequence" onclick="Studio.goto('editorSequences')">
+                  <div><strong>${esc(sequence.title)}</strong><small>${esc(sequence.project_name)} · ${sequence.items?.length||0} approved item${sequence.items?.length===1?'':'s'}</small></div>
+                  <span class="badge ${group.label==='CUTS TO REVISE'?'b-revision':'b-role'}">${group.label==='CUTS TO REVISE'?'Revision Requested':'Draft'}</span>
+                </button>
+              `).join(''):group.label==='APPROVED MEDIA READY'?group.items.slice(0,5).map(asset=>`
+                <button type="button" class="role-dashboard-media" onclick="Studio.goto('assetDetail','${esc(asset.asset_id)}')">
+                  <span><strong>${esc(asset.title)}</strong><small>${esc(projectById(asset.project_id)?.name||'Assigned project')} · ${esc(asset.type)}</small></span>
+                  <span class="badge b-approved">${esc(asset.status)}</span>
+                </button>
+              `).join(''):group.items.map(sequence=>`
+                <button type="button" class="role-dashboard-media" onclick="Studio.goto('assetDetail','${esc(sequence.cut_asset_id)}')">
+                  <span><strong>${esc(sequence.cut_title||sequence.title)}</strong><small>${esc(sequence.project_name)} · ${esc(sequence.title)}</small></span>
+                  <span class="badge ${STATUS_CLASS[sequence.cut_status]||'b-role'}">${esc(sequence.cut_status||'For Review')}</span>
+                </button>
+              `).join('')}
+              ${group.label==='APPROVED MEDIA READY'&&group.items.length>5?`<button type="button" class="role-dashboard-link" onclick="Studio.goto('assets','Approved')">Browse all ${group.items.length} approved assets →</button>`:''}
+            </section>
+          `).join('')}
+        </div>`:''}
+      `:''}
+    </section>
+  `;
+}
+
+function pageDashboard(){
+  if(DB.currentUser?.role==='animator')return pageAnimatorDashboard();
+  if(DB.currentUser?.role==='editor')return pageEditorDashboard();
 
   const dashboardStats = getDashboardStats();
 
@@ -705,35 +866,30 @@ function pageDashboard(){
   const stats = [
     {
       key: 'active',
-      view: 'active',
       n: dashboardStats.active,
       l: 'Active',
       c: 'var(--coral)'
     },
     {
       key: 'pending',
-      view: 'pending',
       n: dashboardStats.pending,
       l: 'Pending',
       c: 'var(--violet)'
     },
     {
       key: 'approvedAssets',
-      view: 'approved',
       n: dashboardStats.approvedAssets,
       l: 'Approved Assets',
       c: 'var(--cyan)'
     },
     {
       key: 'rejectedOutputs',
-      view: 'rejected',
       n: dashboardStats.rejectedOutputs,
       l: 'Rejected Outputs',
       c: 'var(--crimson)'
     },
     {
       key: 'overdueDeadline',
-      view: 'overdue',
       n: dashboardStats.overdueDeadline,
       l: 'Overdue Deadline',
       c: 'var(--gold)'
@@ -750,11 +906,6 @@ function pageDashboard(){
       ${stats.map(s=>`
         <div
           class="card stat dashboard-stat-card"
-          data-stat="${s.key}"
-          onclick="openDashboardView('${s.view}')"
-          onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openDashboardView('${s.view}')}"
-          role="button"
-          tabindex="0"
         >
           <div class="bar" style="background:${s.c}"></div>
           <div class="n">${s.n}</div>
@@ -923,7 +1074,15 @@ document.addEventListener('DOMContentLoaded',()=>{
     return;
   }
 
+  const url = new URL(window.location.href);
+  if(url.searchParams.has('view')){
+    url.searchParams.delete('view');
+    url.searchParams.delete('asset');
+    window.history.replaceState({}, '', url);
+  }
+
   // Render the actual page after the separated HTML document loads.
   render();
+  if(DB.currentUser?.role==='editor')loadEditorDashboardData();
 
 });

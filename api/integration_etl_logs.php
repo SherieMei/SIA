@@ -46,27 +46,15 @@ try {
         ]
     );
 
-    if (!isset($_SESSION['user'])) {
-
-        http_response_code(401);
-
-        echo json_encode([
-            'success' => false,
-            'error' => 'Not authenticated.'
-        ]);
-
-        exit;
-    }
-
+    require_once __DIR__ . '/../includes/api_auth.php';
+    $currentUser = api_require_user($pdo);
+    api_require_roles($currentUser, ['admin', 'project_manager', 'editor']);
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-
         http_response_code(405);
-
         echo json_encode([
             'success' => false,
             'error' => 'POST method required.'
         ]);
-
         exit;
     }
 
@@ -87,22 +75,30 @@ try {
         exit;
     }
 
-    $rows = $data['rows'] ?? [];
+    if (array_key_exists('rows', $data)) {
+        $rows = $data['rows'];
+    } elseif (!$data) {
+        $rows = [];
+    } elseif ($data && array_keys($data) === range(0, count($data) - 1)) {
+        $rows = $data;
+    } else {
+        $rows = [$data];
+    }
 
-    if (!is_array($rows)) {
+    if (!is_array($rows) || !$rows) {
 
         http_response_code(400);
 
         echo json_encode([
             'success' => false,
-            'error' => 'Invalid ETL rows.'
+            'error' => 'Provide at least one CSV or JSON data row.'
         ]);
 
         exit;
     }
 
     $userId =
-        $_SESSION['user']['id'] ?? null;
+        $currentUser['id'];
 
     $validTypes = [
         'Storyboard',
@@ -126,26 +122,39 @@ try {
     $details = [];
 
     $details[] =
-        "EXTRACT — read {$totalRows} row(s) from source file.";
+        "EXTRACT — read {$totalRows} row(s) from CSV or JSON input.";
 
     $pdo->beginTransaction();
 
     foreach ($rows as $row) {
+        if (!is_array($row)) {
+            $skippedRows++;
+            continue;
+        }
 
-        $title =
-            trim($row['title'] ?? '');
+        $titleValue = $row['title'] ?? $row['asset'] ?? '';
+        $projectValue = $row['project'] ?? '';
+        if (
+            (!is_string($titleValue) && !is_numeric($titleValue)) ||
+            (!is_string($projectValue) && !is_numeric($projectValue))
+        ) {
+            $skippedRows++;
+            continue;
+        }
+
+        $title = trim((string)$titleValue);
 
         $projectName =
-            trim($row['project'] ?? '');
+            trim((string)$projectValue);
 
-        $type =
-            trim($row['type'] ?? '');
+        $typeValue = $row['type'] ?? '';
+        $type = is_string($typeValue) ? trim($typeValue) : '';
 
-        $assignee =
-            trim($row['assignee'] ?? '');
+        $assigneeValue = $row['assignee'] ?? '';
+        $assignee = is_string($assigneeValue) ? trim($assigneeValue) : '';
 
-        $dueDate =
-            trim($row['duedate'] ?? '');
+        $dueDateValue = $row['duedate'] ?? '';
+        $dueDate = is_string($dueDateValue) ? trim($dueDateValue) : '';
 
 
         /* ==============================================
@@ -176,14 +185,12 @@ $projectStmt = $pdo->prepare("
     WHERE id = ?
        OR LOWER(REPLACE(TRIM(name), ' ', '')) =
           LOWER(REPLACE(TRIM(?), ' ', ''))
-       OR LOWER(name) LIKE LOWER(?)
     LIMIT 1
 ");
 
 $projectStmt->execute([
     $projectName,
-    $projectName,
-    '%' . $projectName . '%'
+    $projectName
 ]);
 
         $project =
@@ -195,6 +202,11 @@ $projectStmt->execute([
 
             $skippedRows++;
 
+            continue;
+        }
+
+        if (!api_can_access_project($pdo, $currentUser, $project['id'])) {
+            $skippedRows++;
             continue;
         }
 
@@ -268,9 +280,10 @@ $projectStmt->execute([
                 asset_id,
                 version_number,
                 status,
-                notes
+                notes,
+                version_media_url
             )
-            VALUES (?, 1, 'For Review', ?)
+            VALUES (?, 1, 'For Review', ?, '')
         ");
 
         $versionStmt->execute([
@@ -330,7 +343,7 @@ $projectStmt->execute([
        ============================================== */
 
     $details[] =
-        "TRANSFORM — validated required fields, normalized asset types, and matched project names ({$skippedRows} row(s) skipped).";
+        "TRANSFORM — validated required fields and asset types; skipped {$skippedRows} row(s) with missing fields, unknown projects, or projects outside your assignments.";
 
     $details[] =
         "LOAD — inserted {$loadedRows} new asset record(s), each with Version 1 and status For Review.";
@@ -364,7 +377,7 @@ $projectStmt->execute([
     $stmt->execute([
         $id,
         $userId,
-        'CSV Import',
+        'CSV / JSON Import',
         $totalRows,
         $loadedRows,
         $skippedRows,

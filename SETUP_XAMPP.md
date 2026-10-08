@@ -23,4 +23,6 @@ Examples:
 ## Important
 Do **not** open the HTML files directly with `file:///...`. Use the Apache URL above so PHP sessions and MySQL APIs can run.
 
+Uploads are limited to 100 MB per file. The project `.htaccess` sets PHP's upload and request-size limits for this application.
+
 The frontend remains separated by page (login, dashboard, projects, assets, review, users, etc.). JavaScript talks to `api/*.php`, while `app_state` stores the application's production data in MySQL.

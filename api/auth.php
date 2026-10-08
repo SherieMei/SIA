@@ -20,6 +20,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 }
 
 require_once __DIR__ . '/../config/db.php';
+require_once __DIR__ . '/../includes/api_auth.php';
 
 if (session_status() === PHP_SESSION_NONE) {
     session_set_cookie_params([
@@ -57,10 +58,11 @@ if ($method === 'GET') {
     // ----------------------------------------------
 
     if ($action === 'session') {
+        $user = api_authenticated_user($pdo);
 
         echo json_encode([
-            'authenticated' => isset($_SESSION['user']),
-            'user' => $_SESSION['user'] ?? null
+            'authenticated' => $user !== null,
+            'user' => $user
         ]);
 
         exit;
@@ -73,20 +75,38 @@ if ($method === 'GET') {
     // ----------------------------------------------
 
     if ($action === 'users') {
+        $host = strtolower((string)parse_url('http://' . ($_SERVER['HTTP_HOST'] ?? ''), PHP_URL_HOST));
+        $remoteAddress = $_SERVER['REMOTE_ADDR'] ?? '';
+        $isLocalDevelopment =
+            in_array($host, ['localhost', '127.0.0.1', '::1'], true) &&
+            in_array($remoteAddress, ['127.0.0.1', '::1'], true);
+        $currentUser = null;
+        if (!$isLocalDevelopment) {
+            $currentUser = api_require_user($pdo);
+            api_require_roles($currentUser, ['admin', 'project_manager']);
+        }
 
         try {
-
-            $stmt = $pdo->query("
-                SELECT
-                    id,
-                    full_name,
-                    email,
-                    role
-                FROM app_users
-                ORDER BY created_at DESC, full_name ASC
-            ");
+            if ($isLocalDevelopment) {
+                $stmt = $pdo->query("
+                    SELECT id, full_name, email, role
+                    FROM app_users
+                    ORDER BY created_at DESC, full_name ASC
+                ");
+            } else {
+                $stmt = $pdo->query("
+                    SELECT id, full_name, role
+                    FROM app_users
+                    WHERE role IN ('project_manager', 'editor', 'animator', 'client')
+                    ORDER BY full_name ASC
+                ");
+            }
 
             $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            foreach ($users as &$user) {
+                $user['role'] = strtolower(trim($user['role'] ?? ''));
+            }
+            unset($user);
 
             echo json_encode([
                 'success' => true,
@@ -145,11 +165,98 @@ $action = $input['action'] ?? 'login';
 
 
 // ==================================================
+// CREATE TEAM MEMBER
+// ==================================================
+
+if ($action === 'create_team_member') {
+
+    $currentUser = api_require_user($pdo);
+    api_require_roles($currentUser, ['admin']);
+
+    $name = is_string($input['name'] ?? null) ? trim($input['name']) : '';
+    $email = is_string($input['email'] ?? null) ? trim($input['email']) : '';
+    $password = $input['password'] ?? '';
+    $role = is_string($input['role'] ?? null) ? strtolower(trim($input['role'])) : '';
+    $allowedRoles = ['admin', 'project_manager', 'animator', 'editor', 'client'];
+
+    if (!$name || strlen($name) > 100 || !preg_match("/^[A-Za-zÀ-ÖØ-öø-ÿ' .-]+$/u", $name)) {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'error' => 'Enter a valid name.']);
+        exit;
+    }
+
+    if (!$email || !filter_var($email, FILTER_VALIDATE_EMAIL) || strlen($email) > 150) {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'error' => 'Enter a valid email.']);
+        exit;
+    }
+
+    if (!is_string($password) || strlen($password) < 6) {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'error' => 'Password must be at least 6 characters.']);
+        exit;
+    }
+
+    if (!in_array($role, $allowedRoles, true)) {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'error' => 'Choose a valid team role.']);
+        exit;
+    }
+
+    try {
+        $exists = $pdo->prepare('SELECT id FROM app_users WHERE LOWER(email) = LOWER(?) LIMIT 1');
+        $exists->execute([$email]);
+        if ($exists->fetch()) {
+            http_response_code(409);
+            echo json_encode(['success' => false, 'error' => 'An account with that email already exists.']);
+            exit;
+        }
+
+        $nextNumber = $pdo->query("
+            SELECT COALESCE(MAX(CAST(SUBSTRING(id, 2) AS UNSIGNED)), 0) + 1
+            FROM app_users
+        ")->fetchColumn();
+        $id = 'u' . (int)$nextNumber;
+        $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
+
+        $stmt = $pdo->prepare("
+            INSERT INTO app_users (id, full_name, email, password, role)
+            VALUES (?, ?, ?, ?, ?)
+        ");
+        $stmt->execute([$id, $name, $email, $hashedPassword, $role]);
+
+        echo json_encode([
+            'success' => true,
+            'user' => [
+                'id' => $id,
+                'full_name' => $name,
+                'email' => $email,
+                'role' => $role
+            ]
+        ]);
+        exit;
+    } catch (PDOException $e) {
+        error_log('Team member creation failed: ' . $e->getMessage());
+        http_response_code(500);
+        echo json_encode(['success' => false, 'error' => 'Unable to add team member.']);
+        exit;
+    }
+}
+
+
+// ==================================================
 // LOGOUT
 // ==================================================
 
 if ($action === 'logout') {
 
+    unset(
+        $_SESSION['user_id'],
+        $_SESSION['name'],
+        $_SESSION['email'],
+        $_SESSION['role'],
+        $_SESSION['user']
+    );
     $_SESSION = [];
 
     if (ini_get('session.use_cookies')) {
@@ -242,8 +349,14 @@ if ($action === 'login') {
 
         unset($user['password']);
 
-
+        session_regenerate_id(true);
+        $user['role'] = strtolower(trim($user['role']));
+        $user['name'] = $user['full_name'];
         $_SESSION['user'] = $user;
+        $_SESSION['user_id'] = $user['id'];
+        $_SESSION['name'] = $user['full_name'];
+        $_SESSION['email'] = $user['email'];
+        $_SESSION['role'] = $user['role'];
 
 
         echo json_encode([
@@ -276,19 +389,7 @@ if ($action === 'register') {
     $name = trim($input['name'] ?? '');
     $email = trim($input['email'] ?? '');
     $password = $input['password'] ?? '';
-    $role = $input['role'] ?? 'viewer';
-
-
-    $roles = [
-        'admin',
-        'artist',
-        'animator',
-        'editor',
-        'reviewer',
-        'project_manager',
-        'client',
-        'viewer'
-    ];
+    $role = 'client';
 
 
     // ----------------------------------------------
@@ -334,11 +435,6 @@ if ($action === 'register') {
         ]);
 
         exit;
-    }
-
-
-    if (!in_array($role, $roles, true)) {
-        $role = 'viewer';
     }
 
 

@@ -33,10 +33,10 @@ function pageAssets(){
   return `
     <div class="panel-head">
       <div><div class="section-title">Assets</div><div class="section-sub">Storyboards, animatics, character sheets, backgrounds, scenes and renders — with full version history.</div></div>
-      ${can('submitAssets') ? `<button class="btn btn-primary" onclick="Studio.toggleForm('newAssetForm')">+ Submit asset</button>` : ''}
+      ${can('uploadAsset') ? `<button class="btn btn-primary" onclick="Studio.toggleForm('newAssetForm')">+ Submit asset</button>` : ''}
     </div>
 
-    ${can('submitAssets') ? `
+    ${can('uploadAsset') ? `
     <div id="newAssetForm" class="card hidden" style="padding:20px;margin-top:6px;">
       <h3 style="margin-top:0;font-size:15px;">Submit an asset</h3>
       <div class="field-row">
@@ -109,11 +109,11 @@ function pageAssetDetail(){
   const meta = TYPE_META[a.type];
   const v = latestVersion(a);
   const comments = DB.comments.filter(c=>c.asset===a.id);
-  const canReviewNow = can('review') && ['For Review','Revision Requested'].includes(v.status);
+  const canReviewNow = can('approveAsset') && ['For Review','Revision Requested'].includes(v.status);
   const isRender = a.type==='Render';
 
   return `
-    <button class="btn btn-ghost btn-sm" onclick="Studio.goto('assets')">← All assets</button>
+    <button type="button" class="klay-back-btn" title="Go back" aria-label="Go back" onclick="Studio.goto('assets')">←</button>
     <div class="card" style="padding:22px;margin-top:14px;">
       <div style="display:flex;gap:14px;align-items:flex-start;">
         <div class="type-tag" style="background:${meta.color}22;color:${meta.color};width:46px;height:46px;font-size:13px;">${meta.tag}</div>
@@ -126,7 +126,7 @@ function pageAssetDetail(){
             ${a.link? `<span class="chip" title="External storage link">🔗 ${esc(a.link)}</span>`:''}
           </div>
         </div>
-        ${can('submitAssets') ? `<button class="btn btn-sm" onclick="Studio.goto('assets');Studio.toggleForm('newAssetForm');document.getElementById('saExisting').value='${a.id}';Studio.onSaExistingChange();">+ New version</button>`:''}
+        ${can('uploadAsset') ? `<button class="btn btn-sm" onclick="Studio.goto('assets');Studio.toggleForm('newAssetForm');document.getElementById('saExisting').value='${a.id}';Studio.onSaExistingChange();">+ New version</button>`:''}
       </div>
     </div>
 
@@ -142,7 +142,7 @@ function pageAssetDetail(){
               <span style="font-size:12px;color:var(--text-faint);margin-left:auto;">${fmtDate(ver.date)}</span>
             </div>
             <div style="font-size:13px;margin-top:8px;color:var(--text-dim);">${esc(ver.notes||'—')}</div>
-            <div style="font-size:11px;color:var(--text-faint);margin-top:6px;" class="mono">Submitted by ${author?esc(author.name):'—'}</div>
+            <div style="font-size:11px;color:var(--text-faint);margin-top:6px;" class="mono">Submitted by ${esc(ver.submitted_by||author?.name||'Not recorded')}</div>
           </div>`;
         }).join('')}
 
@@ -174,7 +174,7 @@ function pageAssetDetail(){
               </div>
             </div>`;
           }).join('') : `<div class="empty">No feedback yet. Notes from reviewers and clients will show up here.</div>`}
-          ${can('comment') ? `
+          ${can('commentAsset') ? `
           <div class="divider"></div>
           <div class="field"><textarea id="newComment" placeholder="Add a comment..."></textarea></div>
           <button class="btn btn-sm" onclick="Studio.addComment('${a.id}')">Add comment</button>` : ''}

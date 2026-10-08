@@ -41,8 +41,9 @@ async function checkProjectCompletion(projectId) {
 Object.assign(Studio, {
 
   async reviewAsset(assetId, decision){
-  if(!can('review')){
-    toast('Your role cannot review assets.','error');
+  const decisionPermission={approve:'approveAsset',revise:'requestRevision',reject:'rejectAsset'}[decision];
+  if(!decisionPermission||!can(decisionPermission)){
+    toast('Your role cannot perform this review decision.','error');
     return;
   }
 

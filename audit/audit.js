@@ -82,7 +82,7 @@ function pageAudit(){
 
       <button
         type="button"
-        class="simple-arrow-btn"
+        class="klay-back-btn"
         title="Back"
         aria-label="Go back"
         onclick="Studio.goBackSidebar('dashboard')"

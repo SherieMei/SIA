@@ -23,18 +23,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 }
 
 require_once __DIR__ . '/../config/db.php';
+require_once __DIR__ . '/../includes/api_auth.php';
 
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-if (!isset($_SESSION['user'])) {
-    http_response_code(401);
-    echo json_encode([
-        'error' => 'Not authenticated'
-    ]);
-    exit;
-}
+$currentUser = api_require_user($pdo);
 
 /* =========================================================
    AUDIT LOG
@@ -161,10 +156,17 @@ function createUserNotification(
 
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
 
-    $role = strtolower(trim($_SESSION['user']['role'] ?? ''));
-    $userId = $_SESSION['user']['id'] ?? null;
+    $role = $currentUser['role'];
+    $userId = $currentUser['id'];
 
-    $selectFields = "
+    api_require_roles($currentUser, ['admin', 'project_manager', 'editor', 'animator', 'client']);
+
+    $selectFields = $role === 'client' ? "
+        p.id,
+        p.name,
+        p.status,
+        p.deadline
+    " : "
         p.id,
         p.name,
         p.client,
@@ -173,7 +175,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         p.status,
         p.deadline,
         p.budget,
-        p.pm AS project_manager_id
+        p.pm AS project_manager_id,
+        p.artist_id AS editor_id,
+        p.artist_id,
+        p.animator_id
     ";
 
     if ($role === 'client') {
@@ -191,22 +196,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         $stmt = $pdo->prepare("
             SELECT DISTINCT $selectFields
             FROM projects p
-            INNER JOIN assets a ON a.project_id = p.id
-            WHERE a.assigned_editor = ?
+            WHERE p.artist_id = ?
+               OR EXISTS (
+                    SELECT 1
+                    FROM assets a
+                    WHERE a.project_id = p.id
+                      AND a.assigned_editor = ?
+               )
             ORDER BY p.created_at DESC
         ");
-        $stmt->execute([$userId]);
+        $stmt->execute([$userId, $userId]);
 
     } elseif ($role === 'animator') {
 
         $stmt = $pdo->prepare("
             SELECT DISTINCT $selectFields
             FROM projects p
-            INNER JOIN assets a ON a.project_id = p.id
-            WHERE a.assigned_animator = ?
+            WHERE p.animator_id = ?
+               OR EXISTS (
+                    SELECT 1
+                    FROM assets a
+                    WHERE a.project_id = p.id
+                      AND a.assigned_animator = ?
+               )
             ORDER BY p.created_at DESC
         ");
-        $stmt->execute([$userId]);
+        $stmt->execute([$userId, $userId]);
 
     } elseif ($role === 'project_manager') {
 
@@ -220,7 +235,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
 
     } else {
 
-        // Admin and other existing roles retain the current behavior.
+        // Administrators can view all projects.
         $stmt = $pdo->query("
             SELECT $selectFields
             FROM projects p
@@ -234,8 +249,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         'success' => true,
         'projects' => array_map(
             function ($p) {
+                if (!array_key_exists('project_manager_id', $p)) {
+                    return $p;
+                }
                 $p['pm'] = $p['project_manager_id'];
-                $p['team'] = [];
+                $p['team'] = array_values(array_filter([
+                    $p['project_manager_id'] ?? null,
+                    $p['editor_id'] ?? null,
+                    $p['animator_id'] ?? null
+                ], static function ($memberId) {
+                    return $memberId !== null && $memberId !== '';
+                }));
                 return $p;
             },
             $projects
@@ -250,15 +274,122 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
    ========================================================= */
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    api_require_roles($currentUser, ['admin', 'project_manager']);
 
     $in = json_decode(
         file_get_contents('php://input'),
         true
     ) ?? [];
 
+    if (($in['action'] ?? '') === 'assign_team') {
+        $projectId = trim((string)($in['project_id'] ?? ''));
+        if (!$projectId || !api_can_access_project($pdo, $currentUser, $projectId)) {
+            http_response_code($projectId ? 403 : 400);
+            echo json_encode([
+                'success' => false,
+                'message' => $projectId
+                    ? 'You do not have permission to manage this project.'
+                    : 'Project ID is required.'
+            ]);
+            exit;
+        }
+
+        $currentProjectStmt = $pdo->prepare('SELECT pm, client_id, client FROM projects WHERE id = ? LIMIT 1');
+        $currentProjectStmt->execute([$projectId]);
+        $currentProject = $currentProjectStmt->fetch(PDO::FETCH_ASSOC);
+        if (!$currentProject) {
+            http_response_code(404);
+            echo json_encode(['success' => false, 'message' => 'Project not found.']);
+            exit;
+        }
+
+        $projectManager = $currentUser['role'] === 'project_manager'
+            ? $currentUser['id']
+            : trim((string)($in['project_manager_id'] ?? $currentProject['pm'] ?? ''));
+        $editorId = trim((string)($in['editor_id'] ?? ''));
+        $animatorId = trim((string)($in['animator_id'] ?? ''));
+        $clientId = trim((string)($in['client_id'] ?? $currentProject['client_id'] ?? ''));
+        foreach ([
+            [$projectManager, 'project_manager', 'Project Manager', true],
+            [$editorId, 'editor', 'Editor', false],
+            [$animatorId, 'animator', 'Animator', false],
+            [$clientId, 'client', 'Client', false]
+        ] as [$assigneeId, $requiredRole, $label, $required]) {
+            if ($assigneeId === '') {
+                if ($required) {
+                    http_response_code(400);
+                    echo json_encode(['success' => false, 'message' => "Please assign a {$label}."]);
+                    exit;
+                }
+                continue;
+            }
+            $assigneeStmt = $pdo->prepare("
+                SELECT id FROM app_users
+                WHERE id = ? AND role = ?
+                LIMIT 1
+            ");
+            $assigneeStmt->execute([$assigneeId, $requiredRole]);
+            if (!$assigneeStmt->fetchColumn()) {
+                http_response_code(400);
+                echo json_encode(['success' => false, 'message' => "Selected {$label} account is invalid."]);
+                exit;
+            }
+        }
+
+        $clientName = $currentProject['client'];
+        if ($clientId !== '') {
+            $clientNameStmt = $pdo->prepare("
+                SELECT full_name FROM app_users
+                WHERE id = ? AND role = 'client'
+                LIMIT 1
+            ");
+            $clientNameStmt->execute([$clientId]);
+            $clientName = $clientNameStmt->fetchColumn();
+        } else {
+            $clientName = '';
+        }
+
+        $updateStmt = $pdo->prepare("
+            UPDATE projects
+            SET pm = ?, artist_id = ?, animator_id = ?, client_id = ?, client = ?
+            WHERE id = ?
+        ");
+        $updateStmt->execute([
+            $projectManager,
+            $editorId ?: null,
+            $animatorId ?: null,
+            $clientId ?: null,
+            $clientName,
+            $projectId
+        ]);
+
+        echo json_encode([
+            'success' => true,
+            'project' => [
+                'id' => $projectId,
+                'pm' => $projectManager,
+                'project_manager_id' => $projectManager,
+                'editor_id' => $editorId ?: null,
+                'artist_id' => $editorId ?: null,
+                'animator_id' => $animatorId ?: null,
+                'client_id' => $clientId ?: null,
+                'client' => $clientName,
+                'team' => array_values(array_filter([
+                    $projectManager,
+                    $editorId ?: null,
+                    $animatorId ?: null,
+                    $clientId ?: null
+                ]))
+            ]
+        ], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+
 $name = trim($in['name'] ?? '');
 $deadline = $in['deadline'] ?? null;
 $clientId = trim($in['client_id'] ?? '');
+$editorId = trim((string)($in['editor_id'] ?? $in['artist_id'] ?? ''));
+$animatorId = trim((string)($in['animator_id'] ?? ''));
 $budget = (float)($in['budget'] ?? 0);
 if ($budget < 5000 || $budget > 999999) {
 
@@ -332,9 +463,7 @@ $client =
     $clientUser['full_name'];
 
     // Logged-in user becomes the producer
-    $producer = $_SESSION['user']['full_name']
-        ?? $_SESSION['user']['name']
-        ?? '';
+    $producer = $currentUser['full_name'] ?? '';
 if (!$name || !$clientId || !$client) {
 
     http_response_code(400);
@@ -371,9 +500,44 @@ if (!$name || !$clientId || !$client) {
     $id = 'p' . $nextNumber;
 
 
-    /* Logged-in user as project manager */
+    $projectManager = $currentUser['role'] === 'project_manager'
+        ? $currentUser['id']
+        : trim((string)($in['project_manager_id'] ?? $in['pm'] ?? ''));
+    $assignees = [
+        [$projectManager, 'project_manager', 'Project Manager', true],
+        [$editorId, 'editor', 'Editor', false],
+        [$animatorId, 'animator', 'Animator', false]
+    ];
+    foreach ($assignees as [$assigneeId, $requiredRole, $label, $required]) {
+        if ($assigneeId === '') {
+            if ($required) {
+                http_response_code(400);
+                echo json_encode([
+                    'success' => false,
+                    'message' => "Please assign a {$label}."
+                ]);
+                exit;
+            }
+            continue;
+        }
 
-    $projectManager = $_SESSION['user']['id'] ?? null;
+        $assigneeStmt = $pdo->prepare("
+            SELECT id
+            FROM app_users
+            WHERE id = ?
+              AND role = ?
+            LIMIT 1
+        ");
+        $assigneeStmt->execute([$assigneeId, $requiredRole]);
+        if (!$assigneeStmt->fetchColumn()) {
+            http_response_code(400);
+            echo json_encode([
+                'success' => false,
+                'message' => "Selected {$label} account is invalid."
+            ]);
+            exit;
+        }
+    }
 
 
     /* Insert project */
@@ -389,9 +553,11 @@ if (!$name || !$clientId || !$client) {
             status,
             deadline,
             pm,
+            artist_id,
+            animator_id,
             budget
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ");
 
     $stmt->execute([
@@ -403,6 +569,8 @@ if (!$name || !$clientId || !$client) {
         'Pre-Production',
         $deadline ?: null,
         $projectManager,
+        $editorId ?: null,
+        $animatorId ?: null,
         $budget
     ]);
 
@@ -449,7 +617,15 @@ if (
             'status' => 'Pre-Production',
             'deadline' => $deadline,
             'budget' => $budget,
-            'project_manager_id' => $projectManager
+            'project_manager_id' => $projectManager,
+            'pm' => $projectManager,
+            'editor_id' => $editorId ?: null,
+            'animator_id' => $animatorId ?: null,
+            'team' => array_values(array_filter([
+                $projectManager,
+                $editorId ?: null,
+                $animatorId ?: null
+            ]))
         ]
     ], JSON_UNESCAPED_UNICODE);
 
@@ -461,6 +637,7 @@ if (
    ========================================================= */
 
 if ($_SERVER['REQUEST_METHOD'] === 'PUT') {
+    api_require_roles($currentUser, ['admin', 'project_manager']);
 
     $in = json_decode(
         file_get_contents('php://input'),
@@ -476,6 +653,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'PUT') {
     $status = $in['status'] ?? 'Pre-Production';
     $projectManager = $in['pm'] ?? $in['project_manager_id'] ?? null;
     $budget = (float)($in['budget'] ?? 0);
+    if (!$id) {
+        http_response_code(400);
+        echo json_encode([
+            'success' => false,
+            'message' => 'Project ID is required.'
+        ]);
+        exit;
+    }
+    if (!api_can_access_project($pdo, $currentUser, $id)) {
+        http_response_code(403);
+        echo json_encode([
+            'success' => false,
+            'message' => 'You do not have permission to manage this project.'
+        ]);
+        exit;
+    }
+    if ($currentUser['role'] === 'project_manager') {
+        $projectManager = $currentUser['id'];
+    }
     $oldProjectStmt = $pdo->prepare("
     SELECT budget
     FROM projects
@@ -540,7 +736,6 @@ if (!$projectRow) {
 $projectBudget =
     (float)($projectRow['budget'] ?? 0);
 
-
 /* =========================================================
    REQUIRED ASSET TYPES
    ========================================================= */
@@ -581,33 +776,18 @@ $assetStmt->execute([$id]);
 $assetRows =
     $assetStmt->fetchAll(PDO::FETCH_ASSOC);
 
-
-/* =========================================================
-   CHECK PRESENT / MISSING ASSET TYPES
-   ========================================================= */
-
 $presentTypes = [];
-
 foreach ($assetRows as $asset) {
-
-    if (!empty($asset['asset_type'])) {
-        $presentTypes[] =
-            $asset['asset_type'];
+    $type = strtolower(trim((string)($asset['asset_type'] ?? '')));
+    if ($type !== '') {
+        $presentTypes[$type] = true;
     }
 }
 
-$presentTypes =
-    array_values(
-        array_unique($presentTypes)
-    );
-
-$missingTypes =
-    array_values(
-        array_diff(
-            $requiredAssetTypes,
-            $presentTypes
-        )
-    );
+$missingTypes = array_values(array_filter(
+    $requiredAssetTypes,
+    static fn($type) => !isset($presentTypes[strtolower($type)])
+));
 
 
 /* =========================================================
@@ -667,17 +847,14 @@ $totalSpent =
 
 /* =========================================================
    CALCULATE PROGRESS
-   40% = required asset types
-   20% = reviewed/resolved assets
-   40% = budget usage
+   60% = required asset types present
+   40% = reviewed/resolved assets
    ========================================================= */
-
 $assetTypeProgress =
     (
-        count($presentTypes) /
+        (count($requiredAssetTypes) - count($missingTypes)) /
         count($requiredAssetTypes)
-    ) * 40;
-
+    ) * 60;
 
 $reviewProgress = 0;
 
@@ -687,30 +864,14 @@ if ($totalAssets > 0) {
         (
             $resolvedAssets /
             $totalAssets
-        ) * 20;
-}
-
-
-$budgetProgress = 0;
-
-if ($projectBudget > 0) {
-
-    $budgetRatio =
-        min(
-            1,
-            $totalSpent / $projectBudget
-        );
-
-    $budgetProgress =
-        $budgetRatio * 40;
+        ) * 40;
 }
 
 
 $progress =
     round(
         $assetTypeProgress +
-        $reviewProgress +
-        $budgetProgress
+        $reviewProgress
     );
 
 
@@ -720,9 +881,9 @@ $progress =
 
 $canFinish =
     count($missingTypes) === 0 &&
+    $totalAssets > 0 &&
     count($pendingAssets) === 0 &&
-    $projectBudget > 0 &&
-    $totalSpent >= $projectBudget;
+    $resolvedAssets === $totalAssets;
 
 
 if ($canFinish) {
@@ -748,33 +909,18 @@ if (!$canFinish) {
     $problems = [];
 
     if (count($missingTypes) > 0) {
-
         $problems[] =
             'Missing asset types: ' .
-            implode(', ', $missingTypes);
+            implode(', ', $missingTypes) . '.';
     }
 
-    if (count($pendingAssets) > 0) {
-
-        $problems[] =
-            count($pendingAssets) .
-            ' asset(s) still need review or revision.';
+    if ($totalAssets === 0) {
+        $problems[] = 'Add at least one asset to this project before finishing it.';
     }
 
-    if (
-        $projectBudget > 0 &&
-        $totalSpent < $projectBudget
-    ) {
-
-        $remaining =
-            $projectBudget - $totalSpent;
-
+    if (count($pendingAssets) > 0 || $resolvedAssets !== $totalAssets) {
         $problems[] =
-            'Budget remaining: PHP ' .
-            number_format(
-                $remaining,
-                2
-            );
+            'All project assets must have a resolved review status before finishing.';
     }
 
     http_response_code(400);

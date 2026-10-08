@@ -45,6 +45,10 @@ try {
         ]
     );
 
+    require_once __DIR__ . '/../includes/api_auth.php';
+    $currentUser = api_require_user($pdo);
+    api_require_roles($currentUser, ['admin', 'project_manager', 'editor', 'animator']);
+
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
         http_response_code(405);
         echo json_encode([
@@ -67,8 +71,16 @@ try {
 
     $id = 'api_' . bin2hex(random_bytes(6));
 
-    $userId = $_SESSION['user']['id'] ?? null;
+    $userId = $currentUser['id'];
     $assetId = $data['asset_id'] ?? null;
+    if ($assetId && !api_can_access_asset($pdo, $currentUser, $assetId)) {
+        http_response_code(403);
+        echo json_encode([
+            'success' => false,
+            'error' => 'You do not have permission to log this asset API request.'
+        ]);
+        exit;
+    }
     $direction = $data['direction'] ?? null;
     $method = $data['method'] ?? null;
     $endpoint = $data['endpoint'] ?? null;

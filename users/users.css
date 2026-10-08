@@ -276,6 +276,29 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 
 table{width:100%;border-collapse:collapse;font-size:13px}th{text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:var(--text-faint);padding:11px 14px;border-bottom:1px solid var(--line);font-family:var(--font-mono);font-weight:700}td{padding:12px 14px;border-bottom:1px solid var(--line-soft);vertical-align:middle}tr:last-child td{border-bottom:none}tbody tr:hover{background:#fafbfc}
 
+.team-users-table{table-layout:fixed}
+
+.team-users-name-column{width:28%}
+
+.team-users-role-column{width:24%}
+
+.team-users-change-column{width:29%}
+
+.team-users-actions-column{width:19%}
+
+.team-users-table th,
+.team-users-table td{height:44px;vertical-align:middle}
+
+.team-users-table td{padding:7px 14px}
+
+.team-user-name{display:flex;align-items:center;gap:9px;min-width:0}
+
+.team-user-name span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+.team-users-table td select{width:100%;max-width:180px}
+
+.team-users-table td:last-child{white-space:nowrap}
+
 .version-item{border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin-bottom:10px;background:#fff}.version-item.latest{border-color:#9fd3cc;box-shadow:0 0 0 2px var(--coral-glow) inset}.vh-top{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.vtag{font-family:var(--font-mono);font-weight:700;background:#f1f4f8;padding:4px 9px;border-radius:6px;font-size:11px;color:var(--cyan)}
 
 .comment{display:flex;gap:11px;padding:12px 0;border-bottom:1px solid var(--line-soft)}.comment:last-child{border-bottom:none}.comment .body{flex:1}.comment .meta{display:flex;gap:8px;align-items:baseline;font-size:12px;margin-bottom:3px}.comment .meta b{font-size:13px}.comment .meta span:not(.badge){color:var(--text-faint);font-family:var(--font-mono);font-size:10px}.comment .txt{font-size:13px;color:var(--text-dim);line-height:1.5}

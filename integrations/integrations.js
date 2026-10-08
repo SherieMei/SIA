@@ -9,7 +9,7 @@ function pageIntegrations(){
     <div style="display:flex;align-items:center;gap:10px;">
       <button
         type="button"
-        class="simple-arrow-btn"
+        class="klay-back-btn"
         title="Back"
         aria-label="Go back"
         onclick="history.back()"
@@ -40,10 +40,10 @@ function pageIntegrations(){
 
         <div class="divider"></div>
 
-        <div class="console">
+        <div class="console api-console">
           ${
             DB.apiLogs.slice().reverse().map(l=>`
-              <div class="log-line">
+              <div class="log-line api-log-entry">
                 <span class="t">${fmtDateTime(l.date)}</span>
                 <span style="color:${l.dir==='REQUEST'?'var(--coral)':'var(--cyan)'};font-weight:700;">
                   ${l.dir}${l.status ? (' ' + l.status) : ''}
@@ -51,7 +51,7 @@ function pageIntegrations(){
                 <span style="color:var(--text-faint);">
                   ${l.method} ${l.endpoint}
                 </span>
-                <span style="color:var(--text-dim);">
+                <span class="api-log-body" style="color:var(--text-dim);">
                   ${esc(l.body)}
                 </span>
               </div>
@@ -64,14 +64,20 @@ function pageIntegrations(){
         <h3 style="margin-top:0;font-size:15px;">ETL integration — bulk import</h3>
 
         <div class="section-sub" style="margin-bottom:14px;">
-          Paste a CSV of tasks or assets — each row is validated and loaded as a new asset.
+          Import one or more assets as CSV or JSON. Projects must already exist and be assigned to you.
         </div>
 
         <div class="field">
+          <label for="etlInput">CSV or JSON data</label>
           <textarea
             id="etlInput"
+            aria-describedby="etlHelp etlError"
+            oninput="document.getElementById('etlError').textContent=''"
             style="min-height:120px;font-family:var(--font-mono);font-size:12px;"
-          >title,project,type,assignee,duedate</textarea>
+            placeholder="CSV:&#10;title,project,type&#10;Example asset,Existing project name,Design Draft&#10;&#10;JSON:&#10;{&quot;asset&quot;:&quot;Example asset&quot;,&quot;project&quot;:&quot;Existing project name&quot;}"
+          ></textarea>
+          <small id="etlHelp" class="etl-help">JSON accepts “title” or “asset” plus “project”. Imported assets start at v1 with status For Review; supplied version/status values do not override the review workflow.</small>
+          <div id="etlError" class="etl-error" role="alert" aria-live="polite"></div>
         </div>
 
         ${

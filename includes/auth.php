@@ -6,7 +6,33 @@ if (session_status() === PHP_SESSION_NONE) {
 }
 
 function current_user() {
-    return $_SESSION['user'] ?? null;
+    global $pdo;
+    $userId = $_SESSION['user_id'] ?? ($_SESSION['user']['id'] ?? null);
+    if (!$userId || !isset($pdo)) {
+        return null;
+    }
+
+    $stmt = $pdo->prepare("
+        SELECT id, full_name, email, role
+        FROM app_users
+        WHERE id = ?
+        LIMIT 1
+    ");
+    $stmt->execute([$userId]);
+    $user = $stmt->fetch(PDO::FETCH_ASSOC);
+    if (!$user || empty($user['role'])) {
+        return null;
+    }
+
+    $user['role'] = strtolower(trim($user['role']));
+    $user['name'] = $user['full_name'];
+    $_SESSION['user'] = $user;
+    $_SESSION['user_id'] = $user['id'];
+    $_SESSION['name'] = $user['full_name'];
+    $_SESSION['email'] = $user['email'];
+    $_SESSION['role'] = $user['role'];
+
+    return $user;
 }
 
 function require_login() {

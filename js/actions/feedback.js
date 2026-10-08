@@ -4,7 +4,7 @@
 Object.assign(Studio, {
 
   addComment(assetId){
-    if(!can('comment')) return;
+    if(!can('commentAsset')) return;
     const box = document.getElementById('newComment');
     const text = box.value.trim();
     if(!text) return;

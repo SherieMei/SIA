@@ -2,64 +2,14 @@
 
 
 /* ==========================================================================
-   MANUALLY FINISHED PROJECTS
-   ========================================================================== */
-
-function getManuallyFinishedProjects(){
-  try{
-    const saved = JSON.parse(
-      localStorage.getItem('beeManuallyFinishedProjects') || '[]'
-    );
-
-    return Array.isArray(saved)
-      ? saved
-      : [];
-
-  }catch(e){
-    return [];
-  }
-}
-
-
-function isProjectManuallyFinished(projectId){
-
-  return getManuallyFinishedProjects()
-    .includes(String(projectId));
-
-}
-
-
-function markProjectManuallyFinished(projectId){
-
-  const project =
-    projectById(projectId);
-
-  if(!project){
-    return;
-  }
-
-  const finishedProjects =
-    getManuallyFinishedProjects();
-
-  finishedProjects[String(projectId)] =
-    String(project.name);
-
-  localStorage.setItem(
-    'beeManuallyFinishedProjects',
-    JSON.stringify(finishedProjects)
-  );
-}
-
-
-/* ==========================================================================
    PAGE — Completed Projects
-   Shows only projects finished through the Finished button.
+   The server returns only projects assigned to the signed-in user.
    ========================================================================== */
 
 function pageCompletedProjects(){
 
   const completed = DB.projects.filter(
-    p => isProjectManuallyFinished(p.id)
+    p => p.status === 'Completed'
   );
 
   return `
@@ -69,7 +19,7 @@ function pageCompletedProjects(){
 
         <button
           type="button"
-          class="simple-arrow-btn"
+          class="klay-back-btn"
           title="Back"
           aria-label="Go back"
           onclick="Studio.goBack('dashboard')"
@@ -95,7 +45,7 @@ function pageCompletedProjects(){
 
             const assetCount =
               DB.assets.filter(
-                a=>a.project===p.id
+                a=>String(a.project??a.project_id)===String(p.id)
               ).length;
 
             return `

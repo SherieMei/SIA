@@ -2,13 +2,7 @@
 const Studio = {
 
   manualLogin(){
-    const name = document.getElementById('loginName').value.trim();
-    const role = document.getElementById('loginRole').value;
-    if(!name){ toast('Enter a name to sign in.','error'); return; }
-    let u = DB.users.find(x=>x.name.toLowerCase()===name.toLowerCase());
-    if(!u){ u = {id:nid('u'), name, role}; DB.users.push(u); }
-    else { u.role = role; }
-    Studio.completeLogin(u);
+    toast('Use your registered email and password to sign in.','error');
   },
   quickLogin(id){
     const u = userById(id);
@@ -60,7 +54,7 @@ const Studio = {
 
   /* ---- Assets / Submission ---- */
     async submitAsset(){
-    if(!can('submitAssets')){ toast('Your role cannot submit assets.','error'); return; }
+    if(!can('uploadAsset')){ toast('Your role cannot submit assets.','error'); return; }
     const project = document.getElementById('saProject').value;
     const existingId = document.getElementById('saExisting').value;
     const title = document.getElementById('saTitle').value.trim();
@@ -148,7 +142,8 @@ const Studio = {
 
   /* ---- Review workflow ---- */
   reviewAsset(assetId, decision){
-    if(!can('review')){ toast('Your role cannot review assets.','error'); return; }
+    const decisionPermission={approve:'approveAsset',revise:'requestRevision',reject:'rejectAsset'}[decision];
+    if(!decisionPermission||!can(decisionPermission)){ toast('Your role cannot perform this review decision.','error'); return; }
     const asset = assetById(assetId);
     const v = latestVersion(asset);
     const commentBox = document.getElementById('reviewComment');
@@ -189,7 +184,7 @@ const Studio = {
 
   /* ---- Comments ---- */
   addComment(assetId){
-    if(!can('comment')) return;
+    if(!can('commentAsset')) return;
     const box = document.getElementById('newComment');
     const text = box.value.trim();
     if(!text) return;

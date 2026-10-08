@@ -4,22 +4,9 @@ header('Content-Type: application/json; charset=utf-8');
 
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/functions.php';
+require_once __DIR__ . '/../includes/api_auth.php';
 
-
-if (!current_user()) {
-
-    http_response_code(401);
-
-    echo json_encode([
-        'success' => false,
-        'error' => 'Not authenticated'
-    ]);
-
-    exit;
-}
-
-
-$user = current_user();
+$user = api_require_user($pdo);
 
 $userId = $user['id'];
 

@@ -18,13 +18,16 @@ const NAME_RE=/^[A-Za-zÀ-ÖØ-öø-ÿ' .-]+$/;
 const PERMISSIONS={
   manageUsers:['admin'],
   manageProjects:['admin','project_manager'],
-  submitAssets:['admin','animator','editor','project_manager'],
-  review:['admin','project_manager','client'],
-  comment:['admin','project_manager','animator','editor','client'],
-  viewAudit:[
-    'admin',
-    'project_manager',
-  ],
+  viewCompletedProjects:['admin','project_manager','client'],
+  viewProjects:['admin','project_manager','animator','editor','client'],
+  viewAssets:['admin','project_manager','animator','editor','client'],
+  uploadAsset:['admin','project_manager','animator','editor'],
+  editAsset:['admin','project_manager','animator','editor'],
+  commentAsset:['admin','project_manager','animator','editor','client'],
+  approveAsset:['client'],
+  requestRevision:['client'],
+  rejectAsset:['client'],
+  viewAudit:['admin','project_manager'],
   manageResources:['admin','project_manager'],
   runIntegrations:['admin','project_manager','editor'],
 };
@@ -63,6 +66,8 @@ const DB={
   webhooks:[],
   apiLogs:[],
   resources:[],
+  animationShots:null,
+  animationShotsError:'',
 };
 function latestVersion(a){
   if(!a||typeof a!=='object'){
@@ -73,6 +78,27 @@ function latestVersion(a){
     return last||{status:'For Review',n:1,date:''};
   }
   return{status:'For Review',n:1,date:''};
+}
+async function loadAnimationShotsFromDB(){
+  DB.animationShots=null;
+  DB.animationShotsError='';
+  if(DB.currentUser?.role!=='animator')return true;
+  try{
+    const response=await fetch('/SIA/api/animation_shots.php',{
+      credentials:'include'
+    });
+    const data=await parseApiResponse(response);
+    if(!response.ok||!data.success||!Array.isArray(data.shots)){
+      throw new Error(data.error||'Unable to load assigned animation shots.');
+    }
+    DB.animationShots=data.shots;
+    return true;
+  }catch(error){
+    DB.animationShots=[];
+    DB.animationShotsError=error.message||'Unable to load assigned animation shots.';
+    console.error('Animation shot tracker load error:',error);
+    return false;
+  }
 }
 /* The PHP backend (api/assets.php, api/bootstrap.php) doesn't nest asset_versions into
    its asset rows, so anything sourced from the server is missing `.versions`. Every asset
@@ -95,7 +121,6 @@ function pushEvent(name,payload){
 const DB_PERSIST_KEY='beeDB';
 const DB_PERSISTED_FIELDS=[
   'users',
-  'projects',
   'assets',
   'comments',
   'auditLog',
@@ -120,6 +145,8 @@ const DB_PERSISTED_FIELDS=[
     sessionStorage.removeItem(DB_PERSIST_KEY);
   }
 })();
+// Project visibility is scoped by the authenticated server account; never restore a stale project list.
+DB.projects=[];
 /* ===== ROLE MIGRATION: clean up data persisted under roles removed in the 5-role reduction ===== */
 (function migrateLegacyRoles(){
   const ROLE_MIGRATION={artist:'animator',reviewer:'project_manager'};
@@ -165,9 +192,12 @@ const state={page:'dashboard',selectedProjectId:null,selectedAssetId:null,
     const project=params.get('project');
     const asset=params.get('asset');
     const status=params.get('status');
+    const workspace=params.get('workspace');
     if(project){state.page='projectDetail';state.selectedProjectId=project;}
     if(asset){state.page='assetDetail';state.selectedAssetId=asset;}
     if(status&&STATUS_CLASS[status])state.filter.status=status;
+    if(['tracker','schedule','feedback','shotTracker','editorSequences'].includes(workspace))state.page=workspace;
+    if(workspace==='tasks')state.page='dashboard';
   }catch(e){}
 })();
 function fmtDate(d){
@@ -186,6 +216,20 @@ function projectById(id){return DB.projects.find(p=>String(p.id)===String(id));}
 function assetById(id){return DB.assets.find(a=>String(a.id)===String(id));}
 function initials(name){return name?name.split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase():'?';}
 function esc(s){return(s||'').toString().replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function renderFeedbackEntry({context='',title='',meta='',status='',text='',actionHtml=''}){
+  return `<article class="card feedback-entry-card">
+    <div class="feedback-entry-heading">
+      <div class="feedback-entry-title">
+        ${context?`<span class="feedback-entry-context">${esc(context)}</span>`:''}
+        ${title?`<h3>${esc(title)}</h3>`:''}
+      </div>
+      ${status?`<span class="badge ${STATUS_CLASS[status]||'b-role'}">${esc(status)}</span>`:''}
+    </div>
+    ${meta?`<div class="feedback-entry-meta">${esc(meta)}</div>`:''}
+    <p class="feedback-entry-text">${esc(text)}</p>
+    ${actionHtml?`<div class="feedback-entry-action">${actionHtml}</div>`:''}
+  </article>`;
+}
 function toast(msg,kind){
   const wrap=document.getElementById('toastWrap');
   if(!wrap)return;
@@ -196,22 +240,6 @@ function toast(msg,kind){
   setTimeout(()=>{el.style.opacity='0';el.style.transition='.25s';setTimeout(()=>el.remove(),260);},3200);
 }
 /* =========================================================
-   REQUIRED ASSET TYPES
-   ========================================================= */
-
-const REQUIRED_ASSET_TYPES = [
-  'Storyboard',
-  'Animatic',
-  'Character Sheet',
-  'Background Asset',
-  'Animation Scene',
-  'Render',
-  'Audio',
-  'Design Draft'
-];
-
-
-/* =========================================================
    PROJECT COMPLETION INFO
    ========================================================= */
 
@@ -219,6 +247,9 @@ function getProjectCompletionInfo(pid){
 
   const project =
     projectById(pid);
+
+  const requiredTypes =
+    Object.keys(TYPE_META);
 
   const assets =
     Array.isArray(DB.assets)
@@ -232,13 +263,13 @@ function getProjectCompletionInfo(pid){
   const presentTypes =
     new Set(
       assets
-        .map(a => a.type || a.asset_type)
+        .map(a => String(a.type ?? a.asset_type ?? '').trim().toLocaleLowerCase())
         .filter(Boolean)
     );
 
   const missingTypes =
-    REQUIRED_ASSET_TYPES.filter(
-      type => !presentTypes.has(type)
+    requiredTypes.filter(
+      type => !presentTypes.has(type.toLocaleLowerCase())
     );
 
   const pendingAssets =
@@ -286,47 +317,31 @@ function getProjectCompletionInfo(pid){
     Number(project?.budget || 0);
 
 
-  /* 40% = required asset types */
+  /* 60% = required asset types present */
   const assetTypeProgress =
     (
-      presentTypes.size /
-      REQUIRED_ASSET_TYPES.length
-    ) * 40;
+      (requiredTypes.length - missingTypes.length) /
+      requiredTypes.length
+    ) * 60;
 
-
-  /* 20% = resolved reviews */
+  /* 40% = submitted assets reviewed */
   const reviewProgress =
     assets.length > 0
       ? (
           resolvedAssets.length /
           assets.length
-        ) * 20
-      : 0;
-
-
-  /* 40% = budget usage */
-  const budgetProgress =
-    budget > 0
-      ? Math.min(
-          1,
-          spent / budget
         ) * 40
       : 0;
 
 
-  let progress =
-    Math.round(
-      assetTypeProgress +
-      reviewProgress +
-      budgetProgress
-    );
+  let progress=Math.round(assetTypeProgress+reviewProgress);
 
 
   const canFinish =
+    assets.length > 0 &&
     missingTypes.length === 0 &&
     pendingAssets.length === 0 &&
-    budget > 0 &&
-    spent >= budget;
+    resolvedAssets.length === assets.length;
 
 
   if(canFinish){
@@ -341,6 +356,7 @@ function getProjectCompletionInfo(pid){
     missingTypes,
     pendingAssets,
     resolvedAssets,
+    unresolvedAssets:assets.length-resolvedAssets.length,
     spent,
     budget,
     canFinish
@@ -372,16 +388,7 @@ const Studio={
     }catch(e){}
   },
   login(username,password){
-    const user=window.DB.users.find(u=>u.username===username||u.email===username)||window.DB.users[0];
-    if(user){
-      window.DB.currentUser=user;
-      localStorage.setItem('beeCurrentUser',JSON.stringify(user));
-      sessionStorage.setItem('beeCurrentUser',JSON.stringify(user));
-      Studio.persist();
-      window.location.assign('../dashboard/dashboard.html');
-    }else{
-      toast('Invalid credentials','error');
-    }
+    toast('Use your registered email and password to sign in.','error');
   },
   async manualLogin(){
     const email=document.getElementById('loginEmail').value.trim();
@@ -401,13 +408,12 @@ const Studio={
     const name=document.getElementById('signupName').value.trim();
     const email=document.getElementById('loginEmail').value.trim();
     const password=document.getElementById('loginPassword').value;
-    const role=document.getElementById('loginRole').value;
     if(!name){toast('Enter your full name to create an account.','error');return;}
     if(!NAME_RE.test(name)){toast('Name can only contain letters, spaces, hyphens, and apostrophes.','error');return;}
     if(!email||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){toast('Enter a valid email.','error');return;}
     if(password.length<6){toast('Password must be at least 6 characters.','error');return;}
     try{
-      const res=await fetch('http://localhost/SIA/api/auth.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'register',name,email,password,role})});
+      const res=await fetch('http://localhost/SIA/api/auth.php',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'register',name,email,password})});
       const data=await parseApiResponse(res);
       if(!res.ok||!data.success)throw new Error(data.error||'Account creation failed.');
       const u={id:String(data.user.id),name:data.user.full_name,email:data.user.email,role:data.user.role};
@@ -543,6 +549,9 @@ const Studio={
     Studio.goto(fallback||'dashboard');
   },
   goto(page,arg){
+    if(page==='tasks'&&DB.currentUser?.role==='editor'){
+      page='dashboard';
+    }
     const routes={
       dashboard:'../dashboard/dashboard.html',
       projects:'../projects/projects.html',
@@ -550,6 +559,11 @@ const Studio={
       completedProjects:'../completed-projects/completed-projects.html',
       assets:'../assets/assets.html',
       assetDetail:'../assets/assets.html',
+      tracker:'../projects/projects.html',
+      shotTracker:'../projects/projects.html',
+      editorSequences:'../projects/projects.html',
+      schedule:'../projects/projects.html',
+      feedback:'../projects/projects.html',
       review:'../review/review.html',
       notifications:'../notifications/notifications.html',
       integrations:'../integrations/integrations.html',
@@ -563,11 +577,19 @@ const Studio={
     if(page==='projectDetail'&&arg)url.searchParams.set('project',arg);
     if(page==='assetDetail'&&arg)url.searchParams.set('asset',arg);
     if(page==='assets'&&arg)url.searchParams.set('status',arg);
+    if(['tracker','schedule','feedback','shotTracker','editorSequences'].includes(page)){
+      url.searchParams.set('workspace',page);
+    }
     const sidebarPages=[
       'dashboard',
       'projects',
       'completedProjects',
       'assets',
+      'tracker',
+      'shotTracker',
+      'editorSequences',
+      'schedule',
+      'feedback',
       'review',
       'notifications',
       'integrations',
@@ -669,6 +691,21 @@ async function loadAssetsFromDB(){
       return false;
     }
     DB.assets=data.state.assets.map(withVersions);
+    const serverComments=DB.assets.flatMap(asset=>
+      (asset.comments||[]).map(comment=>({
+        ...comment,
+        asset:String(asset.id)
+      }))
+    );
+    if(DB.currentUser?.role==='client'){
+      DB.comments=serverComments;
+    }else{
+      const serverCommentIds=new Set(serverComments.map(comment=>String(comment.id)));
+      DB.comments=[
+        ...DB.comments.filter(comment=>!serverCommentIds.has(String(comment.id))),
+        ...serverComments
+      ];
+    }
     return true;
   }catch(e){
     console.warn('Assets sync unavailable:',e);
@@ -729,6 +766,7 @@ async function loadNotificationsFromDB(){
   }
 }
 async function loadProjectsFromDB(){
+  DB.projects=[];
   try{
     const response=await fetch(
       '/SIA/api/projects.php',
@@ -743,13 +781,14 @@ async function loadProjectsFromDB(){
       !data.success||
       !Array.isArray(data.projects)
     ){
+      console.warn('Projects unavailable for the current account; hiding cached project data.');
       return false;
     }
     DB.projects=data.projects;
     return true;
   }catch(error){
     console.warn(
-      'Projects sync unavailable:',
+      'Projects unavailable for the current account; hiding cached project data:',
       error
     );
     return false;
@@ -759,6 +798,7 @@ window.BEE_SERVER_READY=loadServerState();
 window.BEE_SERVER_READY.then(async()=>{
   await loadProjectsFromDB();
   await loadAssetsFromDB();
+  await loadAnimationShotsFromDB();
   await loadResourcesFromDB();
   await loadNotificationsFromDB();
   if(typeof render==='function'&&document.body?.dataset.page!=='login'){
@@ -769,25 +809,82 @@ window.BEE_SERVER_READY.then(async()=>{
 const NAV=[
   {section:'Workspace'},
   {key:'dashboard',label:'Dashboard',icon:'⌂'},
-  {key:'projects',label:'Projects',icon:'▤'},
-  {key:'assets',label:'Assets',icon:'▥'},
-  {section:'Review & Collaboration'},
-  {key:'review',label:'Review Queue',icon:'✓',badgeFn:()=>(DB.assets||[]).filter(a=>a&&latestVersion(a)?.status==='For Review').length},
-  {key:'completedProjects',label:'Completed Projects',icon:'☑'},
+  {key:'projects',label:'Projects',icon:'▤',perm:'viewProjects'},
+  {key:'assets',label:'Assets',icon:'▥',perm:'viewAssets'},
+  {section:'Review & Collaboration',hideFor:['admin','project_manager','animator','editor','client']},
+  {key:'completedProjects',label:'Completed Projects',icon:'☑',perm:'viewCompletedProjects'},
   {section:'Management',hideFor:['client','animator']},
   {key:'integrations',label:'Integration Hub',icon:'⇄',perm:'runIntegrations'},
   {key:'resources',label:'Resources & Budget',icon:'₱',perm:'manageResources'},
   {key:'audit',label:'Audit Log',icon:'≡',perm:'viewAudit'},
   {key:'users',label:'Team & Roles',icon:'☺',perm:'manageUsers'},
 ];
+const EDITOR_NAV=[
+  {key:'dashboard',label:'Dashboard',icon:'⌂'},
+  {key:'projects',label:'My Projects',icon:'▤',perm:'viewProjects'},
+  {key:'tracker',label:'Tracker',icon:'◷',perm:'viewProjects'},
+  {key:'editorSequences',label:'Sequence Editor',icon:'▤',perm:'viewProjects'},
+  {key:'schedule',label:'Schedule',icon:'▦',perm:'viewProjects'},
+  {key:'assets',label:'Assets',icon:'▥',perm:'viewAssets'},
+  {key:'feedback',label:'Feedback',icon:'▱',perm:'viewProjects'},
+];
+const ANIMATOR_NAV=[
+  {key:'dashboard',label:'Dashboard',icon:'⌂'},
+  {key:'projects',label:'My Projects',icon:'▤',perm:'viewProjects'},
+  {key:'tracker',label:'Tracker',icon:'◷',perm:'viewProjects'},
+  {key:'schedule',label:'Schedule',icon:'▦',perm:'viewProjects'},
+  {key:'assets',label:'Assets',icon:'▥',perm:'viewAssets'},
+  {key:'feedback',label:'Feedback',icon:'▱',perm:'viewProjects'},
+  {key:'shotTracker',label:'Studio Galeria',icon:'▧',perm:'viewProjects'},
+];
 function renderSidebar(){
+  if(DB.currentUser?.role==='editor'&&state.page==='tasks'){
+    state.page='dashboard';
+  }
+  const pagePermissions={
+    projects:'viewProjects',
+    projectDetail:'viewProjects',
+    tracker:'viewProjects',
+    schedule:'viewProjects',
+    feedback:'viewProjects',
+    shotTracker:'viewProjects',
+    editorSequences:'viewProjects',
+    completedProjects:'viewCompletedProjects',
+    assets:'viewAssets',
+    assetDetail:'viewAssets',
+    users:'manageUsers',
+    resources:'manageResources',
+    audit:'viewAudit',
+    integrations:'runIntegrations',
+  };
+  const requiredPermission=pagePermissions[state.page];
+  if(requiredPermission&&!can(requiredPermission)){
+    state.page='dashboard';
+  }
+  if(state.page==='shotTracker'&&DB.currentUser?.role!=='animator'){
+    state.page='dashboard';
+  }
+  if(state.page==='editorSequences'&&DB.currentUser?.role!=='editor'){
+    state.page='dashboard';
+  }
+  if(
+    ['tracker','schedule','feedback'].includes(state.page)&&
+    !['editor','animator'].includes(DB.currentUser?.role)
+  ){
+    state.page='dashboard';
+  }
   const demoUsers=document.getElementById('demoUsers');
   if(demoUsers)demoUsers.innerHTML=DB.users.slice(0,8).map(u=>
     '<button class="demo-card" onclick="Studio.quickLogin(\''+u.id+'\')"><b>'+esc(u.name)+'</b><span style="color:var(--'+(ROLE_COLOR_VAR[u.role]||'text-faint')+');">'+ROLE_LABELS[u.role]+'</span></button>'
   ).join('');
   const navlist=document.getElementById('navlist');
+  const navigation=DB.currentUser?.role==='editor'
+    ?EDITOR_NAV
+    :DB.currentUser?.role==='animator'
+      ?ANIMATOR_NAV
+      :NAV;
   if(navlist){
-    const list=NAV.filter(n=>
+    const list=navigation.filter(n=>
       (!n.hideFor||!DB.currentUser||!n.hideFor.includes(DB.currentUser.role))&&
       (n.section||!n.perm||can(n.perm))
     );
@@ -808,9 +905,9 @@ function renderSidebar(){
     if(role)role.textContent=ROLE_LABELS[DB.currentUser.role]||DB.currentUser.role;
   }
   const TOPBAR_ONLY_TITLES={notifications:'Notifications',architecture:'System Architecture'};
-  const current=NAV.find(n=>n.key===state.page)||
-    NAV.find(n=>state.page==='projectDetail'&&n.key==='projects')||
-    NAV.find(n=>state.page==='assetDetail'&&n.key==='assets')||
+  const current=navigation.find(n=>n.key===state.page)||
+    navigation.find(n=>state.page==='projectDetail'&&n.key==='projects')||
+    navigation.find(n=>state.page==='assetDetail'&&n.key==='assets')||
     (TOPBAR_ONLY_TITLES[state.page]?{key:state.page,label:TOPBAR_ONLY_TITLES[state.page]}:null)||
     NAV.find(n=>n.key==='dashboard')||{label:'Overview',key:'overview'};
   const topEyebrow=document.getElementById('topEyebrow');
@@ -870,11 +967,22 @@ Object.assign(Studio,{
           .getElementById('npBudget')
           .value
       )||0;
+    const projectManagerId=
+      document.getElementById('npProjectManager')?.value||
+      (DB.currentUser.role==='project_manager'?DB.currentUser.id:'');
+    const editorId=
+      document.getElementById('nEditor')?.value||'';
+    const animatorId=
+      document.getElementById('npAnimator')?.value||'';
     if(!name||!clientId||!client){
       toast(
         'Project name and client are required.',
         'error'
       );
+      return;
+    }
+    if(!projectManagerId){
+      toast('Select a project manager.','error');
       return;
     }
     const todayISO=
@@ -911,7 +1019,10 @@ Object.assign(Studio,{
         client,
         clientId,
         deadline,
-        budget
+        budget,
+        projectManagerId,
+        editorId,
+        animatorId
       )
     });
   },
@@ -920,7 +1031,10 @@ Object.assign(Studio,{
     client,
     clientId,
     deadline,
-    budget
+    budget,
+    projectManagerId,
+    editorId,
+    animatorId
   ){
     // existing code continues here
     const project={
@@ -929,7 +1043,9 @@ Object.assign(Studio,{
       client_id:clientId,
       status:'Pre-Production',
       deadline:deadline||null,
-      project_manager_id:null,
+      project_manager_id:projectManagerId,
+      editor_id:editorId||null,
+      animator_id:animatorId||null,
       budget:budget
     };
     fetch('http://localhost/SIA/api/projects.php',{
@@ -960,11 +1076,48 @@ Object.assign(Studio,{
       toast('An error occurred while creating this project.','error');
     });
   },
+  async updateProjectAssignments(projectId){
+    if(!can('manageProjects'))return;
+    const project=projectById(projectId);
+    if(!project)return;
+    const clientSelect=document.getElementById('projectClientAssignment');
+    const payload={
+      action:'assign_team',
+      project_id:projectId,
+      project_manager_id:
+        document.getElementById('projectManagerAssignment')?.value||
+        project.pm||
+        project.project_manager_id,
+      editor_id:document.getElementById('projectEditorAssignment')?.value||'',
+      animator_id:document.getElementById('projectAnimatorAssignment')?.value||'',
+      client_id:clientSelect?clientSelect.value:(project.client_id||'')
+    };
+    try{
+      const response=await fetch('../api/projects.php',{
+        method:'POST',
+        credentials:'include',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify(payload)
+      });
+      const data=await parseApiResponse(response);
+      if(!response.ok||!data.success){
+        toast(data.message||'Could not update project assignments.','error');
+        return;
+      }
+      Object.assign(project,data.project);
+      Studio.persist();
+      render();
+      toast('Project assignments updated.','success');
+    }catch(error){
+      console.error('Project assignment update error:',error);
+      toast('Could not connect to the server.','error');
+    }
+  },
 });
 /* ===== ASSET ACTIONS: js/actions/assets.js ===== */
 Object.assign(Studio,{
   async submitAsset(){
-    if(!can('submitAssets')){
+    if(!can('uploadAsset')){
       toast('Your role cannot submit assets.','error');
       return;
     }
@@ -974,11 +1127,19 @@ Object.assign(Studio,{
     const type=document.getElementById('saType').value;
     const notes=document.getElementById('saNotes').value.trim();
     const link=document.getElementById('saLink').value.trim();
+    const file=document.getElementById('saFile')?.files?.[0]||null;
+    const dueDate=document.getElementById('saDueDate')?.value||'';
     const assignedEditor =
       document.getElementById('saAssignedEditor')?.value || '';
 
     const assignedAnimator =
       document.getElementById('saAssignedAnimator')?.value || '';
+    const sequenceId =
+      new URLSearchParams(window.location.search).get('sequence') || '';
+    if(file&&link){
+      toast('Use either an external link or an attached file, not both.','error');
+      return;
+    }
     if(existingId!=='new'){
       if(!existingId){
         toast('Please select an existing asset.','error');
@@ -989,12 +1150,16 @@ Object.assign(Studio,{
         title:'Submit new version?',
         body:'A new version will be added to “'+esc(existingAsset?existingAsset.title:existingId)+'” and set to For Review.',
         confirmLabel:'Submit version',
-        onConfirm:()=>Studio._doSubmitVersion(existingId,notes)
+        onConfirm:()=>Studio._doSubmitVersion(existingId,notes,link,file)
       });
       return;
     }
     if(!title || !project){
       toast('Title and project are required.','error');
+      return;
+    }
+    if(dueDate&&dueDate<(document.getElementById('saDueDate')?.min||'')){
+      toast('Due date cannot be in the past.','error');
       return;
     }
     Studio.openConfirm({
@@ -1007,18 +1172,26 @@ Object.assign(Studio,{
         type,
         link,
         notes,
+        dueDate,
+        file,
         assignedEditor,
-      assignedAnimator
-    )
+        assignedAnimator,
+        sequenceId
+      )
     });
   },
-  async _doSubmitVersion(existingId,notes){
+  async _doSubmitVersion(existingId,notes,link='',file=null){
     try{
+      const body=new FormData();
+      body.append('action','version');
+      body.append('asset_id',existingId);
+      body.append('notes',notes);
+      body.append('link',link);
+      if(file)body.append('asset_file',file);
       const response=await fetch('/SIA/api/assets.php',{
         method:'POST',
         credentials:'include',
-        headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({action:'version',asset_id:existingId,notes:notes})
+        body
       });
       const data=await response.json();
       if(!response.ok||!data.success){
@@ -1029,6 +1202,10 @@ Object.assign(Studio,{
       if(asset){
         asset.versions=asset.versions||[];
         asset.versions.push(data.version);
+        if(data.link){
+          asset.link=data.link;
+          asset.external_link=data.link;
+        }
       }
       const v=data.version;
       pushAudit('Upload',asset?asset.title:existingId,'Submitted v'+v.n+' (auto-status: For Review)');
@@ -1047,23 +1224,28 @@ Object.assign(Studio,{
     type,
     link,
     notes,
+    dueDate,
+    file,
     assignedEditor,
-    assignedAnimator
+    assignedAnimator,
+    sequenceId
   ){
     try{
+      const body=new FormData();
+      body.append('project_id',project);
+      body.append('title',title);
+      body.append('type',type);
+      body.append('external_link',link);
+      body.append('due_date',dueDate);
+      body.append('notes',notes);
+      body.append('assigned_editor',assignedEditor);
+      body.append('assigned_animator',assignedAnimator);
+      if(sequenceId)body.append('sequence_id',sequenceId);
+      if(file)body.append('asset_file',file);
       const response=await fetch('/SIA/api/assets.php',{
         method:'POST',
         credentials:'include',
-        headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({
-          project_id:project,
-          title:title,
-          type:type,
-          external_link:link,
-          notes:notes,
-          assigned_editor:assignedEditor,
-          assigned_animator:assignedAnimator
-        })
+        body
       });
       const data=await response.json();
       if(!response.ok||!data.success){
@@ -1090,7 +1272,15 @@ Object.assign(Studio,{
 /* ===== REVIEW ACTIONS: js/actions/review.js ===== */
 Object.assign(Studio,{
   reviewAsset(assetId,decision){
-    if(!can('review')){toast('Your role cannot review assets.','error');return;}
+    const decisionPermission={
+      approve:'approveAsset',
+      revise:'requestRevision',
+      reject:'rejectAsset',
+    }[decision];
+    if(DB.currentUser?.role!=='client'||!decisionPermission||!can(decisionPermission)){
+      toast('Your role cannot perform this review decision.','error');
+      return;
+    }
     const asset=assetById(assetId);
     if(!asset){
       console.error('Asset not found for review:',assetId,DB.assets);
@@ -1098,58 +1288,40 @@ Object.assign(Studio,{
       return;
     }
     const v=latestVersion(asset);
-    const commentBox=document.getElementById('reviewComment');
-    const text=commentBox?commentBox.value.trim():'';
-    const markFinal=document.getElementById('markFinal');
-    const asFinal=markFinal?markFinal.checked:false;
-    if(decision==='approve'){
-      v.status=asFinal?'Final':'Approved';
-      pushAudit('Approval',asset.title,'v'+v.n+(asFinal?' approved as FINAL':' approved'));
-      pushEvent(asFinal?'Final Output Approved':'Asset Approved',{asset:asset.title,version:'v'+v.n,by:DB.currentUser.name});
-      DB.webhooks.push({id:nid('w'),endpoint:'https://hooks.beeproduction.studio/asset-approved',status:200,payload:JSON.stringify({asset:asset.title,version:'v'+v.n,final:asFinal}),date:new Date().toISOString()});
-      fetch('http://localhost/SIA/api/integration_webhooks.php',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({asset_id:asset.id,endpoint:'https://hooks.beeproduction.studio/asset-approved',event_type:'asset-approved',status_code:200,payload:{asset:asset.title,version:'v'+v.n,final:asFinal}})}).catch(e=>console.error('Webhook log error:',e));
-      pushNotif('approval',(asFinal?'“'+asset.title+'” was approved as Final Output.':'“'+asset.title+'” v'+v.n+' was approved.'),asset.id);
-      toast(asFinal?'Marked as Final Output. Webhook fired.':'Approved. Webhook fired to production dashboard.','success');
-    }else if(decision==='reject'){
-      v.status='Rejected';
-      pushAudit('Rejection',asset.title,'v'+v.n+' rejected');
-      pushEvent('Asset Rejected',{asset:asset.title,version:'v'+v.n,by:DB.currentUser.name});
-      pushNotif('revision','“'+asset.title+'” v'+v.n+' was rejected.',asset.id);
-      toast('Marked as rejected.','error');
-    }else if(decision==='revise'){
-      v.status='Revision Requested';
-      pushAudit('Revision',asset.title,'v'+v.n+' — revision requested');
-      pushEvent('Revision Requested',{asset:asset.title,version:'v'+v.n,by:DB.currentUser.name});
-      pushNotif('revision','Revision requested on “'+asset.title+'” v'+v.n+'.',asset.id);
-      toast('Revision requested.','success');
+    if(v.status!=='For Review'){
+      toast('This asset is not currently awaiting a client decision.','error');
+      return;
     }
-    if(text){
-      DB.comments.push({id:nid('c'),asset:asset.id,by:DB.currentUser.id,text,date:new Date().toISOString().slice(0,10)});
-    }
-    if(typeof render==='function')render();
-    Studio.persist();
-    fetch('http://localhost/SIA/api/assets.php',{
+    const currentStatus=v.status;
+    const nextStatus=decision==='approve'
+      ?'Approved'
+      :decision==='revise'?'Revision Requested':'Rejected';
+    fetch('/SIA/api/assets.php',{
       method:'PUT',
       credentials:'include',
-      headers:{
-        'Content-Type':'application/json'
-      },
+      headers:{'Content-Type':'application/json'},
       body:JSON.stringify({
         asset_id:asset.id,
         version:v.n,
-        status:v.status,
+        status:nextStatus,
         approved_by:DB.currentUser.name
       })
     })
-    .then(response=>parseApiResponse(response))
-    .then(async data=>{
-      if(!data.success){
-        console.error('Failed to update asset status:',data);
+    .then(response=>parseApiResponse(response).then(data=>({response,data})))
+    .then(async ({response,data})=>{
+      if(!response.ok||!data.success){
+        throw new Error(data.error||'Unable to save your decision.');
       }
-      
+      v.status=nextStatus;
+      if(typeof loadAssetsFromDB==='function'){
+        await loadAssetsFromDB();
+      }
+      if(typeof render==='function')render();
+      toast(decision==='approve'?'Output approved.':decision==='revise'?'Changes requested.':'Output rejected.',decision==='reject'?'error':'success');
     })
     .catch(error=>{
-      console.error('Asset status update error:',error);
+      console.error('Asset decision error:',error);
+      toast(error.message||'Unable to save your decision.','error');
     });
   },
   quickApprove(assetId){
@@ -1161,15 +1333,40 @@ Object.assign(Studio,{
 /* ===== FEEDBACK ACTIONS: js/actions/feedback.js ===== */
 Object.assign(Studio,{
   addComment(assetId){
-    if(!can('comment'))return;
+    if(!can('commentAsset')){
+      toast('Your role cannot add feedback to this asset.','error');
+      return;
+    }
     const box=document.getElementById('newComment');
-    const text=box.value.trim();
-    if(!text)return;
-    DB.comments.push({id:nid('c'),asset:assetId,by:DB.currentUser.id,text,date:new Date().toISOString().slice(0,10)});
-    box.value='';
-    pushAudit('Comment',assetById(assetId).title,'Feedback added');
-    if(typeof render==='function')render();
-    Studio.persist();
+    const asset=assetById(assetId);
+    const text=box?.value.trim()||'';
+    if(!asset||!text){
+      if(!asset)toast('Asset could not be found. Please refresh the page.','error');
+      return;
+    }
+    fetch('/SIA/api/assets.php',{
+      method:'POST',
+      credentials:'include',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({action:'comment',asset_id:asset.id,comment:text})
+    })
+    .then(response=>parseApiResponse(response).then(data=>({response,data})))
+    .then(({response,data})=>{
+      if(!response.ok||!data.success||!data.comment){
+        throw new Error(data.error||'Failed to save feedback.');
+      }
+      const comment={...data.comment,asset:String(asset.id)};
+      asset.comments=Array.isArray(asset.comments)?asset.comments:[];
+      asset.comments.push(comment);
+      DB.comments.push(comment);
+      box.value='';
+      if(typeof render==='function')render();
+      toast('Feedback added.','success');
+    })
+    .catch(error=>{
+      console.error('Asset feedback save error:',error);
+      toast(error.message||'Unable to save feedback.','error');
+    });
   },
   async markRead(notificationId){
     try{
@@ -1420,19 +1617,43 @@ Object.assign(Studio,{
 /* ===== RESOURCE ACTIONS: js/actions/resources.js ===== */
 /* ===== USER ACTIONS: js/actions/users.js ===== */
 Object.assign(Studio,{
-  addUser(){
+  async addUser(){
     if(!can('manageUsers'))return;
     const name=document.getElementById('umName').value.trim();
     const role=document.getElementById('umRole').value;
+    const email=document.getElementById('umEmail').value.trim();
+    const password=document.getElementById('umPassword').value;
     if(!name){toast('Enter a name.','error');return;}
     if(!NAME_RE.test(name)){toast('Name can only contain letters, spaces, hyphens, and apostrophes.','error');return;}
-    const u={id:nid('u'),name,role};
-    DB.users.push(u);
-    pushAudit('User',name,'Added to team as '+ROLE_LABELS[role]);
-    toast('Team member added.','success');
-    document.getElementById('umName').value='';
-    if(typeof render==='function')render();
-    Studio.persist();
+    if(!email||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){toast('Enter a valid email.','error');return;}
+    if(password.length<6){toast('Password must be at least 6 characters.','error');return;}
+    const button=document.getElementById('umAddButton');
+    if(button)button.disabled=true;
+    try{
+      const response=await fetch('../api/auth.php',{
+        method:'POST',
+        credentials:'include',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({action:'create_team_member',name,email,password,role})
+      });
+      const data=await parseApiResponse(response);
+      if(!response.ok||!data.success)throw new Error(data.error||'Unable to add team member.');
+      const u={id:String(data.user.id),name:data.user.full_name,email:data.user.email,role:data.user.role};
+      const existing=DB.users.find(user=>String(user.id)===u.id);
+      if(existing)Object.assign(existing,u);
+      else DB.users.push(u);
+      pushAudit('User',name,'Added to team as '+ROLE_LABELS[role]);
+      toast('Team member added.','success');
+      document.getElementById('umName').value='';
+      document.getElementById('umEmail').value='';
+      document.getElementById('umPassword').value='';
+      if(typeof render==='function')render();
+      Studio.persist();
+    }catch(error){
+      toast(error.message||'Unable to add team member.','error');
+    }finally{
+      if(button)button.disabled=false;
+    }
   },
   changeRole(uid,role){
     const u=userById(uid);if(!u)return;

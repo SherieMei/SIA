@@ -51,7 +51,7 @@ function isCompletedProject(p){
 }
 function pageResources(){
   return `
-      <div style="display:flex;align-items:center;gap:10px;"><button type="button" title="Back" aria-label="Go back" onclick="Studio.goBack('dashboard')" style="border:none;background:none;padding:0;color:var(--text-muted);font-size:24px;cursor:pointer;">&larr;</button><div class="section-title">Resources & Budget</div></div>
+      <div style="display:flex;align-items:center;gap:10px;"><button type="button" class="klay-back-btn" title="Go back" aria-label="Go back" onclick="Studio.goBack('dashboard')">←</button><div class="section-title">Resources & Budget</div></div>
     <div class="proj-grid" style="margin-top:18px;">
       ${DB.projects
   .filter(p => !resourceProjectIsFinished(p))

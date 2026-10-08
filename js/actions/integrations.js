@@ -1,5 +1,5 @@
 /* ==========================================================================
-   INTEGRATION ACTIONS — API sync simulation + CSV/ETL import.
+   INTEGRATION ACTIONS — API sync simulation + CSV/JSON ETL import.
    ========================================================================== */
 Object.assign(Studio, {
 
@@ -115,98 +115,89 @@ Object.assign(Studio, {
 },  
 async runETL(){
 
-  const raw =
-    document
-      .getElementById('etlInput')
-      .value
-      .trim();
+  const input=document.getElementById('etlInput');
+  const error=document.getElementById('etlError');
+  const raw=input?.value.trim()||'';
 
   const log =
     document.getElementById('etlLog');
 
+  const showValidationError=message=>{
+    if(error)error.textContent=message;
+    else toast(message,'error');
+  };
+  if(error)error.textContent='';
+
   if(!raw){
 
-    toast(
-      'Paste or keep the sample CSV first.',
-      'error'
-    );
+    showValidationError('Paste CSV data in the format shown above.');
 
     return;
   }
 
-  const lines =
-    raw
-      .split('\n')
-      .map(line => line.trim())
-      .filter(Boolean);
+  let rows;
+  if(raw.startsWith('{')||raw.startsWith('[')){
+    try{
+      const parsed=JSON.parse(raw);
+      rows=Array.isArray(parsed)
+        ?parsed
+        :Array.isArray(parsed.rows)
+          ?parsed.rows
+          :[parsed];
+    }catch{
+      showValidationError('That JSON is invalid. Paste one asset object or an array of asset objects.');
+      return;
+    }
+    if(!rows.length||rows.some(row=>!row||Array.isArray(row)||typeof row!=='object')){
+      showValidationError('JSON must contain one or more asset objects.');
+      return;
+    }
+    rows=rows.map(row=>{
+      const title=row.title??row.asset;
+      return {
+        ...row,
+        title:typeof title==='string'||typeof title==='number'?String(title):'',
+        project:typeof row.project==='string'||typeof row.project==='number'?String(row.project):''
+      };
+    });
+  }else{
+    const lines =
+      raw
+        .split('\n')
+        .map(line => line.trim())
+        .filter(Boolean);
 
-  if(lines.length < 2){
+    if(lines.length < 2){
+      showValidationError('CSV needs a header row and at least one data row.');
+      return;
+    }
 
-    toast(
-      'Add at least one CSV data row.',
-      'error'
-    );
+    const header =
+      lines[0]
+        .split(',')
+        .map(h => h.trim().toLowerCase());
 
-    return;
+    const missingHeaders =
+      ['title','project'].filter(h=>!header.includes(h));
+
+    if(missingHeaders.length){
+      showValidationError('CSV must include these columns: title, project.');
+      return;
+    }
+
+    rows=lines.slice(1).map(line=>{
+      const cells=line.match(/(".*?"|[^,]+)/g)||[];
+      const clean=cells.map(cell=>cell.replace(/^"|"$/g,'').trim());
+      const record={};
+      header.forEach((name,index)=>{record[name]=clean[index]||'';});
+      return record;
+    });
   }
 
-  const header =
-    lines[0]
-      .split(',')
-      .map(h =>
-        h.trim().toLowerCase()
-      );
-
-  const requiredHeaders = [
-    'title',
-    'project'
-  ];
-
-  const missingHeaders =
-    requiredHeaders.filter(
-      h => !header.includes(h)
-    );
-
-  if(missingHeaders.length){
-
-    toast(
-      'CSV must include: title, project',
-      'error'
-    );
-
+  if(rows.some(row=>typeof row.title!=='string'||!row.title.trim()||typeof row.project!=='string'||!row.project.trim())){
+    showValidationError('Every row must include a title (or asset) and an existing project name.');
     return;
   }
-
-  const rows =
-    lines
-      .slice(1)
-      .map(line => {
-
-        const cells =
-          line.match(/(".*?"|[^,]+)/g)
-          || [];
-
-        const clean =
-          cells.map(cell =>
-            cell
-              .replace(/^"|"$/g, '')
-              .trim()
-          );
-
-        const record = {};
-
-        header.forEach(
-          (name, index) => {
-
-            record[name] =
-              clean[index] || '';
-
-          }
-        );
-
-        return record;
-
-      });
 
   try {
 

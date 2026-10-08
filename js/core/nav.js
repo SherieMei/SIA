@@ -6,13 +6,7 @@
 const Studio = {
 
   manualLogin(){
-    const name = document.getElementById('loginName').value.trim();
-    const role = document.getElementById('loginRole').value;
-    if(!name){ toast('Enter a name to sign in.','error'); return; }
-    let u = DB.users.find(x=>x.name.toLowerCase()===name.toLowerCase());
-    if(!u){ u = {id:nid('u'), name, role}; DB.users.push(u); }
-    else { u.role = role; }
-    Studio.completeLogin(u);
+    toast('Use your registered email and password to sign in.','error');
   },
   quickLogin(id){
     const u = userById(id);
