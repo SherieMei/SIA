@@ -16,7 +16,7 @@ export function createTrashHandler({ auth, db }) {
       const bearer=req.headers.authorization?.match(/^Bearer (.+)$/)?.[1];if(!bearer)throw failure('Sign in first.',401);
       let token;try{token=await auth.verifyIdToken(bearer,true);}catch{throw failure('Sign in again.',401);}
       const me=(await db.collection('app_users').doc(token.uid).get()).data();
-      if(!me||me.disabled||!['admin','project_manager'].includes(me.role)||(me.verification_required&&!token.email_verified))throw failure('Access denied.',403);
+      if(!me||me.disabled||me.role!=='admin'||(me.verification_required&&!token.email_verified))throw failure('Only Administrators can manage Trash.',403);
       const body=typeof req.body==='string'?JSON.parse(req.body):req.body||{};
       const {action,type}=body;if(!['user','project','asset'].includes(type))throw failure('Invalid item type.');
       if(type==='user'&&me.role!=='admin')throw failure('Only Admin can manage deleted users.',403);

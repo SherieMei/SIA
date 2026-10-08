@@ -111,6 +111,7 @@ async function saveProject(user, method, input) {
   requireRoles(user, ['admin', 'project_manager']);
   const id = String(input.project_id || input.id || uuid('p'));
   const previous = input.project_id || input.id ? await projectFor(user, id) : {};
+  if (!previous.id && user.role !== 'admin') throw fail('Only Administrators can create projects.', 403);
   const assignments = await teamFields(user, input, previous);
   if (previous.id && !previous.access_ids?.includes(user.id) && ['pm','artist_id','animator_id','client_id'].some(key => assignments[key] !== previous[key])) throw fail('Only an assigned project manager or administrator can change this project team.', 403);
   const project = { ...previous, ...assignments, id,

@@ -26,17 +26,22 @@ try{
  await call(admin,{action:'delete',type:'user',id:admin.uid},403);
  await put('projects',id+'-other',{id:id+'-other',name:'Other project',pm:'another-pm',access_ids:[]});
  await call(pm,{action:'delete',type:'project',id:id+'-other'},403);
- await call(pm,{action:'delete',type:'asset',id});
+ await call(pm,{action:'delete',type:'asset',id},403);
+ await call(pm,{action:'list',type:'asset'},403);
+ await call(admin,{action:'delete',type:'asset',id});
  assert.equal((await db.collection('assets').doc(id).get()).exists,false);
- let row=(await call(pm,{action:'list',type:'asset'})).items.find(x=>x.item_id===id);assert.ok(row);
+ let row=(await call(admin,{action:'list',type:'asset'})).items.find(x=>x.item_id===id);assert.ok(row);
  await call(pm,{action:'purge',type:'asset',trash_id:row.id},403);
- await call(pm,{action:'recover',type:'asset',trash_id:row.id});
+ await call(pm,{action:'recover',type:'asset',trash_id:row.id},403);
+ await call(admin,{action:'recover',type:'asset',trash_id:row.id});
  assert.equal((await db.collection('asset_versions').doc(id).get()).data().version_number,4);
  assert.equal((await db.collection('asset_versions').doc(id).get()).data().status,'Approved');
- await call(pm,{action:'delete',type:'project',id});
+ await call(pm,{action:'delete',type:'project',id},403);
+ await call(admin,{action:'delete',type:'project',id});
  for(const path of ['projects','client_projects','assets','asset_versions','client_assets','comments','resources'])assert.equal((await db.collection(path).doc(id).get()).exists,false,path);
- row=(await call(pm,{action:'list',type:'project'})).items.find(x=>x.item_id===id);assert.ok(row);
- await call(pm,{action:'recover',type:'project',trash_id:row.id});
+ row=(await call(admin,{action:'list',type:'project'})).items.find(x=>x.item_id===id);assert.ok(row);
+ await call(pm,{action:'recover',type:'project',trash_id:row.id},403);
+ await call(admin,{action:'recover',type:'project',trash_id:row.id});
  assert.equal((await db.collection('resources').doc(id).get()).data().cost,750);
  assert.equal((await db.collection('comments').doc(id).get()).data().message,'Keep history');
  await call(admin,{action:'delete',type:'user',id:editor.uid});assert.equal((await auth.getUser(editor.uid)).disabled,true);
@@ -44,7 +49,7 @@ try{
  row=(await call(admin,{action:'list',type:'user'})).items.find(x=>x.item_id===editor.uid);assert.ok(row);assert.equal('item_data' in row,false);
  await call(admin,{action:'recover',type:'user',trash_id:row.id});assert.equal((await auth.getUser(editor.uid)).disabled,false);
  await call(admin,{action:'delete',type:'user',id:editor.uid});row=(await call(admin,{action:'list',type:'user'})).items.find(x=>x.item_id===editor.uid);await call(admin,{action:'purge',type:'user',trash_id:row.id});await assert.rejects(auth.getUser(editor.uid));
- console.log('PASS: project/asset archive and full recovery, v4 approval preserved, disabled user access, account recovery, permanent deletion and role restrictions.');
+ console.log('PASS: Admin-only project/asset Trash, full recovery, v4 approval preserved, disabled user access, account recovery, and permanent deletion.');
 }finally{
  for(const path of paths)await db.doc(path).delete();
  for(const uid of uids)try{await auth.deleteUser(uid);}catch(e){if(e.code!=='auth/user-not-found')throw e;}

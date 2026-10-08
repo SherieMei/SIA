@@ -397,7 +397,7 @@ function pageProjects(){
       </div>
 
       ${
-        can('manageProjects')
+        DB.currentUser?.role === 'admin'
           ? `
             <button
               class="btn btn-primary"
@@ -413,7 +413,7 @@ function pageProjects(){
 
 
     ${
-      can('manageProjects')
+      DB.currentUser?.role === 'admin'
         ? `
           <div
             id="newProjectForm"
@@ -733,7 +733,7 @@ ${
         >
           Finish project
         </button>
-        ${DB.currentUser.role==='admin'||p.pm===DB.currentUser.id ? `<button type="button" class="btn btn-danger btn-sm" onclick="event.stopPropagation();Studio.deleteProject('${esc(p.id)}')">✕ Delete</button>` : ''}
+        ${DB.currentUser.role==='admin' ? `<button type="button" class="btn btn-danger btn-sm" onclick="event.stopPropagation();Studio.deleteProject('${esc(p.id)}')">✕ Delete</button>` : ''}
       </div>
     `
     : ''

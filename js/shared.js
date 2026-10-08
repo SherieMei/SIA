@@ -1736,14 +1736,14 @@ Studio.deleteTrashUser = id=>Studio.trashAction('purge','user',id);
 Studio.loadTrashPanel = async function(){
   const page=document.body?.dataset.page;
   const type={users:'user',projects:'project',assets:'asset'}[page];
-  if(!type||!DB.currentUser||!['admin','project_manager'].includes(DB.currentUser.role)||(type==='user'&&DB.currentUser.role!=='admin'))return;
+  if(!type||DB.currentUser?.role!=='admin')return;
   const content=document.getElementById('pageContent');if(!content)return;
   const previous=document.getElementById('firebaseTrashPanel');
   const panel=previous||document.createElement('section');panel.id='firebaseTrashPanel';panel.className=type==='project'?'project-trash-section':'card';panel.style.cssText=type==='project'?'margin-top:32px;':'padding:20px;margin-top:20px;';
   if(!previous){panel.innerHTML='<h3>Trash</h3><p>Loading deleted items…</p>';content.append(panel);}
   try{
     const data=await Studio.trashRequest({action:'list',type});if(!panel.isConnected)return;
-    const active=type==='asset'?DB.assets.filter(item=>DB.currentUser.role==='admin'||projectById(item.project_id||item.project)?.pm===DB.currentUser.id):[];
+    const active=type==='asset'?DB.assets:[];
     panel.innerHTML=`<div class="trash-section-heading"><h3>${type==='user'?'Deleted accounts':type==='project'?'Recently Deleted':'Deleted assets'}</h3>${type==='project'?'<button type="button" class="btn btn-sm" id="trashRefreshButton">Refresh</button>':''}</div>
       ${active.length?`<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;"><select id="trashActiveItem" aria-label="Choose ${type} to move to Trash"><option value="">Select ${type}</option>${active.map(item=>`<option value="${esc(String(item.id))}">${esc(item.name||item.title||item.asset_title||String(item.id))}</option>`).join('')}</select><button type="button" class="btn btn-danger btn-sm" id="trashMoveButton">Move to Trash</button></div>`:''}
       <div class="${type==='project'?'project-trash-list':''}">${data.items.length?data.items.map(item=>`<div style="padding:14px 0;border-top:1px solid var(--border);display:flex;gap:16px;align-items:center;flex-wrap:wrap;"><div style="flex:1;"><strong>${esc(item.name)}</strong><div>Deleted ${esc(fmtDateTime(item.deleted_at))}</div></div><button type="button" class="btn btn-sm" data-trash-action="recover" data-trash-id="${esc(item.id)}">Recover</button>${DB.currentUser.role==='admin'?`<button type="button" class="btn btn-danger btn-sm" data-trash-action="purge" data-trash-id="${esc(item.id)}">Delete Forever</button>`:''}</div>`).join(''):`<p class="${type==='project'?'project-trash-empty':''}">${type==='project'?'No deleted projects.':'No deleted items.'}</p>`}</div>`;
