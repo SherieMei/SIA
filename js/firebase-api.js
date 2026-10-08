@@ -63,8 +63,11 @@ async function notifications(user) {
     .sort((a, b) => b.date.localeCompare(a.date));
 }
 async function audit(user) {
-  if (user.role === 'client') return [];
-  return (await scoped('audit_logs', user)).map(row => ({ ...row, date: row.created_at, by: row.by || 'System' }));
+  if (!['admin', 'project_manager'].includes(user.role)) return [];
+  const rows = user.role === 'admin' ? await list('audit_logs') : (await Promise.all(
+    (await scoped('projects', user)).map(p => list('audit_logs', [where('project_id', '==', p.id), where('entity_type', '==', 'project')]))
+  )).flat();
+  return rows.map(row => ({ ...row, date: row.created_at, by: row.by || 'System' }));
 }
 async function projectFor(user, id) {
   const project = await get('projects', id);
@@ -75,7 +78,7 @@ async function projectFor(user, id) {
 function auditWrite(batch, user, project, action, entity, detail) {
   const id = uuid('au');
   batch.set(ref('audit_logs', id), { id, user_id: user.id, by: user.full_name,
-    project_id: project.id, client_id: project.client_id || '', action, entity, detail,
+    project_id: project.id, entity_type: 'project', client_id: project.client_id || '', action, entity, detail,
     access_ids: project.access_ids || projectAccess(project), created_at: timestamp() });
 }
 function notifyWrite(batch, user, project, title, message, type = 'submission') {
@@ -122,7 +125,7 @@ async function saveProject(user, method, input) {
   batch.set(ref('client_projects', id), publicProject(project));
   // Keep the asset/child access metadata aligned when assignments change.
   if (previous.id) {
-    for (const name of ['assets', 'asset_versions', 'resources', 'audit_logs', 'editor_sequences', 'animation_shot_progress', 'animation_shot_workflow']) {
+    for (const name of ['assets', 'asset_versions', 'resources', 'editor_sequences', 'animation_shot_progress', 'animation_shot_workflow']) {
       for (const child of await scopedBy(name, user, 'project_id', id)) {
         batch.update(ref(name, child.id), { access_ids: project.access_ids });
       }
@@ -266,7 +269,10 @@ async function sequenceApi(user, method, input) {
   const sequence = { ...previous, id, project_id: project.id, project_name: project.name,
     title: input.title, notes: input.notes || '', editor_id: user.id, items,
     access_ids: project.access_ids, updated_at: timestamp(), cut_asset_id: previous?.cut_asset_id || null };
-  await setDoc(ref('editor_sequences', id), sequence);
+  const sequenceBatch = writeBatch(db);
+  sequenceBatch.set(ref('editor_sequences', id), sequence);
+  auditWrite(sequenceBatch, user, project, previous ? 'Updated' : 'Created', 'Production', sequence.title);
+  await sequenceBatch.commit();
   return { sequence, sequence_id: id };
 }
 async function shotApi(user, method, input) {
@@ -293,7 +299,10 @@ async function shotApi(user, method, input) {
     stage: input.stage, progress, playblast_url: input.playblast_url ? assertMediaLink(input.playblast_url) : '',
     workflow_status: input.workflow_status || 'In Progress', task_notes: input.task_notes || '',
     updated_by: user.id, updated_at: timestamp(), access_ids: project.access_ids };
-  await setDoc(ref('animation_shot_progress', row.id), row);
+  const shotBatch = writeBatch(db);
+  shotBatch.set(ref('animation_shot_progress', row.id), row);
+  auditWrite(shotBatch, user, project, 'Updated', 'Production', shot.title + ': ' + row.workflow_status + ' (' + progress + '%)');
+  await shotBatch.commit();
   return { shot: { ...shot, ...row } };
 }
 async function teamInvitation(input) {
@@ -411,7 +420,7 @@ export async function firebaseFetch(inputUrl, options = {}) {
       if (user.role === 'client') return result({ resources: [] });
       return result(method === 'GET' ? { resources: await scoped('resources', user) } : await saveResource(user, input));
     }
-    if (endpoint === 'audit.php') { const rows = await audit(user); return result({ data: rows, logs: rows, auditLog: rows, auditLogs: rows }); }
+    if (endpoint === 'audit.php') { if (method !== 'GET') throw fail('Audit logs are read-only.', 403); const rows = await audit(user); return result({ data: rows, logs: rows, auditLog: rows, auditLogs: rows }); }
     if (endpoint === 'notifications.php') {
       const rows = await notifications(user);
       const action = url.searchParams.get('action') || 'list';

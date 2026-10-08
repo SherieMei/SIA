@@ -147,14 +147,19 @@ service cloud.firestore {
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['access_ids']) && validScope(request.resource.data);
       allow delete: if false;
     }
+    function projectAudit(data) {
+      return data.entity_type == 'project' && data.action in ['Created','Updated','Uploaded','Reviewed','Comment','Assigned'] &&
+        (data.entity in ['Project','Resource','Production','Assignment'] || data.entity.matches('Asset #.*'));
+    }
     match /audit_logs/{id} {
-      allow read: if assetScope(resource.data);
-      allow create: if staff() && scope(projectAfter(request.resource.data.project_id)) && validScope(request.resource.data) && request.resource.data.user_id == request.auth.uid;
+      allow read: if admin() || (active() && role() == 'project_manager' &&
+        resource.data.entity_type == 'project' && request.auth.uid in project(resource.data.project_id).access_ids);
+      allow create: if staff() && scope(projectAfter(request.resource.data.project_id)) && validScope(request.resource.data) &&
+        projectAudit(request.resource.data) && request.resource.data.user_id == request.auth.uid;
       allow create: if active() && role() == 'client' && project(request.resource.data.project_id).client_id == request.auth.uid &&
-        request.resource.data.user_id == request.auth.uid && request.resource.data.action in ['Reviewed', 'Comment'] && validScope(request.resource.data);
-      allow update: if manages(project(resource.data.project_id)) && unchangedProject() &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['access_ids']) && validScope(request.resource.data);
-      allow delete: if false;
+        projectAudit(request.resource.data) && request.resource.data.user_id == request.auth.uid &&
+        request.resource.data.action in ['Reviewed', 'Comment'] && validScope(request.resource.data);
+      allow update, delete: if false;
     }
     match /notifications/{id} {
       allow read: if active() && resource.data.user_id == request.auth.uid;
