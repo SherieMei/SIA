@@ -22,107 +22,6 @@ if (loginScreen) {
   });
 }
 
-const grid = document.getElementById('demoUsers');
-// Published account shortcuts only fill the email; Firebase verifies the password.
-const registeredUsers = [
-  {
-    "id": "u1",
-    "full_name": "Admin",
-    "email": "Admin@gmail.com",
-    "role": "admin"
-  },
-  {
-    "id": "u3",
-    "full_name": "animator",
-    "email": "animator@gmail.com",
-    "role": "animator"
-  },
-  {
-    "id": "u32",
-    "full_name": "Angel Gacusan",
-    "email": "haha@gmail.com",
-    "role": "client"
-  },
-  {
-    "id": "u4",
-    "full_name": "editor",
-    "email": "editor@gmail.com",
-    "role": "editor"
-  },
-  {
-    "id": "u5",
-    "full_name": "PM",
-    "email": "Pm@gmail.com",
-    "role": "project_manager"
-  },
-  {
-    "id": "u9",
-    "full_name": "sam",
-    "email": "u9@local.invalid",
-    "role": "editor"
-  }
-];
-
-function loadUsers() {
-  if (!grid) return;
-  grid.innerHTML = registeredUsers.map(user => `
-    <button type="button" class="demo-card" data-user-id="${esc(String(user.id))}">
-      <b>${esc(user.full_name)}</b>
-      <span>${esc(ROLE_LABELS[user.role] || user.role)}</span>
-    </button>
-  `).join('');
-}
-
-// --------------------------------------------------
-// QUICK SIGN-IN
-// --------------------------------------------------
-
-if (grid) {
-
-  grid.addEventListener('click', event => {
-
-    const card =
-      event.target.closest('[data-user-id]');
-
-    if (!card) return;
-
-    const selectedUser =
-      registeredUsers.find(
-        user =>
-          String(user.id) ===
-          String(card.dataset.userId)
-      );
-
-    if (!selectedUser) return;
-
-    const emailInput =
-      document.getElementById('loginEmail');
-
-    const passwordInput =
-      document.getElementById('loginPassword');
-
-    if (emailInput) {
-      emailInput.value =
-        selectedUser.email || '';
-    }
-
-    if (passwordInput) {
-
-      passwordInput.value = '';
-
-      passwordInput.focus();
-
-    }
-
-    if (mode !== 'signin') {
-      setMode('signin');
-      passwordInput?.focus();
-    }
-
-  });
-
-}
-
   // --------------------------------------------------
   // SIGN IN VS CREATE ACCOUNT
   // --------------------------------------------------
@@ -462,7 +361,7 @@ if (grid) {
 
       // Refresh Quick Sign-In from Firestore,
       // then switch back to Sign In.
-      await loadUsers();
+
 
       const loginEmail =
         document.getElementById('loginEmail');
@@ -818,6 +717,6 @@ if (pwToggle && pwInput) {
   // START
   // --------------------------------------------------
 
-  loadUsers();
+
 
 });

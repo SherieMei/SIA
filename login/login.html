@@ -39,7 +39,7 @@
 
   <link
     rel="stylesheet"
-    href="login.css?v=20261007-session-auth"
+    href="login.css?v=20261009-studio-layout"
   >
 </head>
 
@@ -65,87 +65,22 @@
 
     <div class="slate">
 
-      <!-- HEADER -->
-      <div class="slate-top">
-
+      <section class="slate-top" aria-label="BEE Production">
+        <div class="brand-orbits" aria-hidden="true"><span></span><span></span><span></span></div>
         <div class="slate-top-left">
-
-          <div
-            class="sprockets"
-            aria-hidden="true"
-          >
-            <span></span>
-            <span></span>
-            <span></span>
-            <span></span>
-            <span></span>
-            <span></span>
-            <span></span>
-            <span></span>
-            <span></span>
-            <span></span>
-            <span></span>
-            <span></span>
-          </div>
-
-
-          <h1>BEE PRODUCTION</h1>
-
-
-          <div class="tag">
-            Animation Production &amp; Asset Approval System
-          </div>
-
+          <div class="sprockets" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
+          <div class="tag">Animation Production &amp; Asset Approval System</div>
+          <h1><span>BEE</span><span class="brand-outline">PRODUCTION</span></h1>
+          <div class="brand-bars" aria-hidden="true"><span></span><span></span><span></span></div>
         </div>
-
-
-        <div class="slate-fields slate-fields-header">
-
-          <div>
-            <b>Production</b>
-
-            <span>
-              Skybound Chronicles, Lumen, Nightfall
-            </span>
-          </div>
-
-
-          <div>
-            <b>Studio</b>
-
-            <span>
-              Northlight Animation Co.
-            </span>
-          </div>
-
-
-          <div>
-            <b>Modules</b>
-
-            <span>
-              Assets · Review · Reports
-            </span>
-          </div>
-
-
-          <div>
-            <b>Status</b>
-
-            <span>
-              Ready
-            </span>
-          </div>
-
-        </div>
-
-      </div>
-
+      </section>
 
       <!-- BODY -->
       <div class="slate-body">
 
         <!-- LOGIN FORM -->
         <section class="login-form-section">
+          <header class="login-welcome"><p class="eyebrow">Welcome back</p><h2>Sign in to your studio</h2><div class="welcome-accent" aria-hidden="true"></div><p>Access your production workspace and continue where you left off.</p></header>
 
 
           <!-- FULL NAME -->
@@ -283,20 +218,7 @@
         </section>
 
 
-        <!-- QUICK SIGN-IN -->
-        <section class="demo-section">
 
-          <div class="eyebrow demo-heading">
-            Quick sign-in — registered accounts
-          </div>
-
-
-          <div
-            class="demo-grid"
-            id="demoUsers"
-          ></div>
-
-        </section>
 
       </div>
 
@@ -315,7 +237,7 @@
 
   <script type="module" src="../js/firebase.js"></script>
   <script src="../js/shared.js?v=20261008-api-base-v1"></script>
-  <script src="login.js?v=20261007-session-auth"></script>
+  <script src="login.js?v=20261009-studio-layout"></script>
 
 </body>
 
