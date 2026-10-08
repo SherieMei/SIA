@@ -1088,3 +1088,9 @@ table{width:100%;border-collapse:collapse;font-size:13px}th{text-align:left;font
   .editor-task-groups{grid-template-columns:1fr}
   .editor-schedule-date{min-width:88px}
 }
+/* Card deletion and Recently Deleted follow the project list design. */
+.page-projects .proj-grid{grid-template-columns:repeat(auto-fill,minmax(min(100%,280px),376px));justify-content:start;}
+.trash-section-heading{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-bottom:14px;}
+.trash-section-heading h3{margin:0;font-size:22px;}
+.project-trash-list{border:1px dashed var(--line);background:var(--panel);border-radius:18px;padding:20px;}
+.project-trash-empty{margin:24px 0;text-align:center;color:var(--text-faint);font-size:14px;}

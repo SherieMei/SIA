@@ -709,6 +709,8 @@ ${
           margin-top:12px;
           display:flex;
           justify-content:flex-end;
+          gap:8px;
+          flex-wrap:wrap;
         "
       >
 
@@ -731,7 +733,7 @@ ${
         >
           Finish project
         </button>
-
+        ${DB.currentUser.role==='admin'||p.pm===DB.currentUser.id ? `<button type="button" class="btn btn-danger btn-sm" onclick="event.stopPropagation();Studio.deleteProject('${esc(p.id)}')">✕ Delete</button>` : ''}
       </div>
     `
     : ''
