@@ -35,7 +35,7 @@ Object.assign(Studio, {
   }
 
   try {
-    const response = await fetch('/SIA/api/assets.php', {
+    const response = await fetch(window.BEE_API_BASE+'assets.php', {
       method: 'POST',
       credentials: 'include',
       headers: {
@@ -104,7 +104,7 @@ Object.assign(Studio, {
 
   try {
 
-    const response = await fetch('/SIA/api/assets.php', {
+    const response = await fetch(window.BEE_API_BASE+'assets.php', {
       method: 'POST',
       credentials: 'include',
       headers: {

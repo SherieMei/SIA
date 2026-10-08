@@ -273,7 +273,7 @@ function finishProject(projectId){
 
         const response =
           await fetch(
-            'http://localhost/SIA/api/projects.php',
+            window.BEE_API_BASE+'projects.php',
             {
               method: 'PUT',
 

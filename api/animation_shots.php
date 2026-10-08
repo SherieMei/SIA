@@ -139,13 +139,17 @@ try {
         exit;
     }
 
+    $uploadedAssetPath = api_app_base_path() . '/uploads/assets/';
     if (
         $playblastUrl !== '' &&
         !preg_match('~^https?://~i', $playblastUrl) &&
-        !preg_match('~^/SIA/uploads/assets/[A-Za-z0-9._-]+$~', $playblastUrl)
+        !preg_match(
+            '~^' . preg_quote($uploadedAssetPath, '~') . '[A-Za-z0-9._-]+$~',
+            $playblastUrl
+        )
     ) {
         http_response_code(400);
-        echo json_encode(['success' => false, 'error' => 'Playblast link must use HTTP(S) or an uploaded SIA asset path.']);
+        echo json_encode(['success' => false, 'error' => 'Playblast link must use HTTP(S) or an uploaded asset path.']);
         exit;
     }
 

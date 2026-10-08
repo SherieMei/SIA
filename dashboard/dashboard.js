@@ -664,7 +664,7 @@ async function loadEditorDashboardData(){
   editorDashboardData.loading=true;
   editorDashboardData.error='';
   try{
-    const response=await fetch('/SIA/api/editor_sequences.php',{credentials:'include'});
+    const response=await fetch(window.BEE_API_BASE+'editor_sequences.php',{credentials:'include'});
     const data=await parseApiResponse(response);
     if(
       !response.ok||

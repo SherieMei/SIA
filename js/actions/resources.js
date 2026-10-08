@@ -181,7 +181,7 @@ if(hours < 0 || hours > 99){
        ========================================================== */
 
     fetch(
-      'http://localhost/SIA/api/assets/resources.php',
+      window.BEE_API_BASE+'assets/resources.php',
       {
         method: 'POST',
 

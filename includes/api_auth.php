@@ -1,5 +1,15 @@
 <?php
 
+function api_app_base_path(): string
+{
+    $scriptPath = str_replace('\\', '/', $_SERVER['SCRIPT_NAME'] ?? '');
+    $appRoot = dirname(dirname($scriptPath));
+
+    return $appRoot === '/' || $appRoot === '.'
+        ? ''
+        : rtrim($appRoot, '/');
+}
+
 function api_authenticated_user(PDO $pdo)
 {
     if (session_status() === PHP_SESSION_NONE) {

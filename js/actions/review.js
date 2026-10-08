@@ -18,7 +18,7 @@ async function checkProjectCompletion(projectId) {
   if (!project || project.status === 'Completed') return;
 
   project.status = 'Completed';
-  await fetch('http://localhost/SIA/api/projects.php', {
+  await fetch(window.BEE_API_BASE+'projects.php', {
   method: 'PUT',
   credentials: 'include',
   headers: {
@@ -72,7 +72,7 @@ Object.assign(Studio, {
   if(!status) return;
 
   try {
-    const response = await fetch('/SIA/api/assets.php', {
+    const response = await fetch(window.BEE_API_BASE+'assets.php', {
       method: 'POST',
       credentials: 'include',
       headers: {

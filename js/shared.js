@@ -1,4 +1,10 @@
 /* BEE PRODUCTION SHARED RUNTIME */
+const sharedScriptUrl = document.currentScript?.src;
+if (!sharedScriptUrl) {
+  throw new Error('Unable to determine the shared runtime URL.');
+}
+window.BEE_API_BASE = new URL('../api/', sharedScriptUrl).href;
+window.BEE_UPLOADS_BASE = new URL('../uploads/', sharedScriptUrl).pathname;
 /* ===== DATA CONSTANTS: js/data/constants.js ===== */
 /* ==========================================================================
    CONSTANTS — roles, permissions, asset type styling, status labels.
@@ -84,7 +90,7 @@ async function loadAnimationShotsFromDB(){
   DB.animationShotsError='';
   if(DB.currentUser?.role!=='animator')return true;
   try{
-    const response=await fetch('/SIA/api/animation_shots.php',{
+    const response=await fetch(window.BEE_API_BASE+'animation_shots.php',{
       credentials:'include'
     });
     const data=await parseApiResponse(response);
@@ -396,7 +402,7 @@ const Studio={
     if(!email||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){toast('Enter a valid email to sign in.','error');return;}
     if(!password){toast('Enter a password to sign in.','error');return;}
     try{
-      const res=await fetch('http://localhost/SIA/api/auth.php',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'login',email,password})});
+      const res=await fetch(window.BEE_API_BASE+'auth.php',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'login',email,password})});
       const data=await parseApiResponse(res);
       if(!res.ok||!data.success)throw new Error(data.error||'Sign in failed.');
       const u={id:String(data.user.id),name:data.user.full_name,email:data.user.email,role:data.user.role};
@@ -413,7 +419,7 @@ const Studio={
     if(!email||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){toast('Enter a valid email.','error');return;}
     if(password.length<6){toast('Password must be at least 6 characters.','error');return;}
     try{
-      const res=await fetch('http://localhost/SIA/api/auth.php',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'register',name,email,password})});
+      const res=await fetch(window.BEE_API_BASE+'auth.php',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'register',name,email,password})});
       const data=await parseApiResponse(res);
       if(!res.ok||!data.success)throw new Error(data.error||'Account creation failed.');
       const u={id:String(data.user.id),name:data.user.full_name,email:data.user.email,role:data.user.role};
@@ -425,7 +431,7 @@ const Studio={
         hideCancel:true,
         onConfirm:async()=>{
           try{
-            await fetch('/SIA/api/auth.php',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'logout'})});
+            await fetch(window.BEE_API_BASE+'auth.php',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'logout'})});
           }catch(e){}
           const passwordInput=document.getElementById('loginPassword');
           if(passwordInput)passwordInput.value='';
@@ -466,7 +472,7 @@ const Studio={
   },
   async logout(){
     try{
-      await fetch('/SIA/api/auth.php',{
+      await fetch(window.BEE_API_BASE+'auth.php',{
         method:'POST',
         credentials:'include',
         headers:{'Content-Type':'application/json'},
@@ -643,7 +649,7 @@ try{
 }
 async function loadServerState(){
   try{
-    const res=await fetch(`${window.location.origin}/SIA/api/bootstrap.php`,{
+    const res=await fetch(window.BEE_API_BASE+'bootstrap.php',{
       credentials:'include'
     });
     const data=await parseApiResponse(res);
@@ -683,7 +689,7 @@ async function loadServerState(){
 }
 async function loadAssetsFromDB(){
   try{
-    const res=await fetch('/SIA/api/assets.php',{
+    const res=await fetch(window.BEE_API_BASE+'assets.php',{
       credentials:'include'
     });
     const data=await parseApiResponse(res);
@@ -714,7 +720,7 @@ async function loadAssetsFromDB(){
 }
 async function loadResourcesFromDB(){
   try{
-    const res=await fetch('http://localhost/SIA/api/assets/resources.php',{
+    const res=await fetch(window.BEE_API_BASE+'assets/resources.php',{
       credentials:'include'
     });
     const data=await parseApiResponse(res);
@@ -736,7 +742,7 @@ async function loadResourcesFromDB(){
 async function loadNotificationsFromDB(){
   try{
     const response=await fetch(
-      '/SIA/api/notifications.php?action=list',
+      window.BEE_API_BASE+'notifications.php?action=list',
       {
         method:'GET',
         credentials:'include'
@@ -769,7 +775,7 @@ async function loadProjectsFromDB(){
   DB.projects=[];
   try{
     const response=await fetch(
-      '/SIA/api/projects.php',
+      window.BEE_API_BASE+'projects.php',
       {
         method:'GET',
         credentials:'include'
@@ -1048,7 +1054,7 @@ Object.assign(Studio,{
       animator_id:animatorId||null,
       budget:budget
     };
-    fetch('http://localhost/SIA/api/projects.php',{
+    fetch(window.BEE_API_BASE+'projects.php',{
       method:'POST',
       credentials:'include',
       headers:{'Content-Type':'application/json'},
@@ -1188,7 +1194,7 @@ Object.assign(Studio,{
       body.append('notes',notes);
       body.append('link',link);
       if(file)body.append('asset_file',file);
-      const response=await fetch('/SIA/api/assets.php',{
+      const response=await fetch(window.BEE_API_BASE+'assets.php',{
         method:'POST',
         credentials:'include',
         body
@@ -1242,7 +1248,7 @@ Object.assign(Studio,{
       body.append('assigned_animator',assignedAnimator);
       if(sequenceId)body.append('sequence_id',sequenceId);
       if(file)body.append('asset_file',file);
-      const response=await fetch('/SIA/api/assets.php',{
+      const response=await fetch(window.BEE_API_BASE+'assets.php',{
         method:'POST',
         credentials:'include',
         body
@@ -1296,7 +1302,7 @@ Object.assign(Studio,{
     const nextStatus=decision==='approve'
       ?'Approved'
       :decision==='revise'?'Revision Requested':'Rejected';
-    fetch('/SIA/api/assets.php',{
+    fetch(window.BEE_API_BASE+'assets.php',{
       method:'PUT',
       credentials:'include',
       headers:{'Content-Type':'application/json'},
@@ -1344,7 +1350,7 @@ Object.assign(Studio,{
       if(!asset)toast('Asset could not be found. Please refresh the page.','error');
       return;
     }
-    fetch('/SIA/api/assets.php',{
+    fetch(window.BEE_API_BASE+'assets.php',{
       method:'POST',
       credentials:'include',
       headers:{'Content-Type':'application/json'},
@@ -1377,7 +1383,7 @@ Object.assign(Studio,{
         throw new Error('Notification is missing an ID.');
       }
       const response=await fetch(
-        '/SIA/api/notifications.php?action=mark_read',
+        window.BEE_API_BASE+'notifications.php?action=mark_read',
         {
           method:'POST',
           credentials:'include',
@@ -1404,7 +1410,7 @@ Object.assign(Studio,{
   async markAllRead(){
     try{
       const response=await fetch(
-        '/SIA/api/notifications.php?action=mark_all_read',
+        window.BEE_API_BASE+'notifications.php?action=mark_all_read',
         {
           method:'POST',
           credentials:'include'
@@ -1532,7 +1538,7 @@ Object.assign(Studio,{
       }
       const response=
         await fetch(
-          '/SIA/api/integration_etl_logs.php',
+          window.BEE_API_BASE+'integration_etl_logs.php',
           {
             method:'POST',
             credentials:'include',

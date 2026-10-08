@@ -78,7 +78,7 @@ const Studio = {
     }
     if(!title || !project){ toast('Title and project are required.','error'); return; }
     try {
-  const response = await fetch('/SIA/api/assets.php', {
+  const response = await fetch(window.BEE_API_BASE+'assets.php', {
     method: 'POST',
     credentials: 'include',
     headers: {
@@ -267,7 +267,7 @@ const Studio = {
     return;
   }
 
-  fetch('http://localhost/SIA/api/assets/resources.php', {
+  fetch(window.BEE_API_BASE+'assets/resources.php', {
     method: 'POST',
     credentials: 'include',
     headers: {

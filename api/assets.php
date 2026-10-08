@@ -96,7 +96,10 @@ function store_asset_upload(array $upload): array
         return ['path' => null, 'error' => 'The server could not save the uploaded file. Check write access for uploads/assets.'];
     }
 
-    return ['path' => '/SIA/uploads/assets/' . $fileName, 'error' => null];
+    return [
+        'path' => api_app_base_path() . '/uploads/assets/' . $fileName,
+        'error' => null
+    ];
 }
 
 function sync_animation_shot_workflow(PDO $pdo, $assetId, string $status, $userId): void

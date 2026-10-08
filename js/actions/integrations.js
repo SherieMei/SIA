@@ -31,7 +31,7 @@ Object.assign(Studio, {
   });
 
   // Save REQUEST to database
-  fetch('http://localhost/SIA/api/integration_api_logs.php', {
+  fetch(window.BEE_API_BASE+'integration_api_logs.php', {
     method: 'POST',
     credentials: 'include',
     headers: {
@@ -73,7 +73,7 @@ Object.assign(Studio, {
     });
 
     // Save RESPONSE to database
-    fetch('http://localhost/SIA/api/integration_api_logs.php', {
+    fetch(window.BEE_API_BASE+'integration_api_logs.php', {
       method: 'POST',
       credentials: 'include',
       headers: {
@@ -214,7 +214,7 @@ async runETL(){
 
     const response =
       await fetch(
-        'http://localhost/SIA/api/integration_etl_logs.php',
+        window.BEE_API_BASE+'integration_etl_logs.php',
         {
           method: 'POST',
 

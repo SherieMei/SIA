@@ -310,7 +310,7 @@ async function loadProjectsFromDB(){
   try {
 
     const response = await fetch(
-      'http://localhost/SIA/api/projects.php',
+      window.BEE_API_BASE+'projects.php',
       {
         credentials: 'include'
       }
@@ -826,7 +826,7 @@ function pageAnimatorShotTracker(){
             ['http:','https:'].includes(candidate.protocol)&&
             (
               candidate.origin!==window.location.origin||
-              candidate.pathname.startsWith('/SIA/uploads/assets/')
+              candidate.pathname.startsWith(window.BEE_UPLOADS_BASE+'assets/')
             )
           )previewUrl=candidate.href;
         }catch(error){
@@ -932,7 +932,7 @@ Object.assign(Studio,{
     const workflowStatus=document.getElementById(`shot-status-${assetId}`)?.value||'In Progress';
     const taskNotes=document.getElementById(`shot-notes-${assetId}`)?.value||'';
     try{
-      const response=await fetch('/SIA/api/animation_shots.php',{
+      const response=await fetch(window.BEE_API_BASE+'animation_shots.php',{
         method:'POST',
         credentials:'include',
         headers:{'Content-Type':'application/json'},
@@ -981,7 +981,7 @@ Object.assign(Studio,{
     body.append('notes',document.getElementById(`shot-notes-${assetId}`)?.value||'');
     body.append('asset_file',file);
     try{
-      const response=await fetch('/SIA/api/assets.php',{
+      const response=await fetch(window.BEE_API_BASE+'assets.php',{
         method:'POST',
         credentials:'include',
         body
@@ -1753,7 +1753,7 @@ if(!completion.canFinish){
       try{
 
         const response = await fetch(
-          'http://localhost/SIA/api/projects.php',
+          window.BEE_API_BASE+'projects.php',
           {
             method:'PUT',
             credentials:'include',
