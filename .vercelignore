@@ -6,6 +6,7 @@
 firebase-public/
 api/*
 !api/team-invite.mjs
+!api/trash.mjs
 config/
 database/
 includes/

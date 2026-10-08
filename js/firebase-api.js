@@ -305,10 +305,10 @@ async function shotApi(user, method, input) {
   await shotBatch.commit();
   return { shot: { ...shot, ...row } };
 }
-async function teamInvitation(input) {
+async function teamInvitation(input, service = 'team-invite') {
   await auth.authStateReady();
   if (!auth.currentUser) throw fail('Sign in first.', 401);
-  const endpoint = location.hostname === 'siaa-ten.vercel.app' ? '/api/team-invite' : 'https://siaa-ten.vercel.app/api/team-invite';
+  const endpoint = location.hostname === 'siaa-ten.vercel.app' ? '/api/' + service : 'https://siaa-ten.vercel.app/api/' + service;
   const response = await nativeFetch(endpoint, { method: 'POST', headers: {
     'Content-Type': 'application/json', Authorization: 'Bearer ' + await auth.currentUser.getIdToken()
   }, body: JSON.stringify(input) });
@@ -420,6 +420,7 @@ export async function firebaseFetch(inputUrl, options = {}) {
       if (user.role === 'client') return result({ resources: [] });
       return result(method === 'GET' ? { resources: await scoped('resources', user) } : await saveResource(user, input));
     }
+    if (endpoint === 'trash.php') return result(await teamInvitation(input, 'trash'));
     if (endpoint === 'audit.php') { if (method !== 'GET') throw fail('Audit logs are read-only.', 403); const rows = await audit(user); return result({ data: rows, logs: rows, auditLog: rows, auditLogs: rows }); }
     if (endpoint === 'notifications.php') {
       const rows = await notifications(user);

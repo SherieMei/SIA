@@ -148,8 +148,12 @@ service cloud.firestore {
       allow delete: if false;
     }
     function projectAudit(data) {
-      return data.entity_type == 'project' && data.action in ['Created','Updated','Uploaded','Reviewed','Comment','Assigned'] &&
+      return data.entity_type == 'project' && data.action in ['Created','Updated','Uploaded','Reviewed','Comment','Assigned','Deleted','Restored','Permanently deleted'] &&
         (data.entity in ['Project','Resource','Production','Assignment'] || data.entity.matches('Asset #.*'));
+    }
+    match /app_trash/{id} {
+      allow read, write: if false;
+      match /records/{record} { allow read, write: if false; }
     }
     match /audit_logs/{id} {
       allow read: if admin() || (active() && role() == 'project_manager' &&

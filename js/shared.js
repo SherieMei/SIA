@@ -1692,29 +1692,7 @@ Object.assign(Studio,{
     Studio.persist();
   },
   deleteUser(uid){
-    if(!can('manageUsers'))return;
-    if(DB.currentUser&&DB.currentUser.id===uid){
-      toast('You can’t remove your own account while signed in.','error');
-      return;
-    }
-    const u=userById(uid);
-    if(!u)return;
-    Studio.openConfirm({
-      title:'Remove team member?',
-      body:'“'+esc(u.name)+'” ('+esc(ROLE_LABELS[u.role]||u.role)+') will lose access to the studio. Their past uploads, comments, and approvals stay on record.',
-      confirmLabel:'Remove',
-      danger:true,
-      onConfirm:async()=>{
-        const response=await window.beeFetch('../api/sync.php',{method:'POST',body:JSON.stringify({action:'disable_user',id:uid})});
-        const saved=await response.json();
-        if(!response.ok){toast(saved.error,'error');return;}
-        DB.users=DB.users.filter(x=>x.id!==uid);
-        pushAudit('User',u.name,'Removed from team');
-        toast(u.name+' removed from the team.','success');
-        if(typeof render==='function')render();
-        Studio.persist();
-      }
-    });
+    if(can('manageUsers')) Studio.trashAction('delete','user',uid);
   },
 });
 let firebaseRefreshTimer;
@@ -1727,4 +1705,49 @@ window.addEventListener('bee-firebase-change',()=>{
     await loadNotificationsFromDB();
     if(typeof render==='function'&&DB.currentUser&&document.body?.dataset.page!=='login')render();
   },300);
+});
+
+/* Firebase Trash: all authorization and archive operations run on the server. */
+Studio.trashRequest = async function(input){
+  const response=await window.beeFetch('../api/trash.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(input)});
+  const data=await parseApiResponse(response);
+  if(!response.ok||!data.success)throw new Error(data.error||'Unable to process Trash.');
+  return data;
+};
+Studio.trashAction = function(action,type,id){
+  const destructive=action==='purge';
+  Studio.openConfirm({title:destructive?'Delete forever?':action==='recover'?'Recover item?':'Move to Trash?',
+    body:destructive?'This permanently removes the archived item and cannot be undone.':action==='recover'?'This restores the item and its saved records.':'This removes the item from active pages. It can be recovered from Trash.',
+    confirmLabel:destructive?'Delete forever':action==='recover'?'Recover':'Move to Trash',danger:action!=='recover',
+    onConfirm:async()=>{try{const data=await Studio.trashRequest({action,type,...(action==='delete'?{id}:{trash_id:id})});toast(data.message,'success');await loadServerState();await loadProjectsFromDB();await loadAssetsFromDB();if(typeof render==='function')render();await Studio.loadTrashPanel();}catch(e){toast(e.message,'error');}}
+  });
+};
+Studio.deleteProject = id=>Studio.trashAction('delete','project',id);
+Studio.recoverUser = id=>Studio.trashAction('recover','user',id);
+Studio.deleteTrashUser = id=>Studio.trashAction('purge','user',id);
+Studio.loadTrashPanel = async function(){
+  const page=document.body?.dataset.page;
+  const type={users:'user',projects:'project',assets:'asset'}[page];
+  if(!type||!DB.currentUser||!['admin','project_manager'].includes(DB.currentUser.role)||(type==='user'&&DB.currentUser.role!=='admin'))return;
+  const content=document.getElementById('pageContent');if(!content)return;
+  const previous=document.getElementById('firebaseTrashPanel');
+  const panel=previous||document.createElement('section');panel.id='firebaseTrashPanel';panel.className='card';panel.style.cssText='padding:20px;margin-top:20px;';
+  if(!previous){panel.innerHTML='<h3>Trash</h3><p>Loading deleted items…</p>';content.append(panel);}
+  try{
+    const data=await Studio.trashRequest({action:'list',type});if(!panel.isConnected)return;
+    const active=type==='user'?[]:(type==='project'?DB.projects:DB.assets).filter(item=>DB.currentUser.role==='admin'||projectById(type==='project'?item.id:(item.project_id||item.project))?.pm===DB.currentUser.id);
+    panel.innerHTML=`<h3>${type==='user'?'Deleted accounts':type==='project'?'Deleted projects':'Deleted assets'}</h3>
+      ${active.length?`<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;"><select id="trashActiveItem" aria-label="Choose ${type} to move to Trash"><option value="">Select ${type}</option>${active.map(item=>`<option value="${esc(String(item.id))}">${esc(item.name||item.title||item.asset_title||String(item.id))}</option>`).join('')}</select><button type="button" class="btn btn-danger btn-sm" id="trashMoveButton">Move to Trash</button></div>`:''}
+      <div>${data.items.length?data.items.map(item=>`<div style="padding:14px 0;border-top:1px solid var(--border);display:flex;gap:16px;align-items:center;flex-wrap:wrap;"><div style="flex:1;"><strong>${esc(item.name)}</strong><div>Deleted ${esc(fmtDateTime(item.deleted_at))}</div></div><button type="button" class="btn btn-sm" data-trash-action="recover" data-trash-id="${esc(item.id)}">Recover</button>${DB.currentUser.role==='admin'?`<button type="button" class="btn btn-danger btn-sm" data-trash-action="purge" data-trash-id="${esc(item.id)}">Delete Forever</button>`:''}</div>`).join(''):'<p>No deleted items.</p>'}</div>`;
+    panel.querySelector('#trashMoveButton')?.addEventListener('click',()=>{const id=panel.querySelector('#trashActiveItem').value;if(id)Studio.trashAction('delete',type,id);});
+    panel.querySelectorAll('[data-trash-action]').forEach(button=>button.addEventListener('click',()=>Studio.trashAction(button.dataset.trashAction,type,button.dataset.trashId)));
+  }catch(e){panel.innerHTML=`<h3>Trash</h3><p>${esc(e.message)}</p>`;}
+};
+document.addEventListener('DOMContentLoaded',async()=>{
+  await window.BEE_SERVER_READY;
+  const content=document.getElementById('pageContent');if(!content)return;
+  let pending;
+  const observer=new MutationObserver(()=>{if(!document.getElementById('firebaseTrashPanel')){clearTimeout(pending);pending=setTimeout(()=>Studio.loadTrashPanel(),100);}});
+  observer.observe(content,{childList:true});
+  setTimeout(()=>Studio.loadTrashPanel(),200);
 });
