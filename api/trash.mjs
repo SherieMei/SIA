@@ -104,7 +104,10 @@ export function createTrashHandler({ auth, db }) {
         });
       }
       return res.status(200).json({success:true,message:action==='recover'?'Recovered successfully.':'Permanently deleted.'});
-    }catch(e){return res.status(e.status||500).json({success:false,error:e.status?e.message:'Unable to process Trash. Please retry.'});}
+    }catch(e){
+      const quotaReached=e?.code===8||e?.code==='resource-exhausted'||/quota|resource_exhausted/i.test(String(e?.message||''));
+      return res.status(e.status|| (quotaReached?429:500)).json({success:false,error:e.status?e.message:quotaReached?'Firebase usage limit reached. Try again after the quota resets or billing is enabled.':'Unable to process Trash. Please retry.'});
+    }
   };
 }
 let cached;

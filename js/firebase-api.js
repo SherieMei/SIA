@@ -367,11 +367,14 @@ async function authApi(method, input, url) {
 let unsubscribe = [];
 async function startRealtime(user) {
   if (unsubscribe.length) return;
+  const announceChange = name => window.dispatchEvent(new CustomEvent('bee-firebase-change', {
+    detail: { collection: name }
+  }));
   if (user.role === 'admin') {
     let first = true;
     unsubscribe.push(onSnapshot(collection(db, 'app_users'), () => {
       if (first) { first = false; return; }
-      window.dispatchEvent(new Event('bee-firebase-change'));
+      announceChange('app_users');
     }, error => console.error('Team updates unavailable:', error.code)));
   }
   for (const name of user.role === 'client' ? ['client_projects', 'client_assets', 'comments', 'notifications'] : ['projects', 'assets', 'asset_versions', 'comments', 'notifications']) {
@@ -383,7 +386,7 @@ async function startRealtime(user) {
     let first = true;
     unsubscribe.push(onSnapshot(constraint ? query(source, constraint) : source, () => {
       if (first) { first = false; return; }
-      window.dispatchEvent(new Event('bee-firebase-change'));
+      announceChange(name);
     }, error => console.error('Live updates unavailable:', error.code)));
   }
 }

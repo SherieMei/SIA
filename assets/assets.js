@@ -254,6 +254,7 @@ ASSETS — ASSET LIST
       <div class="field-row">
         <div class="field"><label>Project</label>
   <select id="saProject" onchange="Studio.onSaProjectChange()">
+    ${activeProjects.length?'':'<option value="" selected disabled>No assigned active projects available</option>'}
     ${activeProjects.map(p=>`
       <option
         value="${p.id}"
@@ -328,7 +329,8 @@ ASSETS — ASSET LIST
         <input type="date" id="saDueDate" min="${minimumDueDate}">
       </div>
 
-      <button class="btn btn-primary" onclick="Studio.submitAsset()">Submit — sets status to “For Review”</button>
+      <button class="btn btn-primary" onclick="Studio.submitAsset()" ${activeProjects.length?'':'disabled'}>Submit — sets status to “For Review”</button>
+      ${activeProjects.length?'':'<div class="asset-link-hint" style="margin-top:10px;">Projects could not be loaded or this account is not assigned to an active project.</div>'}
       <span style="font-size:11.5px;color:var(--text-faint);margin-left:10px;">Workflow automation will move this asset into the review queue automatically.</span>
     </div>`:''}
     <!-- Added: Asset status cards -->

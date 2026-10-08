@@ -798,11 +798,8 @@ async function loadProjectsFromDB(){
 }
 window.BEE_SERVER_READY=loadServerState();
 window.BEE_SERVER_READY.then(async()=>{
-  await loadProjectsFromDB();
-  await loadAssetsFromDB();
   await loadAnimationShotsFromDB();
   await loadResourcesFromDB();
-  await loadNotificationsFromDB();
   if(typeof render==='function'&&document.body?.dataset.page!=='login'){
     render();
   }
@@ -1696,13 +1693,22 @@ Object.assign(Studio,{
   },
 });
 let firebaseRefreshTimer;
-window.addEventListener('bee-firebase-change',()=>{
+const firebaseChangedCollections=new Set();
+window.addEventListener('bee-firebase-change',event=>{
+  firebaseChangedCollections.add(event.detail?.collection||'all');
   clearTimeout(firebaseRefreshTimer);
   firebaseRefreshTimer=setTimeout(async()=>{
-    await loadServerState();
-    await loadProjectsFromDB();
-    await loadAssetsFromDB();
-    await loadNotificationsFromDB();
+    const changed=new Set(firebaseChangedCollections);
+    firebaseChangedCollections.clear();
+    if(changed.has('all')||changed.has('app_users')){
+      await loadServerState();
+    }else{
+      const tasks=[];
+      if([...changed].some(name=>['projects','client_projects'].includes(name)))tasks.push(loadProjectsFromDB());
+      if([...changed].some(name=>['assets','client_assets','asset_versions','comments'].includes(name)))tasks.push(loadAssetsFromDB());
+      if(changed.has('notifications'))tasks.push(loadNotificationsFromDB());
+      await Promise.all(tasks);
+    }
     if(typeof render==='function'&&DB.currentUser&&document.body?.dataset.page!=='login')render();
   },300);
 });
