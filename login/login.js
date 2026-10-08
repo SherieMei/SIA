@@ -23,99 +23,55 @@ if (loginScreen) {
 }
 
 const grid = document.getElementById('demoUsers');
-const isLocalDevelopment = false;
-
-if(grid&&!isLocalDevelopment){
-  grid.closest('.demo-section')?.remove();
-}
-
-let registeredUsers = [];
-
-
-// --------------------------------------------------
-// LOAD REGISTERED USERS FROM FIRESTORE
-// --------------------------------------------------
-
-async function loadUsers() {
-
-  if (!grid || !isLocalDevelopment) return;
-
-  try {
-
-    const response = await window.beeFetch(
-      '../api/auth.php?action=users',
-      {
-        method: 'GET',
-        credentials: 'include'
-      }
-    );
-
-    const data = await response.json();
-
-    if (!response.ok || !data.success) {
-      throw new Error(
-        data.error ||
-        'Unable to load users.'
-      );
-    }
-
-    registeredUsers =
-      Array.isArray(data.users)
-        ? data.users
-        : [];
-
-    grid.innerHTML = '';
-
-    if (registeredUsers.length === 0) {
-
-      grid.innerHTML = `
-        <div class="demo-empty">
-          No registered accounts yet.
-        </div>
-      `;
-
-      return;
-    }
-
-    grid.innerHTML = registeredUsers.map(user => `
-
-      <button
-        type="button"
-        class="demo-card"
-        data-user-id="${esc(String(user.id))}"
-      >
-
-        <b>
-          ${esc(user.full_name)}
-        </b>
-
-        <span>
-          ${ROLE_LABELS[user.role] || user.role}
-        </span>
-
-      </button>
-
-    `).join('');
-
-  } catch (error) {
-
-    console.error(
-      'Unable to load Firestore users:',
-      error
-    );
-
-    registeredUsers = [];
-
-    grid.innerHTML = `
-      <div class="demo-empty">
-        Unable to load registered accounts.
-      </div>
-    `;
-
+// Published account shortcuts only fill the email; Firebase verifies the password.
+const registeredUsers = [
+  {
+    "id": "u1",
+    "full_name": "Admin",
+    "email": "Admin@gmail.com",
+    "role": "admin"
+  },
+  {
+    "id": "u3",
+    "full_name": "animator",
+    "email": "animator@gmail.com",
+    "role": "animator"
+  },
+  {
+    "id": "u32",
+    "full_name": "Angel Gacusan",
+    "email": "haha@gmail.com",
+    "role": "client"
+  },
+  {
+    "id": "u4",
+    "full_name": "editor",
+    "email": "editor@gmail.com",
+    "role": "editor"
+  },
+  {
+    "id": "u5",
+    "full_name": "PM",
+    "email": "Pm@gmail.com",
+    "role": "project_manager"
+  },
+  {
+    "id": "u9",
+    "full_name": "sam",
+    "email": "u9@local.invalid",
+    "role": "editor"
   }
+];
 
+function loadUsers() {
+  if (!grid) return;
+  grid.innerHTML = registeredUsers.map(user => `
+    <button type="button" class="demo-card" data-user-id="${esc(String(user.id))}">
+      <b>${esc(user.full_name)}</b>
+      <span>${esc(ROLE_LABELS[user.role] || user.role)}</span>
+    </button>
+  `).join('');
 }
-
 
 // --------------------------------------------------
 // QUICK SIGN-IN
@@ -160,6 +116,7 @@ if (grid) {
 
     if (mode !== 'signin') {
       setMode('signin');
+      passwordInput?.focus();
     }
 
   });
@@ -861,6 +818,6 @@ if (pwToggle && pwInput) {
   // START
   // --------------------------------------------------
 
-  if(isLocalDevelopment)loadUsers();
+  loadUsers();
 
 });
