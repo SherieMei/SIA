@@ -15,3 +15,5 @@ firebase-debug.log
 .firebase/
 .vercel
 .env*
+
+/node_modules/

@@ -1,0 +1,7 @@
+{
+  "name": "bee-production",
+  "private": true,
+  "type": "module",
+  "scripts": { "build": "node tools/firebase-migration/build-hosting.mjs" },
+  "dependencies": { "firebase-admin": "^13.0.0" }
+}

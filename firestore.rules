@@ -3,7 +3,8 @@ service cloud.firestore {
   match /databases/{database}/documents {
     function signedIn() { return request.auth != null; }
     function profile() { return get(/databases/$(database)/documents/app_users/$(request.auth.uid)).data; }
-    function active() { return signedIn() && (!('disabled' in profile()) || profile().disabled == false); }
+    function active() { return signedIn() && (!('disabled' in profile()) || profile().disabled == false) &&
+      (!('verification_required' in profile()) || !profile().verification_required || request.auth.token.email_verified == true); }
     function role() { return profile().role; }
     function admin() { return active() && role() == 'admin'; }
     function staff() { return active() && role() in ['admin', 'project_manager', 'editor', 'animator']; }
@@ -183,6 +184,10 @@ service cloud.firestore {
       allow read: if assetScope(resource.data);
       allow update: if manages(project(resource.data.project_id)) && unchangedProject() &&
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['access_ids']) && validScope(request.resource.data);
+    }
+    match /team_invitations/{id} {
+      allow read: if admin();
+      allow write: if false;
     }
     match /{name}/{id} {
       allow read: if name in ['integration_api_logs', 'integration_etl_logs', 'integration_webhooks'] && active() && role() in ['admin', 'project_manager', 'editor'];

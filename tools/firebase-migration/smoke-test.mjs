@@ -6,11 +6,14 @@ import { chromium } from 'playwright';
 import { initializeApp, cert } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 import { getFirestore } from 'firebase-admin/firestore';
+import { createTeamInviteHandler } from '../../api/team-invite.mjs';
+const invitationMessages=[];
 
 const credential = JSON.parse(await readFile(process.env.GOOGLE_APPLICATION_CREDENTIALS, 'utf8'));
 initializeApp({ credential: cert(credential), projectId: 'siaa-20635' });
 const db = getFirestore();
 const adminAuth = getAuth();
+const invitationHandler=createTeamInviteHandler({auth:adminAuth,db,sendMail:async params=>invitationMessages.push(params)});
 const users = (await db.collection('app_users').get()).docs.map(doc => ({ ...doc.data(), id: doc.id }));
 const byRole = role => users.find(user => user.role === role && !user.disabled);
 for (const role of ['admin', 'project_manager', 'editor', 'animator', 'client']) assert.ok(byRole(role), 'Missing ' + role + ' test account');
@@ -35,6 +38,12 @@ const testUserIds = [];
 const runtimeErrors = [];
 async function session(role) {
   const context = await browser.newContext(); contexts.push(context);
+  await context.route('https://siaa-ten.vercel.app/api/team-invite',async route=>{
+    const request=route.request();const headers={};let code=200,body='';
+    const response={setHeader(name,value){headers[name]=value},status(value){code=value;return this},json(value){body=JSON.stringify(value);return this},end(){return this}};
+    await invitationHandler({method:request.method(),headers:request.headers(),body:request.postData()?JSON.parse(request.postData()):{}},response);
+    await route.fulfill({status:code,headers:{...headers,'Content-Type':'application/json'},body});
+  });
   const page = await context.newPage();
   const errors = []; page.on('pageerror', error => { errors.push(error.message); runtimeErrors.push(role + ' ' + page.url() + ': ' + error.stack); });
   page.on('request', req => { if (new URL(req.url()).pathname.endsWith('.php')) errors.push('Unexpected PHP network request'); });
@@ -79,6 +88,8 @@ try {
     name: 'Migration Test Member', email: 'migration-' + crypto.randomUUID() + '@example.com',
     password: crypto.randomUUID() + 'Aa1!', role: 'editor' });
   assert.ok(createdMember.success, JSON.stringify(createdMember)); testUserIds.push(createdMember.user.id);
+  assert.equal(createdMember.email_sent,true);assert.equal(createdMember.user.verification_required,true);assert.equal(createdMember.user.invitation_status,'sent');assert.equal(invitationMessages.length,1);
+  assert.equal((await db.collection('team_invitations').doc(createdMember.user.id).get()).data().invitation_status,'sent');
   assert.equal((await api(administrator, 'auth.php?action=session')).user.role, 'admin');
   const anonymousContext = await browser.newContext(); contexts.push(anonymousContext);
   const signupPage = await anonymousContext.newPage();
@@ -201,7 +212,7 @@ try {
   console.log('Passed: pending/approved/rejected direct-write revision locks; cross-project rejection; unassigned administrator asset denial; approval receipt rendering; registration; admin team creation with preserved session; all 5 role dashboards; project creation/assignments; client-safe views; feedback/reviews; animator progress/version; editor sequence/cut; resource logging; completion validation; unauthorized operation denial; no PHP network requests.');
 } finally {
   await browser.close(); server.close();
-  for (const uid of testUserIds) { await adminAuth.deleteUser(uid); await db.collection('app_users').doc(uid).delete(); }
+  for (const uid of testUserIds) { await adminAuth.deleteUser(uid); await db.collection('app_users').doc(uid).delete(); await db.collection('team_invitations').doc(uid).delete(); }
   for(const cleanupProjectId of [projectId,secondaryProjectId].filter(Boolean)){
     // Remove only records created for this test project.
     for (const name of ['projects', 'client_projects']) await db.collection(name).doc(cleanupProjectId).delete();

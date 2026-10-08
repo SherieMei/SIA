@@ -27,6 +27,7 @@ async function currentUser() {
   if (!auth.currentUser) return null;
   const user = await get('app_users', auth.currentUser.uid);
   if (!user || user.disabled) { await signOut(auth); return null; }
+  if (user.verification_required && !auth.currentUser.emailVerified) { await signOut(auth); throw fail('Verify your email using the invitation link before signing in.', 403); }
   return { ...user, id: auth.currentUser.uid, name: user.full_name };
 }
 const requireRoles = (user, roles) => {
@@ -295,6 +296,17 @@ async function shotApi(user, method, input) {
   await setDoc(ref('animation_shot_progress', row.id), row);
   return { shot: { ...shot, ...row } };
 }
+async function teamInvitation(input) {
+  await auth.authStateReady();
+  if (!auth.currentUser) throw fail('Sign in first.', 401);
+  const endpoint = location.hostname === 'siaa-ten.vercel.app' ? '/api/team-invite' : 'https://siaa-ten.vercel.app/api/team-invite';
+  const response = await nativeFetch(endpoint, { method: 'POST', headers: {
+    'Content-Type': 'application/json', Authorization: 'Bearer ' + await auth.currentUser.getIdToken()
+  }, body: JSON.stringify(input) });
+  const data = await response.json();
+  if (!response.ok || !data.success) throw fail(data.error || 'Unable to process invitation.', response.status);
+  return data;
+}
 async function authApi(method, input, url) {
   if (method === 'GET' && (url.searchParams.get('action') || 'session') === 'session') {
     const user = await currentUser();
@@ -305,13 +317,17 @@ async function authApi(method, input, url) {
     await signInWithEmailAndPassword(auth, input.email, input.password);
     const user = await currentUser();
     if (!user) throw fail('This account is disabled.', 403);
+    if (user.verification_required) {
+      try { await teamInvitation({ action: 'accept' }); } catch { /* Sign-in remains valid; admin refresh can verify ownership. */ }
+    }
     return { user };
   }
   if (method === 'POST' && ['register', 'create_team_member'].includes(input.action)) {
     const administrator = input.action === 'create_team_member' ? await currentUser() : null;
     if (administrator) requireRoles(administrator, ['admin']);
     if (input.action === 'create_team_member' && !administrator) throw fail('Sign in as administrator.', 401);
-    const role = administrator ? input.role : 'client';
+    if (administrator) return teamInvitation({ action: 'invite', name: input.name, email: input.email, role: input.role });
+    const role = 'client';
     if (![...staffRoles, 'client'].includes(role) || !input.name?.trim()) throw fail('Enter a valid name and role.');
     const secondary = initializeApp(app.options, uuid('signup'));
     const secondaryAuth = getAuth(secondary);
@@ -332,12 +348,23 @@ async function authApi(method, input, url) {
   }
   const user = await currentUser();
   if (!user) throw fail('Not authenticated.', 401);
+  if (method === 'POST' && ['resend_invitation','refresh_invitations'].includes(input.action)) {
+    requireRoles(user, ['admin']);
+    return teamInvitation({ action: input.action === 'resend_invitation' ? 'resend' : 'refresh', uid: input.uid });
+  }
   requireRoles(user, ['admin', 'project_manager']);
   return { users: (await list('app_users')).filter(u => !u.disabled) };
 }
 let unsubscribe = [];
 async function startRealtime(user) {
   if (unsubscribe.length) return;
+  if (user.role === 'admin') {
+    let first = true;
+    unsubscribe.push(onSnapshot(collection(db, 'app_users'), () => {
+      if (first) { first = false; return; }
+      window.dispatchEvent(new Event('bee-firebase-change'));
+    }, error => console.error('Team updates unavailable:', error.code)));
+  }
   for (const name of user.role === 'client' ? ['client_projects', 'client_assets', 'comments', 'notifications'] : ['projects', 'assets', 'asset_versions', 'comments', 'notifications']) {
     const source = collection(db, name);
     const constraint = name === 'notifications' ? where('user_id', '==', user.id)

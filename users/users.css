@@ -548,3 +548,4 @@ table{width:100%;border-collapse:collapse;font-size:13px}th{text-align:left;font
 .simple-arrow-btn{background:transparent;border:none;color:var(--text-dim);font-size:20px;line-height:1;padding:0;cursor:pointer;display:inline-flex;align-items:center;flex-shrink:0;transition:transform .16s ease,color .16s ease}
 
 .simple-arrow-btn:hover{color:var(--coral);transform:translateX(-2px)}
+.team-invite-help{font-size:13px;color:var(--text-muted);line-height:1.6;margin-bottom:18px}.team-user-email,.team-invite-state{display:block;font-size:11px;margin-top:4px;color:var(--text-muted)}.team-invite-state{color:var(--teal)}.team-invite-state.failed{color:var(--red)}.team-resend-btn{margin:4px 8px 4px 0}

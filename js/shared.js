@@ -414,7 +414,6 @@ const Studio={
     if(!name){toast('Enter your full name to create an account.','error');return;}
     if(!NAME_RE.test(name)){toast('Name can only contain letters, spaces, hyphens, and apostrophes.','error');return;}
     if(!email||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){toast('Enter a valid email.','error');return;}
-    if(password.length<6){toast('Password must be at least 6 characters.','error');return;}
     try{
       const res=await window.beeFetch(window.BEE_API_BASE+'auth.php',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'register',name,email,password})});
       const data=await parseApiResponse(res);
@@ -1638,11 +1637,9 @@ Object.assign(Studio,{
     const name=document.getElementById('umName').value.trim();
     const role=document.getElementById('umRole').value;
     const email=document.getElementById('umEmail').value.trim();
-    const password=document.getElementById('umPassword').value;
     if(!name){toast('Enter a name.','error');return;}
     if(!NAME_RE.test(name)){toast('Name can only contain letters, spaces, hyphens, and apostrophes.','error');return;}
     if(!email||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){toast('Enter a valid email.','error');return;}
-    if(password.length<6){toast('Password must be at least 6 characters.','error');return;}
     const button=document.getElementById('umAddButton');
     if(button)button.disabled=true;
     try{
@@ -1650,19 +1647,18 @@ Object.assign(Studio,{
         method:'POST',
         credentials:'include',
         headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({action:'create_team_member',name,email,password,role})
+        body:JSON.stringify({action:'create_team_member',name,email,role})
       });
       const data=await parseApiResponse(response);
       if(!response.ok||!data.success)throw new Error(data.error||'Unable to add team member.');
-      const u={id:String(data.user.id),name:data.user.full_name,email:data.user.email,role:data.user.role};
+      const u={...data.user,id:String(data.user.id),name:data.user.full_name,email:data.user.email,role:data.user.role};
       const existing=DB.users.find(user=>String(user.id)===u.id);
       if(existing)Object.assign(existing,u);
       else DB.users.push(u);
       pushAudit('User',name,'Added to team as '+ROLE_LABELS[role]);
-      toast('Team member added.','success');
+      toast(data.message||'Invitation sent.',data.email_sent?'success':'error');
       document.getElementById('umName').value='';
       document.getElementById('umEmail').value='';
-      document.getElementById('umPassword').value='';
       if(typeof render==='function')render();
       Studio.persist();
     }catch(error){
@@ -1670,6 +1666,19 @@ Object.assign(Studio,{
     }finally{
       if(button)button.disabled=false;
     }
+  },
+  async resendInvitation(uid){
+    if(!can('manageUsers'))return;
+    try{
+      const response=await window.beeFetch('../api/auth.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'resend_invitation',uid})});
+      const data=await parseApiResponse(response);
+      if(!response.ok||!data.success)throw new Error(data.error||'Unable to resend invitation.');
+      toast(data.message,data.email_sent?'success':'error');
+    }catch(error){toast(error.message,'error');}
+  },
+  async refreshInvitations(){
+    if(!can('manageUsers'))return;
+    try{await window.beeFetch('../api/auth.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'refresh_invitations'})});}catch{}
   },
   async changeRole(uid,role){
     const u=userById(uid);if(!u)return;

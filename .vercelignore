@@ -4,7 +4,8 @@
 .env*
 .firebase/
 firebase-public/
-api/
+api/*
+!api/team-invite.mjs
 config/
 database/
 includes/
