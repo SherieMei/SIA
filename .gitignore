@@ -1,2 +1,5 @@
 /uploads/assets/*
 !/uploads/assets/.gitkeep
+
+videos/
+uploads/assets/*.mp4
