@@ -154,7 +154,10 @@ function createUserNotification(
    ========================================================= */
 
 
-if ($_SERVER['REQUEST_METHOD'] === 'GET') {
+if (
+    $_SERVER['REQUEST_METHOD'] === 'GET' &&
+    ($_GET['action'] ?? '') !== 'trash_projects'
+) {
 
     $role = $currentUser['role'];
     $userId = $currentUser['id'];
@@ -270,6 +273,99 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
 }
 
 /* =========================================================
+   TRASHED PROJECTS
+   ========================================================= */
+
+if (
+    $_SERVER['REQUEST_METHOD'] === 'GET' &&
+    ($_GET['action'] ?? '') === 'trash_projects'
+) {
+
+    if (
+    !in_array(
+        $currentUser['role'] ?? '',
+        ['admin', 'project_manager'],
+        true
+    )
+) {
+        http_response_code(403);
+
+        echo json_encode([
+            'success' => false,
+            'message' => 'You do not have permission to view deleted projects.'
+        ]);
+
+        exit;
+    }
+
+    try {
+
+        $stmt = $pdo->prepare("
+            SELECT
+                id,
+                item_type,
+                item_id,
+                item_data,
+                deleted_at,
+                deleted_by
+            FROM app_trash
+            WHERE item_type = 'project'
+            ORDER BY deleted_at DESC
+        ");
+
+        $stmt->execute();
+
+        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        $projects = [];
+
+        foreach ($rows as $row) {
+
+            $data = json_decode(
+                $row['item_data'],
+                true
+            );
+
+            if (!is_array($data)) {
+                $data = [];
+            }
+
+            $projects[] = [
+                'trash_id' => $row['id'],
+                'item_id' => $row['item_id'],
+                'deleted_at' => $row['deleted_at'],
+                'deleted_by' => $row['deleted_by'],
+                'project' => $data
+            ];
+        }
+
+        echo json_encode([
+            'success' => true,
+            'projects' => $projects
+        ], JSON_UNESCAPED_UNICODE);
+
+        exit;
+
+    } catch (Throwable $e) {
+
+        error_log(
+            'Trash projects error: ' .
+            $e->getMessage()
+        );
+
+        http_response_code(500);
+
+        echo json_encode([
+            'success' => false,
+            'message' => 'Unable to load deleted projects.',
+            'error' => $e->getMessage()
+        ]);
+
+        exit;
+    }
+}
+
+/* =========================================================
    CREATE PROJECT
    ========================================================= */
 
@@ -280,6 +376,337 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         file_get_contents('php://input'),
         true
     ) ?? [];
+
+    /* =========================================================
+   RECOVER PROJECT
+   ========================================================= */
+
+if (($in['action'] ?? '') === 'recover_project') {
+
+    $trashId = trim((string)($in['trash_id'] ?? ''));
+
+    if ($trashId === '') {
+        http_response_code(400);
+
+        echo json_encode([
+            'success' => false,
+            'message' => 'Trash ID is required.'
+        ]);
+
+        exit;
+    }
+
+    try {
+
+        $trashStmt = $pdo->prepare("
+            SELECT
+                id,
+                item_id,
+                item_data
+            FROM app_trash
+            WHERE id = ?
+              AND item_type = 'project'
+            LIMIT 1
+        ");
+
+        $trashStmt->execute([
+            $trashId
+        ]);
+
+        $trashRow =
+            $trashStmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$trashRow) {
+            http_response_code(404);
+
+            echo json_encode([
+                'success' => false,
+                'message' => 'Deleted project not found.'
+            ]);
+
+            exit;
+        }
+
+        $project =
+            json_decode(
+                $trashRow['item_data'],
+                true
+            );
+
+        if (!is_array($project) || empty($project['id'])) {
+            http_response_code(500);
+
+            echo json_encode([
+                'success' => false,
+                'message' => 'Invalid deleted project data.'
+            ]);
+
+            exit;
+        }
+
+        $checkStmt = $pdo->prepare("
+            SELECT id
+            FROM projects
+            WHERE id = ?
+            LIMIT 1
+        ");
+
+        $checkStmt->execute([
+            $project['id']
+        ]);
+
+        if ($checkStmt->fetchColumn()) {
+            http_response_code(409);
+
+            echo json_encode([
+                'success' => false,
+                'message' => 'A project with this ID already exists.'
+            ]);
+
+            exit;
+        }
+
+        $pdo->beginTransaction();
+
+        /*
+         * Get the actual project table columns.
+         */
+        $columnsStmt =
+            $pdo->query("SHOW COLUMNS FROM projects");
+
+        $tableColumns =
+            $columnsStmt->fetchAll(PDO::FETCH_COLUMN);
+
+        /*
+         * Restore only columns that actually exist
+         * in the projects table.
+         */
+        $restoreData = [];
+
+        foreach ($tableColumns as $column) {
+
+            if (array_key_exists($column, $project)) {
+                $restoreData[$column] =
+                    $project[$column];
+            }
+        }
+
+        if (empty($restoreData['id'])) {
+            throw new Exception(
+                'Project ID is missing from deleted data.'
+            );
+        }
+
+        $columnNames =
+            array_keys($restoreData);
+
+        $placeholders =
+            array_fill(
+                0,
+                count($columnNames),
+                '?'
+            );
+
+        $quotedColumns =
+            array_map(
+                static function ($column) {
+                    return "`{$column}`";
+                },
+                $columnNames
+            );
+
+        $insertSql = "
+            INSERT INTO projects
+            (" . implode(', ', $quotedColumns) . ")
+            VALUES
+            (" . implode(', ', $placeholders) . ")
+        ";
+
+        $insertStmt =
+            $pdo->prepare($insertSql);
+
+        $insertStmt->execute(
+            array_values($restoreData)
+        );
+
+        $deleteTrashStmt = $pdo->prepare("
+            DELETE FROM app_trash
+            WHERE id = ?
+              AND item_type = 'project'
+        ");
+
+        $deleteTrashStmt->execute([
+            $trashId
+        ]);
+
+        createAuditLog(
+            $pdo,
+            'Recovered',
+            'Project',
+            "Recovered project {$project['id']} - {$project['name']}",
+            $project['id'],
+            $project['client_id'] ?? null
+        );
+
+        $pdo->commit();
+
+        echo json_encode([
+            'success' => true,
+            'message' => 'Project recovered successfully.'
+        ], JSON_UNESCAPED_UNICODE);
+
+        exit;
+
+    } catch (Throwable $e) {
+
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+
+        error_log(
+            'Recover project error: ' .
+            $e->getMessage()
+        );
+
+        http_response_code(500);
+
+        echo json_encode([
+            'success' => false,
+            'message' => 'Unable to recover project.',
+            'error' => $e->getMessage()
+        ]);
+
+        exit;
+    }
+}
+
+    /* =========================================================
+   DELETE PROJECT
+   ========================================================= */
+
+if (($in['action'] ?? '') === 'delete_project') {
+
+    $projectId = trim((string)($in['project_id'] ?? ''));
+
+    if ($projectId === '') {
+        http_response_code(400);
+        echo json_encode([
+            'success' => false,
+            'message' => 'Project ID is required.'
+        ]);
+        exit;
+    }
+
+    if (!api_can_access_project($pdo, $currentUser, $projectId)) {
+        http_response_code(403);
+        echo json_encode([
+            'success' => false,
+            'message' => 'You do not have permission to delete this project.'
+        ]);
+        exit;
+    }
+
+    $projectStmt = $pdo->prepare("
+        SELECT *
+        FROM projects
+        WHERE id = ?
+        LIMIT 1
+    ");
+
+    $projectStmt->execute([$projectId]);
+
+    $project = $projectStmt->fetch(PDO::FETCH_ASSOC);
+
+    if (!$project) {
+        http_response_code(404);
+        echo json_encode([
+            'success' => false,
+            'message' => 'Project not found.'
+        ]);
+        exit;
+    }
+
+    try {
+
+        $pdo->beginTransaction();
+
+        /*
+         * Save the complete project data into Trash
+         * before removing it from the active projects table.
+         */
+        $trashStmt = $pdo->prepare("
+            INSERT INTO app_trash
+            (
+                item_type,
+                item_id,
+                item_data,
+                deleted_by
+            )
+            VALUES (?, ?, ?, ?)
+        ");
+
+        $trashStmt->execute([
+            'project',
+            $project['id'],
+            json_encode(
+                $project,
+                JSON_UNESCAPED_UNICODE
+            ),
+            $currentUser['id'] ?? null
+        ]);
+
+        /*
+         * Remove the project from the active projects table.
+         */
+        $deleteStmt = $pdo->prepare("
+            DELETE FROM projects
+            WHERE id = ?
+        ");
+
+        $deleteStmt->execute([
+            $projectId
+        ]);
+
+        createAuditLog(
+            $pdo,
+            'Deleted',
+            'Project',
+            "Moved project {$projectId} - {$project['name']} to Trash",
+            $projectId,
+            $project['client_id'] ?? null
+        );
+
+        $pdo->commit();
+
+        echo json_encode([
+            'success' => true,
+            'message' => 'Project moved to Trash.'
+        ], JSON_UNESCAPED_UNICODE);
+
+        exit;
+
+    } catch (Throwable $e) {
+
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+
+        error_log(
+            'Delete project error: ' .
+            $e->getMessage()
+        );
+
+        http_response_code(500);
+
+        echo json_encode([
+            'success' => false,
+            'message' => 'Unable to delete project.',
+            'error' => $e->getMessage()
+        ]);
+
+        exit;
+    }
+}
 
     if (($in['action'] ?? '') === 'assign_team') {
         $projectId = trim((string)($in['project_id'] ?? ''));

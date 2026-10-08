@@ -128,6 +128,51 @@ if ($method === 'GET') {
         }
     }
 
+    // ----------------------------------------------
+// LOAD DELETED TEAM MEMBERS
+// ----------------------------------------------
+
+if ($action === 'trash_users') {
+    $currentUser = api_require_user($pdo);
+    api_require_roles($currentUser, ['admin']);
+
+    try {
+        $stmt = $pdo->prepare("
+            SELECT id, item_id, item_data, deleted_at, deleted_by
+            FROM app_trash
+            WHERE item_type = 'user'
+            ORDER BY deleted_at DESC
+        ");
+
+        $stmt->execute();
+
+        $trashUsers = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        foreach ($trashUsers as &$item) {
+            $item['item_data'] = json_decode($item['item_data'], true);
+        }
+
+        unset($item);
+
+        echo json_encode([
+            'success' => true,
+            'users' => $trashUsers
+        ]);
+
+        exit;
+
+    } catch (PDOException $e) {
+        http_response_code(500);
+
+        echo json_encode([
+            'success' => false,
+            'error' => 'Unable to load deleted accounts.'
+        ]);
+
+        exit;
+    }
+}
+
 
     // ----------------------------------------------
     // UNKNOWN GET ACTION
@@ -243,6 +288,322 @@ if ($action === 'create_team_member') {
     }
 }
 
+
+// ==================================================
+// DELETE TEAM MEMBER
+// ==================================================
+
+if ($action === 'delete_team_member') {
+
+    $currentUser = api_require_user($pdo);
+    api_require_roles($currentUser, ['admin']);
+
+    $uid = is_string($input['id'] ?? null)
+        ? trim($input['id'])
+        : '';
+
+    if (!$uid) {
+        http_response_code(400);
+        echo json_encode([
+            'success' => false,
+            'error' => 'User ID is required.'
+        ]);
+        exit;
+    }
+
+    // Prevent admin from deleting their own currently logged-in account
+    if ((string)$currentUser['id'] === (string)$uid) {
+        http_response_code(400);
+        echo json_encode([
+            'success' => false,
+            'error' => 'You cannot delete your own account while signed in.'
+        ]);
+        exit;
+    }
+
+    try {
+
+        // Check that the account exists first
+        $check = $pdo->prepare("
+            SELECT *
+            FROM app_users
+            WHERE id = ?
+            LIMIT 1
+        ");
+        $check->execute([$uid]);
+
+        $deletedUser = $check->fetch(PDO::FETCH_ASSOC);
+
+        if (!$deletedUser) {
+            http_response_code(404);
+            echo json_encode([
+                'success' => false,
+                'error' => 'Team member not found.'
+            ]);
+            exit;
+        }
+
+        $pdo->beginTransaction();
+
+        // SAVE ACCOUNT TO TRASH BEFORE DELETING
+        $trash = $pdo->prepare("
+            INSERT INTO app_trash (
+                item_type,
+                item_id,
+                item_data,
+                deleted_by
+            ) VALUES (?, ?, ?, ?)
+        ");
+
+        $trash->execute([
+            'user',
+            $uid,
+            json_encode($deletedUser),
+            $currentUser['id']
+        ]);
+
+        // DELETE ACCOUNT FROM ACTIVE TABLE
+        $delete = $pdo->prepare("
+            DELETE FROM app_users
+            WHERE id = ?
+        ");
+
+        $delete->execute([$uid]);
+
+        /*
+         * Also remove the user from the saved application state.
+         * app_state contains a copy of the users list used by
+         * the frontend's persistence system.
+         */
+        $stateStmt = $pdo->query("
+            SELECT state_json
+            FROM app_state
+            WHERE id = 1
+            LIMIT 1
+        ");
+
+        $stateRow = $stateStmt->fetch(PDO::FETCH_ASSOC);
+
+        if ($stateRow && !empty($stateRow['state_json'])) {
+
+            $state = json_decode($stateRow['state_json'], true);
+
+            if (is_array($state) && isset($state['users']) && is_array($state['users'])) {
+
+                $state['users'] = array_values(array_filter(
+                    $state['users'],
+                    function ($user) use ($uid) {
+                        return (string)($user['id'] ?? '') !== (string)$uid;
+                    }
+                ));
+
+                $updateState = $pdo->prepare("
+                    UPDATE app_state
+                    SET state_json = ?
+                    WHERE id = 1
+                ");
+
+                $updateState->execute([
+                    json_encode(
+                        $state,
+                        JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
+                    )
+                ]);
+            }
+        }
+
+        $pdo->commit();
+
+        echo json_encode([
+            'success' => true,
+            'deleted_user' => [
+                'id' => $uid,
+                'full_name' => $deletedUser['full_name']
+            ]
+        ]);
+
+        exit;
+
+    } catch (Throwable $e) {
+
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+
+        error_log('Team member deletion failed: ' . $e->getMessage());
+
+        http_response_code(500);
+
+        echo json_encode([
+            'success' => false,
+            'error' => 'Unable to delete team member from the database.'
+        ]);
+
+        exit;
+    }
+}
+
+// LOAD DELETED TEAM MEMBERS
+if ($action === 'trash_users') {
+    $currentUser = api_require_user($pdo);
+    api_require_roles($currentUser, ['admin']);
+
+    try {
+        $stmt = $pdo->prepare("
+            SELECT id, item_id, item_data, deleted_at, deleted_by
+            FROM app_trash
+            WHERE item_type = 'user'
+            ORDER BY deleted_at DESC
+        ");
+
+        $stmt->execute();
+
+        $trashUsers = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        foreach ($trashUsers as &$item) {
+            $item['item_data'] = json_decode($item['item_data'], true);
+        }
+
+        unset($item);
+
+        echo json_encode([
+            'success' => true,
+            'users' => $trashUsers
+        ]);
+
+        exit;
+
+    } catch (PDOException $e) {
+        http_response_code(500);
+
+        echo json_encode([
+            'success' => false,
+            'error' => 'Unable to load deleted accounts.'
+        ]);
+
+        exit;
+    }
+}
+
+// RECOVER TEAM MEMBER
+if ($action === 'recover_team_member') {
+    $currentUser = api_require_user($pdo);
+    api_require_roles($currentUser, ['admin']);
+
+    $input = json_decode(file_get_contents('php://input'), true);
+    $trashId = trim((string)($input['trash_id'] ?? ''));
+
+    if ($trashId === '') {
+        http_response_code(400);
+        echo json_encode([
+            'success' => false,
+            'error' => 'Trash ID is required.'
+        ]);
+        exit;
+    }
+
+    $findTrash = $pdo->prepare("
+        SELECT *
+        FROM app_trash
+        WHERE id = ?
+          AND item_type = 'user'
+        LIMIT 1
+    ");
+
+    $findTrash->execute([$trashId]);
+    $trashItem = $findTrash->fetch(PDO::FETCH_ASSOC);
+
+    if (!$trashItem) {
+        http_response_code(404);
+        echo json_encode([
+            'success' => false,
+            'error' => 'Deleted account not found in Trash.'
+        ]);
+    exit;
+    }
+
+    $userData = json_decode($trashItem['item_data'], true);
+
+    if (!is_array($userData)) {
+        http_response_code(500);
+        echo json_encode([
+            'success' => false,
+            'error' => 'Invalid account data in Trash.'
+        ]);
+    exit;
+    }
+
+    $pdo->beginTransaction();
+
+    try {
+        // Check if the original account ID already exists
+        $checkUser = $pdo->prepare("
+            SELECT id
+            FROM app_users
+            WHERE id = ?
+            LIMIT 1
+        ");
+
+        $checkUser->execute([$userData['id']]);
+
+        if ($checkUser->fetch()) {
+            throw new Exception('An account with this ID already exists.');
+        }
+
+        // Restore account to app_users
+        $restore = $pdo->prepare("
+            INSERT INTO app_users (
+                id,
+                full_name,
+                email,
+                password,
+                role
+            ) VALUES (?, ?, ?, ?, ?)
+        ");
+
+        $restore->execute([
+            $userData['id'],
+            $userData['full_name'],
+            $userData['email'],
+            $userData['password'],
+            $userData['role']
+        ]);
+
+        // Remove recovered account from Trash
+        $removeTrash = $pdo->prepare("
+            DELETE FROM app_trash
+            WHERE id = ?
+        ");
+
+        $removeTrash->execute([$trashId]);
+
+        $pdo->commit();
+
+        echo json_encode([
+            'success' => true,
+            'message' => 'Account recovered successfully.',
+            'user' => [
+                'id' => $userData['id'],
+                'full_name' => $userData['full_name'],
+                'email' => $userData['email'],
+                'role' => $userData['role']
+            ]
+        ]);
+        exit;
+
+    } catch (Throwable $e) {
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+
+        http_response_code(500);
+        echo json_encode([
+            'success' => false,
+            'error' => $e->getMessage()
+        ]);
+        exit;
+    }
+}
 
 // ==================================================
 // LOGOUT

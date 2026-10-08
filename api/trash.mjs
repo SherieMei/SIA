@@ -86,7 +86,7 @@ export function createTrashHandler({ auth, db }) {
             account=await auth.createUser({uid:record.item_id,email:data.email,displayName:data.full_name,password:randomBytes(32).toString('base64url'),disabled:true});
             data={...data,verification_required:true,email_verified:false,invitation_status:'failed'};
           }
-          const batch=db.batch();batch.set(db.collection('app_users').doc(record.item_id),{...data,id:record.item_id,disabled:false});batch.delete(trash);log(batch,record,'Restored');await batch.commit();await auth.updateUser(account.uid,{disabled:false});
+          const batch=db.batch();batch.set(db.collection('app_users').doc(record.item_id),{...data,id:record.item_id,disabled:false});batch.delete(trash);log(batch,record,'Restored');await auth.updateUser(account.uid,{disabled:false});try{await batch.commit();}catch(e){await auth.updateUser(account.uid,{disabled:true});throw e;}
         }else{
           try{await auth.deleteUser(record.item_id);}catch(e){if(e.code!=='auth/user-not-found')throw e;}
           const batch=db.batch();batch.delete(db.collection('app_users').doc(record.item_id));batch.delete(db.collection('team_invitations').doc(record.item_id));batch.delete(trash);log(batch,record,'Permanently deleted');await batch.commit();
@@ -100,7 +100,7 @@ export function createTrashHandler({ auth, db }) {
             if(type==='asset'){ currentProject=(await tx.get(db.collection('projects').doc(record.project_id))).data();if(!currentProject)throw failure('Recover the project first.',409); }
             for(const d of docs){if((await tx.get(db.doc(d.data().path))).exists)throw failure('An active record already uses this ID. Recovery was cancelled.',409);}
           }
-          for(const d of docs){if(action==='recover'){let restored=d.data().data;if(currentProject){restored={...restored};if('access_ids' in restored)restored.access_ids=currentProject.access_ids;if('reader_ids' in restored)restored.reader_ids=[...currentProject.access_ids,currentProject.client_id].filter(Boolean);if('client_id' in restored)restored.client_id=currentProject.client_id;}tx.set(db.doc(d.data().path),restored);}tx.delete(d.ref);}tx.delete(trash);log(tx,record,action==='recover'?'Restored':'Permanently deleted');
+          for(const d of docs){if(action==='recover'){let restored=d.data().data;if(currentProject){restored={...restored};if('access_ids' in restored)restored.access_ids=currentProject.access_ids;if('reader_ids' in restored)restored.reader_ids=restored.reader_ids.length===1?[currentProject.client_id].filter(Boolean):[...currentProject.access_ids,currentProject.client_id].filter(Boolean);if('client_id' in restored)restored.client_id=currentProject.client_id;}tx.set(db.doc(d.data().path),restored);}tx.delete(d.ref);}tx.delete(trash);log(tx,record,action==='recover'?'Restored':'Permanently deleted');
         });
       }
       return res.status(200).json({success:true,message:action==='recover'?'Recovered successfully.':'Permanently deleted.'});
