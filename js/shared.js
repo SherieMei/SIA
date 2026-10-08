@@ -1,3 +1,6 @@
+// Each existing API operation is handled locally by the Firebase adapter.
+const firebaseAdapterReady = import(new URL('./firebase-api.js', document.currentScript.src).href);
+window.beeFetch = async (url, options) => (await firebaseAdapterReady).firebaseFetch(url, options);
 /* BEE PRODUCTION SHARED RUNTIME */
 const sharedScriptUrl = document.currentScript?.src;
 if (!sharedScriptUrl) {
@@ -90,7 +93,7 @@ async function loadAnimationShotsFromDB(){
   DB.animationShotsError='';
   if(DB.currentUser?.role!=='animator')return true;
   try{
-    const response=await fetch(window.BEE_API_BASE+'animation_shots.php',{
+    const response=await window.beeFetch(window.BEE_API_BASE+'animation_shots.php',{
       credentials:'include'
     });
     const data=await parseApiResponse(response);
@@ -124,7 +127,7 @@ function pushEvent(name,payload){
   DB.events.unshift({id:nid('e'),name,payload,date:new Date().toISOString()});
 }
 /* ===== PERSISTENCE ACROSS SEPARATE PAGES ===== */
-const DB_PERSIST_KEY='beeDB';
+const DB_PERSIST_KEY='beeDBFirebase';
 const DB_PERSISTED_FIELDS=[
   'users',
   'assets',
@@ -384,13 +387,7 @@ const Studio={
       DB_PERSISTED_FIELDS.forEach(key=>{snapshot[key]=DB[key];});
       snapshot.idCounters=idCounters;
       sessionStorage.setItem(DB_PERSIST_KEY,JSON.stringify(snapshot));
-      const payload=JSON.stringify({state:snapshot});
-      if(navigator.sendBeacon){
-        const blob=new Blob([payload],{type:'application/json'});
-        navigator.sendBeacon('../api/sync.php',blob);
-      }else{
-        fetch('../api/sync.php',{method:'POST',headers:{'Content-Type':'application/json'},body:payload,keepalive:true}).catch(()=>{});
-      }
+
     }catch(e){}
   },
   login(username,password){
@@ -402,7 +399,7 @@ const Studio={
     if(!email||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){toast('Enter a valid email to sign in.','error');return;}
     if(!password){toast('Enter a password to sign in.','error');return;}
     try{
-      const res=await fetch(window.BEE_API_BASE+'auth.php',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'login',email,password})});
+      const res=await window.beeFetch(window.BEE_API_BASE+'auth.php',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'login',email,password})});
       const data=await parseApiResponse(res);
       if(!res.ok||!data.success)throw new Error(data.error||'Sign in failed.');
       const u={id:String(data.user.id),name:data.user.full_name,email:data.user.email,role:data.user.role};
@@ -419,7 +416,7 @@ const Studio={
     if(!email||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){toast('Enter a valid email.','error');return;}
     if(password.length<6){toast('Password must be at least 6 characters.','error');return;}
     try{
-      const res=await fetch(window.BEE_API_BASE+'auth.php',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'register',name,email,password})});
+      const res=await window.beeFetch(window.BEE_API_BASE+'auth.php',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'register',name,email,password})});
       const data=await parseApiResponse(res);
       if(!res.ok||!data.success)throw new Error(data.error||'Account creation failed.');
       const u={id:String(data.user.id),name:data.user.full_name,email:data.user.email,role:data.user.role};
@@ -431,7 +428,7 @@ const Studio={
         hideCancel:true,
         onConfirm:async()=>{
           try{
-            await fetch(window.BEE_API_BASE+'auth.php',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'logout'})});
+            await window.beeFetch(window.BEE_API_BASE+'auth.php',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'logout'})});
           }catch(e){}
           const passwordInput=document.getElementById('loginPassword');
           if(passwordInput)passwordInput.value='';
@@ -472,7 +469,7 @@ const Studio={
   },
   async logout(){
     try{
-      await fetch(window.BEE_API_BASE+'auth.php',{
+      await window.beeFetch(window.BEE_API_BASE+'auth.php',{
         method:'POST',
         credentials:'include',
         headers:{'Content-Type':'application/json'},
@@ -649,12 +646,13 @@ try{
 }
 async function loadServerState(){
   try{
-    const res=await fetch(window.BEE_API_BASE+'bootstrap.php',{
+    const res=await window.beeFetch(window.BEE_API_BASE+'bootstrap.php',{
       credentials:'include'
     });
     const data=await parseApiResponse(res);
-    if(!data.success||!data.state)return false;
+    if(!data.success||!data.state){DB.currentUser=null;localStorage.removeItem('beeCurrentUser');sessionStorage.removeItem('beeCurrentUser');return false;}
     const server=data.state;
+    DB.projects=Array.isArray(server.projects)?server.projects:[];
     DB_PERSISTED_FIELDS.forEach(key=>{
       if(!Array.isArray(server[key]))return;
       DB[key]=key==='assets'
@@ -689,7 +687,7 @@ async function loadServerState(){
 }
 async function loadAssetsFromDB(){
   try{
-    const res=await fetch(window.BEE_API_BASE+'assets.php',{
+    const res=await window.beeFetch(window.BEE_API_BASE+'assets.php',{
       credentials:'include'
     });
     const data=await parseApiResponse(res);
@@ -720,7 +718,7 @@ async function loadAssetsFromDB(){
 }
 async function loadResourcesFromDB(){
   try{
-    const res=await fetch(window.BEE_API_BASE+'assets/resources.php',{
+    const res=await window.beeFetch(window.BEE_API_BASE+'assets/resources.php',{
       credentials:'include'
     });
     const data=await parseApiResponse(res);
@@ -741,7 +739,7 @@ async function loadResourcesFromDB(){
 }
 async function loadNotificationsFromDB(){
   try{
-    const response=await fetch(
+    const response=await window.beeFetch(
       window.BEE_API_BASE+'notifications.php?action=list',
       {
         method:'GET',
@@ -772,9 +770,8 @@ async function loadNotificationsFromDB(){
   }
 }
 async function loadProjectsFromDB(){
-  DB.projects=[];
   try{
-    const response=await fetch(
+    const response=await window.beeFetch(
       window.BEE_API_BASE+'projects.php',
       {
         method:'GET',
@@ -1054,7 +1051,7 @@ Object.assign(Studio,{
       animator_id:animatorId||null,
       budget:budget
     };
-    fetch(window.BEE_API_BASE+'projects.php',{
+    window.beeFetch(window.BEE_API_BASE+'projects.php',{
       method:'POST',
       credentials:'include',
       headers:{'Content-Type':'application/json'},
@@ -1099,7 +1096,7 @@ Object.assign(Studio,{
       client_id:clientSelect?clientSelect.value:(project.client_id||'')
     };
     try{
-      const response=await fetch('../api/projects.php',{
+      const response=await window.beeFetch('../api/projects.php',{
         method:'POST',
         credentials:'include',
         headers:{'Content-Type':'application/json'},
@@ -1133,6 +1130,7 @@ Object.assign(Studio,{
     const type=document.getElementById('saType').value;
     const notes=document.getElementById('saNotes').value.trim();
     const link=document.getElementById('saLink').value.trim();
+    if(!/^https:\/\//i.test(link)){toast('Enter an HTTPS link to your media.','error');return;}
     const file=document.getElementById('saFile')?.files?.[0]||null;
     const dueDate=document.getElementById('saDueDate')?.value||'';
     const assignedEditor =
@@ -1194,7 +1192,7 @@ Object.assign(Studio,{
       body.append('notes',notes);
       body.append('link',link);
       if(file)body.append('asset_file',file);
-      const response=await fetch(window.BEE_API_BASE+'assets.php',{
+      const response=await window.beeFetch(window.BEE_API_BASE+'assets.php',{
         method:'POST',
         credentials:'include',
         body
@@ -1248,7 +1246,7 @@ Object.assign(Studio,{
       body.append('assigned_animator',assignedAnimator);
       if(sequenceId)body.append('sequence_id',sequenceId);
       if(file)body.append('asset_file',file);
-      const response=await fetch(window.BEE_API_BASE+'assets.php',{
+      const response=await window.beeFetch(window.BEE_API_BASE+'assets.php',{
         method:'POST',
         credentials:'include',
         body
@@ -1302,7 +1300,7 @@ Object.assign(Studio,{
     const nextStatus=decision==='approve'
       ?'Approved'
       :decision==='revise'?'Revision Requested':'Rejected';
-    fetch(window.BEE_API_BASE+'assets.php',{
+    window.beeFetch(window.BEE_API_BASE+'assets.php',{
       method:'PUT',
       credentials:'include',
       headers:{'Content-Type':'application/json'},
@@ -1350,7 +1348,7 @@ Object.assign(Studio,{
       if(!asset)toast('Asset could not be found. Please refresh the page.','error');
       return;
     }
-    fetch(window.BEE_API_BASE+'assets.php',{
+    window.beeFetch(window.BEE_API_BASE+'assets.php',{
       method:'POST',
       credentials:'include',
       headers:{'Content-Type':'application/json'},
@@ -1382,7 +1380,7 @@ Object.assign(Studio,{
       if(!notification||notification.id==null){
         throw new Error('Notification is missing an ID.');
       }
-      const response=await fetch(
+      const response=await window.beeFetch(
         window.BEE_API_BASE+'notifications.php?action=mark_read',
         {
           method:'POST',
@@ -1409,7 +1407,7 @@ Object.assign(Studio,{
   },
   async markAllRead(){
     try{
-      const response=await fetch(
+      const response=await window.beeFetch(
         window.BEE_API_BASE+'notifications.php?action=mark_all_read',
         {
           method:'POST',
@@ -1537,7 +1535,7 @@ Object.assign(Studio,{
         `;
       }
       const response=
-        await fetch(
+        await window.beeFetch(
           window.BEE_API_BASE+'integration_etl_logs.php',
           {
             method:'POST',
@@ -1590,7 +1588,7 @@ Object.assign(Studio,{
       toast(
         'ETL complete — '+
         data.loaded_rows+
-        ' asset(s) saved to MySQL.',
+        ' asset(s) saved to Firestore.',
         'success'
       );
       if(
@@ -1636,7 +1634,7 @@ Object.assign(Studio,{
     const button=document.getElementById('umAddButton');
     if(button)button.disabled=true;
     try{
-      const response=await fetch('../api/auth.php',{
+      const response=await window.beeFetch('../api/auth.php',{
         method:'POST',
         credentials:'include',
         headers:{'Content-Type':'application/json'},
@@ -1661,8 +1659,11 @@ Object.assign(Studio,{
       if(button)button.disabled=false;
     }
   },
-  changeRole(uid,role){
+  async changeRole(uid,role){
     const u=userById(uid);if(!u)return;
+    const response=await window.beeFetch('../api/sync.php',{method:'POST',body:JSON.stringify({action:'change_role',id:uid,role})});
+    const saved=await response.json();
+    if(!response.ok){toast(saved.error,'error');return;}
     u.role=role;
     pushAudit('User',u.name,'Role changed to '+ROLE_LABELS[role]);
     toast(u.name+' is now '+(ROLE_LABELS[role]||role)+'.');
@@ -1682,7 +1683,10 @@ Object.assign(Studio,{
       body:'“'+esc(u.name)+'” ('+esc(ROLE_LABELS[u.role]||u.role)+') will lose access to the studio. Their past uploads, comments, and approvals stay on record.',
       confirmLabel:'Remove',
       danger:true,
-      onConfirm:()=>{
+      onConfirm:async()=>{
+        const response=await window.beeFetch('../api/sync.php',{method:'POST',body:JSON.stringify({action:'disable_user',id:uid})});
+        const saved=await response.json();
+        if(!response.ok){toast(saved.error,'error');return;}
         DB.users=DB.users.filter(x=>x.id!==uid);
         pushAudit('User',u.name,'Removed from team');
         toast(u.name+' removed from the team.','success');
@@ -1691,4 +1695,15 @@ Object.assign(Studio,{
       }
     });
   },
+});
+let firebaseRefreshTimer;
+window.addEventListener('bee-firebase-change',()=>{
+  clearTimeout(firebaseRefreshTimer);
+  firebaseRefreshTimer=setTimeout(async()=>{
+    await loadServerState();
+    await loadProjectsFromDB();
+    await loadAssetsFromDB();
+    await loadNotificationsFromDB();
+    if(typeof render==='function'&&DB.currentUser&&document.body?.dataset.page!=='login')render();
+  },300);
 });

@@ -298,20 +298,12 @@ ASSETS — ASSET LIST
       </div>
       <div class="field-row">
         <div class="field">
-          <label for="saLink">External media / storage link (optional)</label>
-          <input id="saLink" type="url" inputmode="url" placeholder="Paste any web link: video, image, document, or webpage" oninput="previewAssetLink(this)">
+          <label for="saLink">Media link</label>
+          <input id="saLink" type="url" inputmode="url" placeholder="Paste an HTTPS link to your media" oninput="previewAssetLink(this)">
           <small class="asset-link-hint">Paste YouTube, Canva, image, video, document, or webpage links.</small>
           <div id="saLinkPreview" class="asset-link-preview" hidden></div>
         </div>
-        <div class="field">
-          <label for="saFile">Attach file</label>
-          <input id="saFile" type="file" accept=".avif,.gif,.jpg,.jpeg,.png,.webp,.mp4,.mov,.ogv,.ogg,.webm,.mp3,.wav,.m4a,.aac,.flac,.oga,.pdf,.doc,.docx,.rtf,.odt,.json,.txt,.csv,.tsv,.xls,.xlsx,.ods,.ppt,.pptx,.odp" onchange="previewAssetFile(this)">
-          <div id="saFileSelection" class="asset-file-selection" hidden>
-            <span id="saFileName" class="asset-file-name"></span>
-            <div id="saFilePreview" class="asset-file-preview"></div>
-            <small class="asset-local-preview-note">Images, video, audio, PDF, Word, JSON, and other supported document files.</small>
-          </div>
-        </div>
+
       </div>
       <div class="field"><label>Notes for reviewers</label><textarea id="saNotes" placeholder="What changed, what to check..."></textarea></div>
 
@@ -620,7 +612,7 @@ async function loadAssetJsonPreview(elementId,url){
   const preview=document.getElementById(elementId);
   if(!preview)return;
   try{
-    const response=await fetch(url,{credentials:'omit'});
+    const response=await window.beeFetch(url,{credentials:'omit'});
     if(!response.ok)throw new Error(`JSON request failed with HTTP ${response.status}.`);
     const text=await response.text();
     if(text.length>2_000_000)throw new Error('JSON preview is larger than 2 MB.');
@@ -641,7 +633,7 @@ async function loadAssetDocxPreview(elementId,url){
   const preview=document.getElementById(elementId);
   if(!preview)return;
   try{
-    const response=await fetch(url,{credentials:'same-origin'});
+    const response=await window.beeFetch(url,{credentials:'same-origin'});
     if(!response.ok)throw new Error(`Word document request failed with HTTP ${response.status}.`);
     const buffer=await response.arrayBuffer();
     if(buffer.byteLength>30*1024*1024)throw new Error('Word preview is limited to files smaller than 30 MB.');
@@ -715,7 +707,7 @@ async function loadAssetTextPreview(elementId,url){
   const preview=document.getElementById(elementId);
   if(!preview)return;
   try{
-    const response=await fetch(url,{credentials:'omit'});
+    const response=await window.beeFetch(url,{credentials:'omit'});
     if(!response.ok)throw new Error(`Text request failed with HTTP ${response.status}.`);
     const text=await response.text();
     if(text.length>20000)throw new Error('Text preview is larger than 20 KB.');
@@ -1057,7 +1049,8 @@ function render(){
     default:el.innerHTML=pageDashboard();
   }
 }
-document.addEventListener('DOMContentLoaded',()=>{
+document.addEventListener('DOMContentLoaded',async () => {
+  await window.BEE_SERVER_READY;
   // When opened from Project Details via ?submit=1&project=..., keep this as the Assets page.
   if(new URLSearchParams(window.location.search).get('submit')==='1'){
     state.page='assets';

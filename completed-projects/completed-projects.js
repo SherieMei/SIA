@@ -232,7 +232,8 @@ function render(){
 
 document.addEventListener(
   'DOMContentLoaded',
-  ()=>{
+  async () => {
+  await window.BEE_SERVER_READY;
 
     if(!DB.currentUser){
 

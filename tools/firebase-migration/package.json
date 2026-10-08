@@ -1,0 +1,12 @@
+{
+  "name": "atlas-firebase-migration",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "firebase-admin": "^13.0.0"
+  },
+  "devDependencies": {
+    "firebase-tools": "^15.33.0",
+    "playwright": "^1.64.0"
+  }
+}

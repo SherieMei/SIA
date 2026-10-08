@@ -272,7 +272,7 @@ function finishProject(projectId){
       try{
 
         const response =
-          await fetch(
+          await window.beeFetch(
             window.BEE_API_BASE+'projects.php',
             {
               method: 'PUT',

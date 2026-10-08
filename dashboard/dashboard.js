@@ -664,7 +664,7 @@ async function loadEditorDashboardData(){
   editorDashboardData.loading=true;
   editorDashboardData.error='';
   try{
-    const response=await fetch(window.BEE_API_BASE+'editor_sequences.php',{credentials:'include'});
+    const response=await window.beeFetch(window.BEE_API_BASE+'editor_sequences.php',{credentials:'include'});
     const data=await parseApiResponse(response);
     if(
       !response.ok||
@@ -1067,7 +1067,8 @@ function render(){
 }
 
 
-document.addEventListener('DOMContentLoaded',()=>{
+document.addEventListener('DOMContentLoaded',async () => {
+  await window.BEE_SERVER_READY;
 
   if(!DB.currentUser){
     window.location.assign('../login/login.html');

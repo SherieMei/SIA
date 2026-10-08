@@ -31,7 +31,7 @@ Object.assign(Studio, {
   });
 
   // Save REQUEST to database
-  fetch(window.BEE_API_BASE+'integration_api_logs.php', {
+  window.beeFetch(window.BEE_API_BASE+'integration_api_logs.php', {
     method: 'POST',
     credentials: 'include',
     headers: {
@@ -73,7 +73,7 @@ Object.assign(Studio, {
     });
 
     // Save RESPONSE to database
-    fetch(window.BEE_API_BASE+'integration_api_logs.php', {
+    window.beeFetch(window.BEE_API_BASE+'integration_api_logs.php', {
       method: 'POST',
       credentials: 'include',
       headers: {
@@ -213,7 +213,7 @@ async runETL(){
     }
 
     const response =
-      await fetch(
+      await window.beeFetch(
         window.BEE_API_BASE+'integration_etl_logs.php',
         {
           method: 'POST',
@@ -275,7 +275,7 @@ async runETL(){
     toast(
       'ETL complete — ' +
       data.loaded_rows +
-      ' asset(s) saved to MySQL.',
+      ' asset(s) saved to Firestore.',
       'success'
     );
 

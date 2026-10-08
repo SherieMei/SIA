@@ -74,7 +74,8 @@ function render(){
   }
 }
 
-document.addEventListener('DOMContentLoaded',()=>{
+document.addEventListener('DOMContentLoaded',async () => {
+  await window.BEE_SERVER_READY;
   if(!DB.currentUser){
     window.location.assign('../login/login.html');
     return;

@@ -2,14 +2,14 @@
 
 
 /* ==========================================================================
-   LOAD AUDIT LOGS FROM MYSQL
+   LOAD AUDIT LOGS FROM FIRESTORE
    ========================================================================== */
 
 async function loadAuditLogs(){
 
   try {
 
-    const response = await fetch(
+    const response = await window.beeFetch(
       '../api/audit.php',
       {
         method: 'GET',
@@ -250,7 +250,8 @@ function render(){
 
 document.addEventListener(
   'DOMContentLoaded',
-  async ()=>{
+  async () => {
+  await window.BEE_SERVER_READY;
 
 
     if(!DB.currentUser){

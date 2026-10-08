@@ -35,7 +35,7 @@ Object.assign(Studio, {
   }
 
   try {
-    const response = await fetch(window.BEE_API_BASE+'assets.php', {
+    const response = await window.beeFetch(window.BEE_API_BASE+'assets.php', {
       method: 'POST',
       credentials: 'include',
       headers: {
@@ -56,7 +56,7 @@ Object.assign(Studio, {
       return;
     }
 
-    /* Use the version returned by PHP/MySQL */
+    /* Use the version returned by PHP/Firestore */
     asset.versions.push(data.version);
 
     if(link){
@@ -104,7 +104,7 @@ Object.assign(Studio, {
 
   try {
 
-    const response = await fetch(window.BEE_API_BASE+'assets.php', {
+    const response = await window.beeFetch(window.BEE_API_BASE+'assets.php', {
       method: 'POST',
       credentials: 'include',
       headers: {
@@ -130,7 +130,7 @@ Object.assign(Studio, {
       return;
     }
 
-    /* Use the asset returned by PHP/MySQL */
+    /* Use the asset returned by PHP/Firestore */
     DB.assets.push(data.asset);
 
     pushAudit(

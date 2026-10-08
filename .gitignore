@@ -8,3 +8,8 @@ uploads/assets/*.mp4
 .env.*
 !.env.example
 .vercel/
+
+tools/firebase-migration/node_modules/
+firebase-public/
+firebase-debug.log
+.firebase/

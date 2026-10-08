@@ -36,7 +36,7 @@ Object.assign(Studio, {
         budget: budget
     };
 
-    fetch(window.BEE_API_BASE+'projects.php', {
+    window.beeFetch(window.BEE_API_BASE+'projects.php', {
         method: 'POST',
         credentials: 'include',
         headers: {

@@ -118,7 +118,7 @@ async function loadClientsFromDB(){
 
   try{
 
-    const response = await fetch(
+    const response = await window.beeFetch(
       '../api/auth.php?action=users',
       {
         credentials:'include'
@@ -240,7 +240,7 @@ async function loadProjectAssignees(){
 
   try{
 
-    const response = await fetch(
+    const response = await window.beeFetch(
       '../api/auth.php?action=users',
       {
         credentials:'include'
@@ -309,7 +309,7 @@ async function loadProjectsFromDB(){
 
   try {
 
-    const response = await fetch(
+    const response = await window.beeFetch(
       window.BEE_API_BASE+'projects.php',
       {
         credentials: 'include'
@@ -871,7 +871,7 @@ function pageAnimatorShotTracker(){
               }):''}
               <label class="field">
                 <span>Upload animation version <small>For client approval</small></span>
-                <input id="shot-file-${safeId}" type="file" accept=".mp4,.mov,.ogv,.ogg,.webm,.png,.jpg,.jpeg,.pdf,.doc,.docx" ${isAwaitingReview?'disabled':''}>
+                <input id="shot-link-${safeId}" type="url" placeholder="HTTPS link to your animation" ${isAwaitingReview?'disabled':''}>
               </label>
               <div id="shot-preview-${safeId}" class="animation-shot-upload-preview" aria-live="polite" hidden></div>
               <div class="animation-gallery-actions">
@@ -932,7 +932,7 @@ Object.assign(Studio,{
     const workflowStatus=document.getElementById(`shot-status-${assetId}`)?.value||'In Progress';
     const taskNotes=document.getElementById(`shot-notes-${assetId}`)?.value||'';
     try{
-      const response=await fetch(window.BEE_API_BASE+'animation_shots.php',{
+      const response=await window.beeFetch(window.BEE_API_BASE+'animation_shots.php',{
         method:'POST',
         credentials:'include',
         headers:{'Content-Type':'application/json'},
@@ -965,9 +965,9 @@ Object.assign(Studio,{
       toast('Only the assigned animator can submit an animation version.','error');
       return;
     }
-    const file=document.getElementById(`shot-file-${assetId}`)?.files?.[0];
-    if(!file){
-      toast('Choose an animation or playblast file first.','error');
+    const link=document.getElementById(`shot-link-${assetId}`)?.value.trim();
+    if(!link){
+      toast('Enter an animation or playblast link first.','error');
       return;
     }
     const shot=DB.animationShots?.find(item=>Number(item.asset_id)===Number(assetId));
@@ -979,9 +979,9 @@ Object.assign(Studio,{
     body.append('action','version');
     body.append('asset_id',String(assetId));
     body.append('notes',document.getElementById(`shot-notes-${assetId}`)?.value||'');
-    body.append('asset_file',file);
+    body.append('link',link);
     try{
-      const response=await fetch(window.BEE_API_BASE+'assets.php',{
+      const response=await window.beeFetch(window.BEE_API_BASE+'assets.php',{
         method:'POST',
         credentials:'include',
         body
@@ -1752,7 +1752,7 @@ if(!completion.canFinish){
 
       try{
 
-        const response = await fetch(
+        const response = await window.beeFetch(
           window.BEE_API_BASE+'projects.php',
           {
             method:'PUT',
@@ -1958,6 +1958,7 @@ function render(){
 document.addEventListener(
   'DOMContentLoaded',
   async () => {
+  await window.BEE_SERVER_READY;
 
     if(!DB.currentUser){
 

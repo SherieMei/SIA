@@ -21,24 +21,59 @@ This build keeps BEE PRODUCTION separated by page and stylesheet/script:
 
 The separated pages now initialize their route from each document's `data-page` attribute before rendering. Detail routes also restore their `project` or `asset` query parameter. This prevents non-dashboard pages from accidentally booting with `state.page = 'dashboard'`, which previously caused blank/frozen pages because their page-specific render function was not loaded.
 
-### Run
+### Run with Firebase
 
-Open `index.html` or serve the `bee-production-system` folder with Live Server / a local web server. The demo login stores the current user in `sessionStorage`, so navigation between separated pages remains signed in for the current browser tab/session.
+Serve this folder over HTTP while developing (for example, Live Server). The frontend
+uses Firebase Authentication and Firestore directly through `js/firebase-api.js`.
+Opening HTML files through `file://` does not support this module workflow.
 
-### Asset uploads
+Project: `siaa-20635`. Firebase web settings are in `js/firebase.js`.
+Existing users were imported with their original IDs and bcrypt password hashes.
+New registrations receive the client role. Administrators can add team members,
+change roles, and disable access. Disabled users are rejected by the Firestore rules.
 
-Uploaded media is stored in `uploads/assets/` and is intentionally excluded from Git; only the empty-folder placeholder should be committed. The PHP/Apache worker must have write access to this directory. For XAMPP on macOS, run this after a fresh checkout if uploads fail with a storage-permission error:
+### Media
+
+This is the free-plan configuration. Submit an HTTPS link to media hosted elsewhere
+(for example Google Drive or YouTube). Each asset version retains its own media link.
+Direct file uploads and Cloud Storage are not used. Make media links accessible to
+intended reviewers on the external service.
+
+### Deploy
 
 ```sh
-chmod +a "daemon allow add_file,delete_child,search" uploads/assets
+node tools/firebase-migration/build-hosting.mjs
+tools/firebase-migration/node_modules/.bin/firebase deploy --only firestore,hosting --project siaa-20635
 ```
 
-### Animator shot tracker
+`firebase-public` contains only the frontend. PHP files, SQL exports, administrator
+credentials, dependencies and migration tools are excluded from that package.
+Do not set Hosting's public directory to the repository root.
 
-Apply `database/add_animation_shot_progress.sql` to the `Atlas` database to create persistent stage, progress, and playblast-link storage for assigned Animation Scene assets. Only the assigned animator can update a shot in Studio Galeria.
+`firestore.rules` enforces project access and client review permissions. Client-facing
+views exclude budgets and private version notes. Project assignment changes update
+access metadata. Financial records remain in the staff collections.
 
-Apply `database/add_production_role_workflows.sql` after the shot-tracker migration to add animation review-state tracking and editor sequence drafts. Animators can submit scene versions through the existing client approval workflow. Editors can arrange approved animation and audio assets into sequences, then submit a Render cut through the existing Assets form for approval.
+### Production workflows
 
-Studio Galeria is Animator-only: animators update assigned Animation Scene progress and submit shot versions there. They cannot create unrelated assets or submit versions for other asset types. Sequence Editor is Editor-only: editors build drafts from approved shots and audio, then submit one Render final cut per sequence. If the client requests changes, the editor can submit a new version of that cut. Clients make the approval/revision decision; Admins and Project Managers are notified. These role-specific submission rules are enforced by the API as well as the interface.
+Animators update assigned Animation Scene progress and submit revision media links.
+Editors build sequences from approved Animation Scene and Audio assets, then submit
+Render cuts through the Assets form. Clients review the latest version; team members
+can add feedback. Resources, project activity and notifications are stored in Firestore.
+Integration Hub retains its existing simulated external API/webhook behavior and
+stores integration logs online. ETL imports require an HTTPS media link per row.
 
-Apply `database/add_asset_version_media.sql` to preserve the upload or external media link on each asset version. Rejected versions can then be opened from Version history; older versions created before this migration may not have a recoverable media link.
+### Migration and checks
+
+Scripts in `tools/firebase-migration` export/import the original database, prepare
+client views and access metadata, and validate the converted workflows. The original
+PHP/MySQL source remains available for reference and is not part of Firebase Hosting.
+
+```sh
+cd tools/firebase-migration
+npm install
+GOOGLE_APPLICATION_CREDENTIALS=/path/outside/website/key.json node smoke-test.mjs
+```
+
+The smoke test uses local Chrome, creates temporary records/accounts and removes them
+on completion. Keep all administrator keys outside the website and out of Git.

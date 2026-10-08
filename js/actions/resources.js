@@ -180,7 +180,7 @@ if(hours < 0 || hours > 99){
        SAVE RESOURCE
        ========================================================== */
 
-    fetch(
+    window.beeFetch(
       window.BEE_API_BASE+'assets/resources.php',
       {
         method: 'POST',

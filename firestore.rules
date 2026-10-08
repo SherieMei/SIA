@@ -1,0 +1,161 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function profile() { return get(/databases/$(database)/documents/app_users/$(request.auth.uid)).data; }
+    function active() { return signedIn() && (!('disabled' in profile()) || profile().disabled == false); }
+    function role() { return profile().role; }
+    function admin() { return active() && role() == 'admin'; }
+    function staff() { return active() && role() in ['admin', 'project_manager', 'editor', 'animator']; }
+    function manages(p) { return admin() || (active() && role() == 'project_manager' && p.pm == request.auth.uid); }
+    function project(id) { return get(/databases/$(database)/documents/projects/$(id)).data; }
+    function projectAfter(id) { return getAfter(/databases/$(database)/documents/projects/$(id)).data; }
+    function scope(data) { return admin() || (staff() && request.auth.uid in data.access_ids); }
+    function projectScope(id) { return scope(project(id)); }
+    function validScope(data) { return data.access_ids == projectAfter(data.project_id).access_ids; }
+    function unchangedProject() { return request.resource.data.project_id == resource.data.project_id; }
+    function assigned(asset) {
+      return manages(project(asset.project_id)) ||
+        (staff() && role() == 'editor' && (asset.assigned_editor == request.auth.uid || project(asset.project_id).artist_id == request.auth.uid)) ||
+        (staff() && role() == 'animator' && (asset.assigned_animator == request.auth.uid || project(asset.project_id).animator_id == request.auth.uid));
+    }
+    function publicProjectValid(id, data) {
+      let p = projectAfter(id);
+      return data.keys().hasOnly(['id', 'name', 'status', 'deadline', 'client_id']) &&
+        data.id == p.id && data.name == p.name && data.status == p.status &&
+        data.deadline == p.deadline && data.client_id == p.client_id;
+    }
+    match /app_users/{uid} {
+      allow get: if signedIn() && (request.auth.uid == uid || staff());
+      allow list: if staff();
+      allow create: if admin() || (signedIn() && request.auth.uid == uid &&
+        request.resource.data.keys().hasOnly(['id', 'full_name', 'email', 'role', 'created_at', 'disabled']) &&
+        request.resource.data.id == uid && request.resource.data.role == 'client' &&
+        request.resource.data.disabled == false && request.resource.data.email == request.auth.token.email);
+      allow update: if admin() && request.resource.data.id == resource.data.id &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['role', 'disabled', 'full_name', 'email']);
+      allow delete: if false;
+    }
+    match /projects/{id} {
+      allow read: if scope(resource.data);
+      allow create: if active() && (admin() || (role() == 'project_manager' && request.resource.data.pm == request.auth.uid)) &&
+        request.resource.data.id == id;
+      allow update: if manages(resource.data) && request.resource.data.id == resource.data.id &&
+        (admin() || request.resource.data.pm == resource.data.pm);
+      allow delete: if false;
+    }
+    match /client_projects/{id} {
+      allow read: if active() && (admin() || (role() == 'client' && resource.data.client_id == request.auth.uid));
+      allow create, update: if manages(projectAfter(id)) && publicProjectValid(id, request.resource.data);
+      allow delete: if false;
+    }
+    match /assets/{id} {
+      allow read: if scope(resource.data);
+      allow create: if staff() && projectScope(request.resource.data.project_id) && assigned(request.resource.data) && validScope(request.resource.data);
+      allow update: if staff() && assigned(resource.data) && unchangedProject() && validScope(request.resource.data) &&
+        request.resource.data.id == resource.data.id;
+      allow delete: if false;
+    }
+    match /asset_versions/{id} {
+      allow read: if scope(resource.data);
+      allow create: if staff() && projectScope(request.resource.data.project_id) && validScope(request.resource.data) &&
+        assigned(getAfter(/databases/$(database)/documents/assets/$(request.resource.data.asset_id)).data) &&
+        request.resource.data.status == 'For Review' && request.resource.data.uploaded_by == request.auth.uid;
+      allow update: if (manages(project(resource.data.project_id)) && unchangedProject() &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['access_ids']) && validScope(request.resource.data)) ||
+        (active() && role() == 'client' && resource.data.status == 'For Review' &&
+        get(/databases/$(database)/documents/client_assets/$(resource.data.asset_id)).data.client_id == request.auth.uid &&
+        get(/databases/$(database)/documents/client_assets/$(resource.data.asset_id)).data.latest_version_id == id &&
+        request.resource.data.status in ['Approved', 'Revision Requested', 'Rejected'] &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'review_feedback']) &&
+        getAfter(/databases/$(database)/documents/client_assets/$(resource.data.asset_id)).data.status == request.resource.data.status);
+      allow delete: if false;
+    }
+    match /client_assets/{id} {
+      function safeView(data) {
+        let asset = getAfter(/databases/$(database)/documents/assets/$(id)).data;
+        let p = projectAfter(asset.project_id);
+        let v = getAfter(/databases/$(database)/documents/asset_versions/$(data.latest_version_id)).data;
+        return data.keys().hasOnly(['id', 'project_id', 'project', 'title', 'asset_title', 'type', 'asset_type',
+          'link', 'external_link', 'created_at', 'due_date', 'client_id', 'versions', 'latest_version_id', 'status', 'reader_ids']) &&
+          data.project_id == asset.project_id && data.client_id == p.client_id &&
+          data.reader_ids == p.access_ids.concat([p.client_id]) && data.status == v.status &&
+          v.asset_id == asset.id && data.versions.size() == 1 &&
+          data.versions[0].keys().hasOnly(['id', 'n', 'status', 'date', 'media_url', 'review_feedback']);
+      }
+      allow read: if active() && (admin() || (role() == 'client' && resource.data.client_id == request.auth.uid) ||
+        (staff() && request.auth.uid in resource.data.reader_ids));
+      allow create: if staff() && assigned(getAfter(/databases/$(database)/documents/assets/$(id)).data) && safeView(request.resource.data);
+      allow update: if (staff() && assigned(getAfter(/databases/$(database)/documents/assets/$(id)).data) && safeView(request.resource.data)) ||
+        (active() && role() == 'client' && resource.data.client_id == request.auth.uid &&
+        resource.data.status == 'For Review' && request.resource.data.status in ['Approved', 'Revision Requested', 'Rejected'] &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'versions']) &&
+        request.resource.data.versions.size() == 1 && request.resource.data.versions[0].status == request.resource.data.status &&
+        request.resource.data.versions[0].diff(resource.data.versions[0]).affectedKeys().hasOnly(['status', 'review_feedback']) &&
+        getAfter(/databases/$(database)/documents/asset_versions/$(resource.data.latest_version_id)).data.status == request.resource.data.status);
+      allow delete: if false;
+    }
+    match /comments/{id} {
+      allow read: if active() && (admin() || request.auth.uid in resource.data.reader_ids);
+      allow create: if active() && request.resource.data.user_id == request.auth.uid &&
+        request.resource.data.text is string && request.resource.data.text.size() > 0 && request.resource.data.text.size() <= 10000 &&
+        request.resource.data.reader_ids == get(/databases/$(database)/documents/client_assets/$(request.resource.data.asset_id)).data.reader_ids &&
+        (admin() || request.auth.uid in request.resource.data.reader_ids);
+      allow update: if manages(project(resource.data.project_id)) && unchangedProject() &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reader_ids']);
+      allow delete: if false;
+    }
+    match /resources/{id} {
+      allow read: if scope(resource.data);
+      allow create: if manages(project(request.resource.data.project_id)) && validScope(request.resource.data) &&
+        request.resource.data.logged_by == request.auth.uid && request.resource.data.cost >= 0 && request.resource.data.hours >= 0;
+      allow update: if manages(project(resource.data.project_id)) && unchangedProject() &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['access_ids']) && validScope(request.resource.data);
+      allow delete: if false;
+    }
+    match /audit_logs/{id} {
+      allow read: if scope(resource.data);
+      allow create: if staff() && projectScope(request.resource.data.project_id) && validScope(request.resource.data) && request.resource.data.user_id == request.auth.uid;
+      allow create: if active() && role() == 'client' && project(request.resource.data.project_id).client_id == request.auth.uid &&
+        request.resource.data.user_id == request.auth.uid && request.resource.data.action in ['Reviewed', 'Comment'] && validScope(request.resource.data);
+      allow update: if manages(project(resource.data.project_id)) && unchangedProject() &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['access_ids']) && validScope(request.resource.data);
+      allow delete: if false;
+    }
+    match /notifications/{id} {
+      allow read: if active() && resource.data.user_id == request.auth.uid;
+      allow create: if active() && request.resource.data.author_id == request.auth.uid &&
+        (projectScope(request.resource.data.project_id) || (role() == 'client' && project(request.resource.data.project_id).client_id == request.auth.uid)) &&
+        (request.resource.data.user_id in projectAfter(request.resource.data.project_id).access_ids || request.resource.data.user_id == projectAfter(request.resource.data.project_id).client_id);
+      allow update: if active() && resource.data.user_id == request.auth.uid && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['is_read']);
+      allow delete: if false;
+    }
+    match /editor_sequences/{id} {
+      allow read: if active() && (admin() || resource.data.editor_id == request.auth.uid ||
+        (role() == 'project_manager' && scope(resource.data)));
+      allow create: if active() && role() == 'editor' && request.resource.data.editor_id == request.auth.uid && projectScope(request.resource.data.project_id) && validScope(request.resource.data);
+      allow update: if (manages(project(resource.data.project_id)) && unchangedProject() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['access_ids']) && validScope(request.resource.data)) ||
+        (active() && role() == 'editor' && resource.data.editor_id == request.auth.uid && unchangedProject() &&
+        request.resource.data.editor_id == resource.data.editor_id && validScope(request.resource.data));
+      allow delete: if active() && role() == 'editor' && resource.data.editor_id == request.auth.uid;
+    }
+    match /animation_shot_progress/{id} {
+      allow read: if scope(resource.data);
+      allow create, update: if active() && role() == 'animator' && projectScope(request.resource.data.project_id) && validScope(request.resource.data) &&
+        assigned(get(/databases/$(database)/documents/assets/$(request.resource.data.asset_id)).data) &&
+        request.resource.data.progress >= 0 && request.resource.data.progress <= 100;
+      allow update: if manages(project(resource.data.project_id)) && unchangedProject() &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['access_ids']) && validScope(request.resource.data);
+    }
+    match /animation_shot_workflow/{id} {
+      allow read: if scope(resource.data);
+      allow update: if manages(project(resource.data.project_id)) && unchangedProject() &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['access_ids']) && validScope(request.resource.data);
+    }
+    match /{name}/{id} {
+      allow read: if name in ['integration_api_logs', 'integration_etl_logs', 'integration_webhooks'] && active() && role() in ['admin', 'project_manager', 'editor'];
+      allow create: if name in ['integration_api_logs', 'integration_etl_logs', 'integration_webhooks'] && active() &&
+        role() in ['admin', 'project_manager', 'editor'] && request.resource.data.user_id == request.auth.uid;
+    }
+  }
+}

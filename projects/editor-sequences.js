@@ -148,7 +148,7 @@ Object.assign(Studio,{
     editorSequenceState.error='';
     if(typeof render==='function')render();
     try{
-      const response=await fetch(window.BEE_API_BASE+'editor_sequences.php',{credentials:'include'});
+      const response=await window.beeFetch(window.BEE_API_BASE+'editor_sequences.php',{credentials:'include'});
       const data=await parseApiResponse(response);
       if(!response.ok||!data.success||!Array.isArray(data.projects)||!Array.isArray(data.library)||!Array.isArray(data.sequences)){
         throw new Error(data.error||'Could not load the assigned project media.');
@@ -234,7 +234,7 @@ Object.assign(Studio,{
       return;
     }
     try{
-      const response=await fetch(window.BEE_API_BASE+'editor_sequences.php',{
+      const response=await window.beeFetch(window.BEE_API_BASE+'editor_sequences.php',{
         method:'POST',
         credentials:'include',
         headers:{'Content-Type':'application/json'},
@@ -292,7 +292,7 @@ Object.assign(Studio,{
   async deleteEditorSequence(sequenceId){
     if(!window.confirm('Delete this sequence draft? Submitted cuts will remain in Assets.'))return;
     try{
-      const response=await fetch(window.BEE_API_BASE+'editor_sequences.php',{
+      const response=await window.beeFetch(window.BEE_API_BASE+'editor_sequences.php',{
         method:'POST',
         credentials:'include',
         headers:{'Content-Type':'application/json'},

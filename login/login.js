@@ -1,5 +1,6 @@
-/* BEE PRODUCTION Login — MySQL connected controller */
-document.addEventListener('DOMContentLoaded', () => {
+/* BEE PRODUCTION Login — Firestore connected controller */
+document.addEventListener('DOMContentLoaded', async () => {
+  await window.BEE_SERVER_READY;
 
 const loginScreen = document.getElementById('loginScreen');
 
@@ -22,8 +23,7 @@ if (loginScreen) {
 }
 
 const grid = document.getElementById('demoUsers');
-const isLocalDevelopment =
-  ['localhost', '127.0.0.1', '::1'].includes(window.location.hostname);
+const isLocalDevelopment = false;
 
 if(grid&&!isLocalDevelopment){
   grid.closest('.demo-section')?.remove();
@@ -33,7 +33,7 @@ let registeredUsers = [];
 
 
 // --------------------------------------------------
-// LOAD REGISTERED USERS FROM MYSQL
+// LOAD REGISTERED USERS FROM FIRESTORE
 // --------------------------------------------------
 
 async function loadUsers() {
@@ -42,7 +42,7 @@ async function loadUsers() {
 
   try {
 
-    const response = await fetch(
+    const response = await window.beeFetch(
       '../api/auth.php?action=users',
       {
         method: 'GET',
@@ -100,7 +100,7 @@ async function loadUsers() {
   } catch (error) {
 
     console.error(
-      'Unable to load MySQL users:',
+      'Unable to load Firestore users:',
       error
     );
 
@@ -191,7 +191,7 @@ if (grid) {
 
 
   // --------------------------------------------------
-  // LOGIN USING MYSQL
+  // LOGIN USING FIRESTORE
   // --------------------------------------------------
 
   async function mysqlLogin() {
@@ -257,7 +257,7 @@ if (grid) {
 
     try {
 
-      const response = await fetch(
+      const response = await window.beeFetch(
         '../api/auth.php',
         {
           method: 'POST',
@@ -287,7 +287,7 @@ if (grid) {
       }
 
 
-      // Convert MySQL user to your existing project format
+      // Convert Firestore user to your existing project format
       const user = {
         id: String(data.user.id),
         name: data.user.full_name,
@@ -340,7 +340,7 @@ if (grid) {
     } catch (error) {
 
       console.error(
-        'MySQL login error:',
+        'Firestore login error:',
         error
       );
 
@@ -377,7 +377,7 @@ if (grid) {
 
 
   // --------------------------------------------------
-  // CREATE ACCOUNT USING MYSQL
+  // CREATE ACCOUNT USING FIRESTORE
   // --------------------------------------------------
 
   async function mysqlCreateAccount() {
@@ -443,7 +443,7 @@ if (grid) {
 
     try {
 
-      const response = await fetch(
+      const response = await window.beeFetch(
         '../api/auth.php',
         {
           method: 'POST',
@@ -503,7 +503,7 @@ if (grid) {
       }
 
 
-      // Refresh Quick Sign-In from MySQL,
+      // Refresh Quick Sign-In from Firestore,
       // then switch back to Sign In.
       await loadUsers();
 
@@ -611,7 +611,7 @@ if (grid) {
 
       helpText.textContent =
         isSignup
-          ? 'Create an account that will be saved in the MySQL database.'
+          ? 'Create an account that will be saved in the Firestore database.'
           : 'Sign in using your registered account to continue.';
     }
 

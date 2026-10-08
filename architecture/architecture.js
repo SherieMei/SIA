@@ -33,7 +33,7 @@ function pageArchitecture(){
       </div>
 
       <p style="color:var(--text-dim);font-size:13.5px;line-height:1.7;margin-bottom:0;">
-        When an asset is uploaded, it is automatically marked as
+        When an asset media link is submitted, it is automatically marked as
         <b>For Review</b>. Authorized users can then approve the asset,
         reject it, or request revisions.
       </p>
@@ -44,7 +44,7 @@ function pageArchitecture(){
 
       <ul style="color:var(--text-dim);font-size:13.5px;line-height:1.9;margin:8px 0 0;padding-left:20px;">
         <li><b>Project Management</b> – Create and manage production projects.</li>
-        <li><b>Asset Management</b> – Upload, organize, review, and track project assets.</li>
+        <li><b>Asset Management</b> – Submit media links, organize, review, and track project assets.</li>
         <li><b>Animator Studio Galeria</b> – Browse assigned animation scenes, submit versions, monitor review feedback, and manage production progress.</li>
         <li><b>Editor Sequence Editor</b> – Arrange approved shots and audio into sequence drafts and submit final cuts through the existing review workflow.</li>
         <li><b>Approval Workflow</b> – Approve, reject, or request revisions for submitted assets.</li>
@@ -83,9 +83,9 @@ function pageArchitecture(){
       </p>
 
       <p style="color:var(--text-dim);font-size:13.5px;line-height:1.7;margin-bottom:0;">
-        <b>Demo Data Notice:</b> This system currently uses temporary browser-based data
-        for demonstration. Data may reset when the browser session or page data is cleared
-        or refreshed, depending on the current system configuration.
+        Project records are saved online and remain available when you sign in on another device.
+        Access depends on your role and project assignments. Media files remain on the external
+        service where they were uploaded.
       </p>
     </div>
   `;
@@ -117,7 +117,8 @@ function render(){
 }
 
 
-document.addEventListener('DOMContentLoaded',()=>{
+document.addEventListener('DOMContentLoaded',async () => {
+  await window.BEE_SERVER_READY;
   if(!DB.currentUser){ 
     window.location.assign('../login/login.html'); 
     return; 

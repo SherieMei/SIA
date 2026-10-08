@@ -258,7 +258,7 @@ Studio.addResource = async function(){
   try{
 
     const response =
-      await fetch(
+      await window.beeFetch(
         '../api/assets/resources.php',
         {
           method:'POST',
@@ -341,7 +341,8 @@ function render(){
   }
 }
 
-document.addEventListener('DOMContentLoaded', async ()=>{
+document.addEventListener('DOMContentLoaded', async () => {
+  await window.BEE_SERVER_READY;
 
   if(!DB.currentUser){ 
     window.location.assign('../login/login.html'); 
@@ -360,7 +361,7 @@ document.addEventListener('DOMContentLoaded', async ()=>{
   // Load latest projects directly from database
   try{
 
-    const response = await fetch(
+    const response = await window.beeFetch(
       '../api/projects.php',
       {
         method:'GET',
