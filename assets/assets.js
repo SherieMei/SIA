@@ -390,6 +390,7 @@ ASSETS — ASSET LIST
             <div class="editor-asset-footer">
               <span class="vtag">v${String(v.n||1).padStart(2,'0')}</span>
               <span class="badge ${STATUS_CLASS[v.status]||'b-role'}">${esc(v.status)}</span>
+              ${can('manageProjects') && (DB.currentUser.role==='admin' || projectById(a.project_id||a.project)?.pm===DB.currentUser.id) ? `<span role="button" tabindex="0" aria-label="Move asset to Trash" title="Move asset to Trash" onclick="event.stopPropagation();Studio.deleteAsset('${esc(a.id)}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();event.stopPropagation();Studio.deleteAsset('${esc(a.id)}')}">✕ Delete</span>` : ''}
             </div>
           </div>
         </button>`;

@@ -1723,6 +1723,8 @@ Studio.trashAction = function(action,type,id){
   });
 };
 Studio.deleteProject = id=>Studio.trashAction('delete','project',id);
+Studio.deleteAsset = id=>Studio.trashAction('delete','asset',id);
+Studio.recoverAsset = id=>Studio.trashAction('recover','asset',id);
 Studio.recoverUser = id=>Studio.trashAction('recover','user',id);
 Studio.deleteTrashUser = id=>Studio.trashAction('purge','user',id);
 Studio.loadTrashPanel = async function(){
