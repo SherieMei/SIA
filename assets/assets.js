@@ -159,6 +159,12 @@ async function loadDeletedAssets(){
 
   if(!panel) return;
 
+  if(DB.currentUser?.role !== 'admin'){
+  panel.innerHTML = '';
+  return;
+}
+
+
   try{
 
     const response = await fetch(
@@ -515,7 +521,7 @@ ASSETS — ASSET LIST
       }).join(''):`<div class="editor-assets-empty">${isClient?'No assets from your assigned projects match these filters.':'No assets match these filters.'}</div>`}
     </div>
     ${
-      can('manageProjects')
+      DB.currentUser?.role === 'admin'
         ? `
           <div class="card" style="margin-top:20px;padding:20px;">
             <h3 style="margin:0 0 6px;">Recently Deleted</h3>

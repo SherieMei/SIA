@@ -418,6 +418,11 @@ async function loadDeletedProjects(){
 
   if(!panel) return;
 
+  if(DB.currentUser?.role !== 'admin'){
+    panel.innerHTML = '';
+    return;
+  }
+
   try{
 
     const response = await fetch(
@@ -583,7 +588,7 @@ function pageProjects(){
       </div>
 
       ${
-        can('manageProjects')
+        DB.currentUser?.role === 'admin'
           ? `
             <button
               class="btn btn-primary"
@@ -599,7 +604,7 @@ function pageProjects(){
 
 
     ${
-      can('manageProjects')
+      DB.currentUser?.role === 'admin'
         ? `
           <div
             id="newProjectForm"
@@ -950,7 +955,7 @@ ${
     </div>
 
     ${
-      can('manageProjects')
+      DB.currentUser?.role === 'admin'
         ? `
           <div
             style="
