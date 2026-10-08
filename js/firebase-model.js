@@ -12,7 +12,8 @@ export const versionView = version => ({
   id: version.id, n: Number(version.version_number || version.version_no || 1),
   status: version.status, by: version.uploaded_by || null,
   date: version.created_at || version.uploaded_at || '', notes: version.notes || '',
-  media_url: version.version_media_url || '', review_feedback: version.review_feedback || ''
+  media_url: version.version_media_url || '', review_feedback: version.review_feedback || '',
+  ...(version.approval_id ? { approval_id: version.approval_id, approved_by: version.approved_by, approved_at: version.approved_at } : {})
 });
 export const projectView = project => ({
   ...project, project_manager_id: project.pm, editor_id: project.artist_id,

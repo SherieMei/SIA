@@ -111,6 +111,20 @@
           "arrayConfig": "CONTAINS"
         }
       ]
+    },
+    {
+      "collectionGroup": "editor_sequences",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "editor_id",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "access_ids",
+          "arrayConfig": "CONTAINS"
+        }
+      ]
     }
   ],
   "fieldOverrides": []

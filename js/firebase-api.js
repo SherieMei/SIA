@@ -33,12 +33,12 @@ const requireRoles = (user, roles) => {
   if (!roles.includes(user.role)) throw fail('You do not have permission to perform this action.', 403);
 };
 async function scoped(name, user) {
-  if (user.role === 'admin') return list(name);
+  if (user.role === 'admin' && name === 'projects') return list(name);
   return list(name, [where('access_ids', 'array-contains', user.id)]);
 }
 async function scopedBy(name, user, field, value) {
   const constraints = [where(field, '==', value)];
-  if (user.role !== 'admin') constraints.push(where('access_ids', 'array-contains', user.id));
+  if (user.role !== 'admin' || name !== 'projects') constraints.push(where('access_ids', 'array-contains', user.id));
   return list(name, constraints);
 }
 async function projects(user) {
@@ -50,8 +50,7 @@ async function assets(user) {
   const rows = user.role === 'client'
     ? await list('client_assets', [where('client_id', '==', user.id)])
     : await scoped('assets', user);
-  const comments = user.role === 'admin' ? await list('comments')
-    : await list('comments', [where('reader_ids', 'array-contains', user.id)]);
+  const comments = await list('comments', [where('reader_ids', 'array-contains', user.id)]);
   if (user.role === 'client') return rows.map(row => ({ ...row, comments: comments.filter(c => String(c.asset_id) === String(row.id)) }));
   const versions = await scoped('asset_versions', user);
   return rows.map(row => assetView(row, versions.filter(v => String(v.asset_id) === String(row.id)),
@@ -109,6 +108,7 @@ async function saveProject(user, method, input) {
   const id = String(input.project_id || input.id || uuid('p'));
   const previous = input.project_id || input.id ? await projectFor(user, id) : {};
   const assignments = await teamFields(user, input, previous);
+  if (previous.id && !previous.access_ids?.includes(user.id) && ['pm','artist_id','animator_id','client_id'].some(key => assignments[key] !== previous[key])) throw fail('Only an assigned project manager or administrator can change this project team.', 403);
   const project = { ...previous, ...assignments, id,
     name: input.name ?? previous.name, deadline: input.deadline ?? previous.deadline ?? null,
     budget: Number(input.budget ?? previous.budget), status: input.status ?? previous.status ?? 'Pre-Production',
@@ -126,7 +126,7 @@ async function saveProject(user, method, input) {
         batch.update(ref(name, child.id), { access_ids: project.access_ids });
       }
     }
-    for (const child of (await list('comments', user.role === 'admin' ? [] : [where('reader_ids', 'array-contains', user.id)])).filter(c => c.project_id === id)) {
+    for (const child of (await list('comments', [where('reader_ids', 'array-contains', user.id)])).filter(c => c.project_id === id)) {
       batch.update(ref('comments', child.id), { reader_ids: [...project.access_ids, project.client_id] });
     }
     for (const asset of await scopedBy('assets', user, 'project_id', id)) {
@@ -144,7 +144,10 @@ async function saveAsset(user, input) {
   requireRoles(user, staffRoles);
   if (input.asset_file instanceof File && input.asset_file.size) throw fail('Use an external media link for this app.');
   const existing = input.asset_id ? await get('assets', input.asset_id) : null;
+  if (input.asset_id && !existing) throw fail('Asset not found.', 404);
+  if (existing && input.project_id && String(input.project_id) !== String(existing.project_id)) throw fail('A revision must stay in its original project.', 403);
   const project = await projectFor(user, existing?.project_id || input.project_id);
+  if (!project.access_ids?.includes(user.id)) throw fail('You must be assigned to this project to submit assets.', 403);
   const link = assertMediaLink(input.link || input.external_link);
   if (existing && !['admin', 'project_manager'].includes(user.role)) {
     const assigned = user.role === 'editor' ? existing.assigned_editor || project.artist_id : existing.assigned_animator || project.animator_id;
@@ -157,10 +160,11 @@ async function saveAsset(user, input) {
     assigned_animator: input.assigned_animator || existing?.assigned_animator || project.animator_id || null,
     created_at: existing?.created_at || timestamp(), due_date: input.due_date || existing?.due_date || null,
     uploaded_by: existing?.uploaded_by || user.id, access_ids: project.access_ids };
+  if ([asset.assigned_editor, asset.assigned_animator].some(id => id && !project.access_ids.includes(String(id)))) throw fail('Asset assignees must belong to this project.', 403);
   if (!asset.asset_title?.trim() || !asset.asset_type) throw fail('Enter an asset title and type.');
   const oldVersions = existing ? await scopedBy('asset_versions', user, 'asset_id', id) : [];
   const last = oldVersions.sort((a, b) => Number(a.version_number) - Number(b.version_number)).at(-1);
-  if (last?.status === 'For Review') throw fail('Wait for the client decision before submitting another version.', 409);
+  if (existing && last?.status !== 'Revision Requested') throw fail('Only Request revisions allows another version. Approved and rejected assets are closed.', 409);
   const version = { id: numericId(), asset_id: id, project_id: project.id,
     version_number: Number(last?.version_number || 0) + 1, status: 'For Review',
     notes: input.notes || '', uploaded_by: user.id, created_at: timestamp(),
@@ -188,9 +192,10 @@ async function reviewAsset(user, input) {
     const snapshot = await transaction.get(ref('client_assets', assetId));
     const asset = record(snapshot);
     if (!asset || asset.client_id !== user.id || asset.status !== 'For Review') throw fail('This asset is not awaiting your review.', 403);
-    const view = { ...asset.versions[0], status, review_feedback: input.feedback || '' };
+    const approval = status === 'Approved' ? { approval_id: 'APR-' + asset.latest_version_id, approved_by: user.id, approved_at: timestamp() } : {};
+    const view = { ...asset.versions[0], status, review_feedback: input.feedback || '', ...approval };
     transaction.update(snapshot.ref, { status, versions: [view] });
-    transaction.update(ref('asset_versions', asset.latest_version_id), { status, review_feedback: input.feedback || '' });
+    transaction.update(ref('asset_versions', asset.latest_version_id), { status, review_feedback: input.feedback || '', ...approval });
     const project = { id: asset.project_id, client_id: asset.client_id,
       access_ids: asset.reader_ids.filter(id => id !== asset.client_id) };
     auditWrite(transaction, user, project, 'Reviewed', 'Asset #' + asset.id, status);
@@ -239,8 +244,13 @@ async function sequenceApi(user, method, input) {
   const assetRows = await assets(user);
   const library = assetRows.filter(a => ['Animation Scene', 'Audio'].includes(a.type) && ['Approved', 'Final'].includes(a.versions.at(-1)?.status))
     .map(a => ({ asset_id: a.id, project_id: a.project_id, title: a.title, type: a.type, external_link: a.link, status: a.versions.at(-1)?.status }));
-  if (method === 'GET') return { projects: projectRows, library,
-    sequences: await list('editor_sequences', [where('editor_id', '==', user.id)]) };
+  if (method === 'GET') {
+    const rows = await list('editor_sequences', [where('editor_id', '==', user.id), where('access_ids', 'array-contains', user.id)]);
+    return { projects: projectRows, library, sequences: rows.map(sequence => {
+      const cut = assetRows.find(asset => String(asset.id) === String(sequence.cut_asset_id));
+      return cut ? { ...sequence, cut_title: cut.title, cut_status: cut.versions.at(-1)?.status } : sequence;
+    }) };
+  }
   if (input.action === 'delete') { await deleteDoc(ref('editor_sequences', input.sequence_id)); return {}; }
   const project = await projectFor(user, input.project_id);
   if (!input.title?.trim() || !Array.isArray(input.items) || !input.items.length) throw fail('Enter a title and at least one sequence item.');
@@ -331,9 +341,9 @@ async function startRealtime(user) {
   for (const name of user.role === 'client' ? ['client_projects', 'client_assets', 'comments', 'notifications'] : ['projects', 'assets', 'asset_versions', 'comments', 'notifications']) {
     const source = collection(db, name);
     const constraint = name === 'notifications' ? where('user_id', '==', user.id)
-      : name === 'comments' ? (user.role === 'admin' ? null : where('reader_ids', 'array-contains', user.id))
+      : name === 'comments' ? where('reader_ids', 'array-contains', user.id)
       : user.role === 'client' ? where('client_id', '==', user.id)
-      : user.role !== 'admin' ? where('access_ids', 'array-contains', user.id) : null;
+      : (user.role !== 'admin' || name !== 'projects') ? where('access_ids', 'array-contains', user.id) : null;
     let first = true;
     unsubscribe.push(onSnapshot(constraint ? query(source, constraint) : source, () => {
       if (first) { first = false; return; }

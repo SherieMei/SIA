@@ -1150,6 +1150,9 @@ Object.assign(Studio,{
         return;
       }
       const existingAsset=assetById(existingId);
+      if(!existingAsset || String(existingAsset.project_id||existingAsset.project)!==String(project) || latestVersion(existingAsset).status!=='Revision Requested'){
+        toast('Select an asset requesting revisions in this project.','error');return;
+      }
       Studio.openConfirm({
         title:'Submit new version?',
         body:'A new version will be added to “'+esc(existingAsset?existingAsset.title:existingId)+'” and set to For Review.',
@@ -1266,6 +1269,15 @@ Object.assign(Studio,{
       console.error('submitAsset error:',error);
       toast('Could not connect to the server.','error');
     }
+  },
+  onSaProjectChange(){
+    const projectId=document.getElementById('saProject').value;
+    const select=document.getElementById('saExisting');
+    const user=DB.currentUser;
+    const candidates=DB.assets.filter(asset=>String(asset.project_id||asset.project)===String(projectId)&&latestVersion(asset).status==='Revision Requested'&&
+      (user.role!=='editor'||(asset.type==='Render'&&String(asset.assigned_editor||projectById(projectId)?.artist_id)===String(user.id))));
+    select.innerHTML='<option value="new">A new asset</option>'+candidates.map(asset=>`<option value="${esc(String(asset.id))}">Revise: ${esc(asset.title)}</option>`).join('');
+    Studio.onSaExistingChange();
   },
   onSaExistingChange(){
     const v=document.getElementById('saExisting').value;

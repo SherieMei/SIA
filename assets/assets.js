@@ -1,3 +1,17 @@
+
+function renderApprovalReceipt(asset,version){
+  const receiptId=version.approval_id||('APR-'+version.id);
+  return `<div class="asset-approval-receipt">
+    <div class="asset-receipt-heading">✓ Approved · Final version</div>
+    <div class="asset-receipt-id">${esc(receiptId)}</div>
+    <dl><div><dt>Asset ID</dt><dd>${esc(String(asset.id))}</dd></div>
+      <div><dt>Version</dt><dd>v${esc(String(version.n||1))}</dd></div>
+      <div><dt>Project</dt><dd>${esc(projectById(asset.project_id||asset.project)?.name||String(asset.project_id||asset.project))}</dd></div>
+      <div><dt>Approved by</dt><dd>${esc(userById(version.approved_by)?.name||version.approved_by||'Not recorded')}</dd></div>
+      <div><dt>Approval date</dt><dd>${version.approved_at?esc(fmtDate(version.approved_at)):'Not recorded'}</dd></div></dl>
+    <div class="asset-receipt-note">This version is closed to further submissions.</div>
+  </div>`;
+}
 /* Page-specific BEE PRODUCTION controller. Shared runtime is loaded before this file. */
 /* ==========================================================================
    PAGE — Assets (list + submission form) + Asset Detail
@@ -182,14 +196,14 @@ ASSETS — ASSET LIST
   const isClient=DB.currentUser?.role==='client';
   const canSubmitAsset=can('uploadAsset')&&DB.currentUser?.role!=='animator'&&
     (DB.currentUser?.role!=='editor'||Boolean(submitSequence));
-  const activeProjects=DB.projects.filter(p=>p.status!=='Completed');
+  const activeProjects=DB.projects.filter(p=>p.status!=='Completed' && (isClient || (p.access_ids||p.team||[]).includes(DB.currentUser?.id)));
   const activeProjectIds=new Set(activeProjects.map(p=>String(p.id)));
   const activeAssets=DB.assets.filter(a=>activeProjectIds.has(String(a.project??a.project_id)));
   let list=[...activeAssets];
   if(f.project!=='all')list=list.filter(a=>String(a.project??a.project_id)===String(f.project));
   if(f.type!=='all')list=list.filter(a=>a.type===f.type);
-  if(['Approved','Rejected','Final'].includes(f.status)){
-    list=list.filter(a=>(a.versions||[]).some(version=>version.status===f.status));
+  if(f.status==='Final'){
+    list=list.filter(a=>['Approved','Final'].includes(latestVersion(a).status));
   }else if(f.status!=='all'){
     list=list.filter(a=>latestVersion(a).status===f.status);
   }
@@ -239,7 +253,7 @@ ASSETS — ASSET LIST
       ${submitSequence?'<p class="editor-sequence-cut">Submitting a final cut for a saved editor sequence. The sequence will be linked after submission.</p>':''}
       <div class="field-row">
         <div class="field"><label>Project</label>
-  <select id="saProject">
+  <select id="saProject" onchange="Studio.onSaProjectChange()">
     ${activeProjects.map(p=>`
       <option
         value="${p.id}"
@@ -271,6 +285,8 @@ ASSETS — ASSET LIST
           return (
             latest &&
             latest.status === 'Revision Requested' &&
+            String(a.project_id||a.project)===String(submitProject||activeProjects[0]?.id) &&
+            (DB.currentUser?.role!=='editor'||String(a.assigned_editor||projectById(a.project_id||a.project)?.artist_id)===String(DB.currentUser.id)) &&
             (DB.currentUser?.role!=='editor'||(
               a.type==='Render'&&
               (!submitSequence||String(a.id)===submitExisting)
@@ -318,8 +334,8 @@ ASSETS — ASSET LIST
     <!-- Added: Asset status cards -->
     <div class="stat-grid assets-status-grid">
       ${statusCards.map(s=>{
-        const count=['Approved','Rejected','Final'].includes(s.status)
-          ?activeAssets.filter(a=>(a.versions||[]).some(version=>version.status===s.status)).length
+        const count=s.status==='Final'
+          ?activeAssets.filter(a=>['Approved','Final'].includes(latestVersion(a).status)).length
           :activeAssets.filter(a=>latestVersion(a).status===s.status).length;
         const active=f.status===s.status;
         return `
@@ -370,6 +386,7 @@ ASSETS — ASSET LIST
             <h3>${esc(a.title)}</h3>
             <div class="editor-asset-submitter">Submitted by ${esc(assetSubmitterName(v))}</div>
             ${resolvedVersions.length?`<div class="editor-asset-version-history">Previous decisions: ${resolvedVersions.map(version=>`${esc(version.status)} V${String(version.n).padStart(2,'0')}`).join(' · ')}</div>`:''}
+            ${['Approved','Final'].includes(v.status)?renderApprovalReceipt(a,v):v.status==='Rejected'?'<div class="asset-closed-label">Rejected · Closed at this version</div>':''}
             <div class="editor-asset-footer">
               <span class="vtag">v${String(v.n||1).padStart(2,'0')}</span>
               <span class="badge ${STATUS_CLASS[v.status]||'b-role'}">${esc(v.status)}</span>
@@ -807,7 +824,7 @@ function renderInternalAssetWorkspace(asset){
         </div>
       </div>
       ${canSubmitRevision?`
-      <button class="btn btn-sm" onclick="Studio.goto('assets');Studio.toggleForm('newAssetForm');document.getElementById('saExisting').value='${asset.id}';Studio.onSaExistingChange();">
+      <button class="btn btn-sm" onclick="Studio.goto('assets');Studio.toggleForm('newAssetForm');document.getElementById('saProject').value='${asset.project_id||asset.project}';Studio.onSaProjectChange();document.getElementById('saExisting').value='${asset.id}';Studio.onSaExistingChange();">
         + Submit Revised Version
       </button>`:''}
     </div>
@@ -827,6 +844,7 @@ function renderInternalAssetWorkspace(asset){
 function renderAssetVersionHistory(asset){
   const currentVersion=latestVersion(asset);
   return `
+    ${['Approved','Final'].includes(currentVersion.status)?renderApprovalReceipt(asset,currentVersion):''}
     <section class="asset-version-history">
       <h3>Version history</h3>
       ${asset.versions.slice().reverse().map(version=>{

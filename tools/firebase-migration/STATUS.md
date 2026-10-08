@@ -2,6 +2,18 @@
 
 Target: siaa-20635.
 
+- Asset workflow: only Revision Requested allows another version. Pending, Approved,
+  Final and Rejected versions are locked against new submissions in the app and rules.
+  Revisions stay with the original project and require project and asset assignment.
+- Asset reads and related production records require project assignment, including
+  administrators. Approved versions appear in the Final filter with approval receipts.
+- Verified with temporary records: request-revision progression through v2/v3/v4,
+  pending/approved/rejected direct-write denial, cross-project revision denial,
+  unassigned administrator read denial, receipt rendering, editor cut revisions and
+  terminal cut status display. Both test projects and accounts were removed.
+- Published the updated frontend to Vercel and Firebase Hosting. Added an editor
+  sequence index for editor_id/access_ids and aligned its query with project scope.
+
 - Vercel production: https://siaa-ten.vercel.app, deployment
   dpl_EfEhxdPwWRk62QUh6NWRLCsm7omS reported READY on 2026-10-09.
   Firebase Authentication authorized domains include siaa-ten.vercel.app.

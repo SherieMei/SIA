@@ -56,6 +56,22 @@ access metadata. Financial records remain in the staff collections.
 
 ### Production workflows
 
+Asset revisions are accepted only when the latest version is `Revision Requested`.
+New assets start at v1; each permitted revision increments by one and returns to
+`For Review`. Approved, Final and Rejected assets cannot receive another version.
+Firebase rules enforce the same restrictions for direct writes and keep revisions
+bound to the original asset and project.
+
+Asset records, version history, feedback and related production records are scoped
+to the assigned project team and client. Administrators also need project assignment
+to read assets. An unassigned administrator cannot change that project's team through
+the app. Authorized project managers maintain assignment metadata when teams change.
+
+Approval saves a stable `APR-<version ID>` receipt ID, approver ID and approval date.
+The Assets Final filter includes approved versions and shows their receipt cards.
+Older approvals use their existing version ID for a stable receipt reference and
+show `Not recorded` where historical approval metadata is unavailable.
+
 Vercel production is available at https://siaa-ten.vercel.app. `vercel.json`
 builds the same static frontend into `firebase-public`; `.vercelignore` excludes
 server files and migration dependencies. Firebase still provides authentication

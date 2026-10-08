@@ -1674,3 +1674,11 @@ table{width:100%;border-collapse:collapse;font-size:13px}th{text-align:left;font
   .editor-assets-grid{grid-template-columns:repeat(auto-fill,minmax(min(100%,190px),1fr))}
   .editor-asset-content{padding:11px}
 }
+.asset-approval-receipt{margin:14px 0;padding:16px;border:1px solid #7bc9ad;border-radius:12px;background:linear-gradient(135deg,#edfaf3,#f7fffb);color:#154d38;text-align:left}
+.asset-receipt-heading{font-size:13px;font-weight:800;letter-spacing:.02em}
+.asset-receipt-id{margin-top:8px;font-family:var(--font-mono);font-size:11px;overflow-wrap:anywhere}
+.asset-approval-receipt dl{margin:12px 0;border-top:1px dashed #a4d6be;padding-top:10px}
+.asset-approval-receipt dl div{display:flex;justify-content:space-between;gap:12px;margin:6px 0;font-size:11px}
+.asset-approval-receipt dt{opacity:.75}.asset-approval-receipt dd{margin:0;text-align:right;overflow-wrap:anywhere}
+.asset-receipt-note,.asset-closed-label{font-size:11px;line-height:1.5}.asset-closed-label{margin:12px 0;color:var(--text-muted)}
+[data-theme="dark"] .asset-approval-receipt{background:#15382d;color:#c8f4df;border-color:#377b5b}

@@ -29,6 +29,7 @@ await new Promise(done => server.listen(4189, '127.0.0.1', done));
 const browser = await chromium.launch({ executablePath: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', headless: true });
 const contexts = [];
 let projectId;
+let secondaryProjectId;
 const assetIds = [];
 const testUserIds = [];
 const runtimeErrors = [];
@@ -58,6 +59,20 @@ async function api(page, endpoint, body, method = body ? 'POST' : 'GET') {
     return { status: response.status, ...await response.json() };
   }, { endpoint, body, method });
 }
+async function directRevisionDenied(page, assetId, override = {}) {
+  return page.evaluate(async ({ assetId, override }) => {
+    const { db } = await import('/js/firebase.js');
+    const { doc, getDoc, writeBatch } = await import('https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js');
+    const viewRef=doc(db,'client_assets',String(assetId));
+    const view=(await getDoc(viewRef)).data();
+    const prior=(await getDoc(doc(db,'asset_versions',view.latest_version_id))).data();
+    const id=String(Date.now())+'999';
+    const next={...prior,id:Number(id),version_number:prior.version_number+1,status:'For Review',...override};
+    const projected={...view,latest_version_id:id,status:'For Review',versions:[{id:Number(id),n:next.version_number,status:'For Review',date:next.created_at,media_url:next.version_media_url,review_feedback:''}]};
+    const batch=writeBatch(db);batch.set(doc(db,'asset_versions',id),next);batch.set(viewRef,projected);
+    try{await batch.commit();return false;}catch(error){return error.code==='permission-denied';}
+  },{assetId,override});
+}
 try {
   const administrator = await session('admin');
   const createdMember = await api(administrator, 'auth.php', { action: 'create_team_member',
@@ -79,7 +94,10 @@ try {
     editor_id: byRole('editor').id, animator_id: byRole('animator').id
   });
   assert.ok(created.success, JSON.stringify(created)); projectId = created.project.id;
-  const submitted = await api(administrator, 'assets.php', { project_id: projectId,
+  const pm = await session('project_manager');
+  const otherProject=await api(pm,'projects.php',{name:'Revision isolation verification',budget:5000,deadline:'2030-12-31',client_id:byRole('client').id,editor_id:byRole('editor').id,animator_id:byRole('animator').id});
+  assert.ok(otherProject.success,JSON.stringify(otherProject));secondaryProjectId=otherProject.project.id;
+  const submitted = await api(pm, 'assets.php', { project_id: projectId,
     title: 'Verification animation', type: 'Animation Scene', external_link: 'https://example.com/animation.mp4', notes: 'Private staff notes' });
   assert.ok(submitted.success, JSON.stringify(submitted)); assetIds.push(submitted.asset.id);
   const client = await session('client');
@@ -90,6 +108,9 @@ try {
   const publicAsset = clientAssets.state.assets.find(a => a.id === submitted.asset.id);
   assert.ok(publicAsset); assert.equal(publicAsset.versions[0].notes, undefined);
   assert.ok((await api(client, 'assets.php', { action: 'comment', asset_id: submitted.asset.id, comment: 'Verification feedback' })).success);
+  assert.equal((await api(pm,'assets.php',{action:'version',asset_id:submitted.asset.id,link:'https://example.com/early.mp4'})).success,false);
+  assert.equal(await directRevisionDenied(pm,submitted.asset.id),true,'Pending versions cannot advance through direct writes');
+  assert.equal(await administrator.evaluate(async id=>{const {db}=await import('/js/firebase.js');const {doc,getDoc}=await import('https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js');try{await getDoc(doc(db,'assets',String(id)));return false;}catch(e){return e.code==='permission-denied';}},submitted.asset.id),true,'Unassigned admin cannot read asset');
   const reviewed = await api(client, 'assets.php', { asset_id: submitted.asset.id, status: 'Revision Requested' }, 'PUT');
   assert.ok(reviewed.success, JSON.stringify(reviewed));
   const animator = await session('animator');
@@ -98,11 +119,18 @@ try {
   const progress = await api(animator, 'animation_shots.php', { asset_id: submitted.asset.id,
     stage: 'Blocking', progress: 20, playblast_url: 'https://example.com/playblast.mp4', task_notes: 'Verification' });
   assert.ok(progress.success, JSON.stringify(progress));
+  assert.equal((await api(animator,'assets.php',{action:'version',asset_id:submitted.asset.id,project_id:secondaryProjectId,link:'https://example.com/wrong.mp4'})).success,false);
+  assert.equal(await directRevisionDenied(animator,submitted.asset.id,{project_id:secondaryProjectId,uploaded_by:byRole('animator').id}),true,'Cross-project direct versions denied');
   const nextVersion = await api(animator, 'assets.php', { action: 'version', asset_id: submitted.asset.id,
     link: 'https://example.com/revised.mp4', notes: 'Second verification version' });
   assert.ok(nextVersion.success, JSON.stringify(nextVersion));
   assert.equal(nextVersion.version.n, 2);
-  const pm = await session('project_manager');
+  let approvedVersion=nextVersion.version;
+  for(const expected of [3,4]){
+    assert.ok((await api(client,'assets.php',{asset_id:submitted.asset.id,status:'Revision Requested'},'PUT')).success);
+    const revision=await api(animator,'assets.php',{action:'version',asset_id:submitted.asset.id,link:'https://example.com/revision-'+expected+'.mp4'});
+    assert.ok(revision.success,JSON.stringify(revision));assert.equal(revision.version.n,expected);approvedVersion=revision.version;
+  }
   const resource = await api(pm, 'assets/resources.php', { project_id: projectId,
     category: 'Software', description: 'Verification entry', cost: 10, hours: 1 });
   assert.ok(resource.success, JSON.stringify(resource));
@@ -110,6 +138,20 @@ try {
   assert.equal(rejectedCompletion.success, false);
   const editor = await session('editor');
   assert.ok((await api(client, 'assets.php', { asset_id: submitted.asset.id, status: 'Approved' }, 'PUT')).success);
+  assert.equal((await api(animator,'assets.php',{action:'version',asset_id:submitted.asset.id,link:'https://example.com/closed.mp4'})).success,false);
+  assert.equal(await directRevisionDenied(animator,submitted.asset.id,{uploaded_by:byRole('animator').id}),true,'Approved versions cannot advance through direct writes');
+  assert.equal(await animator.evaluate(async assetId=>{
+    const {db}=await import('/js/firebase.js');const {doc,getDoc,setDoc}=await import('https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js');
+    const path=doc(db,'client_assets',String(assetId));const view=(await getDoc(path)).data();
+    try{await setDoc(path,{...view,status:'Revision Requested',latest_version_id:'rewind'});return false;}catch(e){return e.code==='permission-denied';}
+  },submitted.asset.id),true,'An approved asset cannot reopen its revision pointer');
+  const approved=(await db.collection('asset_versions').doc(String(approvedVersion.id)).get()).data();
+  assert.equal(approved.approval_id,'APR-'+approvedVersion.id);assert.equal(approved.approved_by,byRole('client').id);assert.ok(approved.approved_at);
+  await pm.goto('http://127.0.0.1:4189/assets/assets.html');
+  await pm.waitForFunction(()=>typeof DB!=='undefined'&&DB.assets.some(a=>a.title==='Verification animation'&&a.versions.at(-1)?.status==='Approved'));
+  await pm.evaluate(()=>Studio.setFilter('status','Final'));
+  await pm.waitForFunction(()=>document.querySelector('.asset-approval-receipt')?.textContent.includes('APR-'));
+  assert.ok((await pm.locator('.asset-approval-receipt').allTextContents()).some(text=>text.includes(approved.approval_id)));
   const sequence = await api(editor, 'editor_sequences.php', { title: 'Verification sequence', project_id: projectId,
     notes: 'Verification', items: [{ asset_id: submitted.asset.id }] });
   if (!sequence.success) {
@@ -121,12 +163,22 @@ try {
   const cut = await api(editor, 'assets.php', { project_id: projectId, title: 'Verification cut', type: 'Render',
     sequence_id: sequence.sequence_id, external_link: 'https://example.com/cut.mp4' });
   assert.ok(cut.success, JSON.stringify(cut)); assetIds.push(cut.asset.id);
+  assert.ok((await api(client,'assets.php',{asset_id:cut.asset.id,status:'Revision Requested'},'PUT')).success);
+  const cutRevisions=await api(editor,'editor_sequences.php');assert.ok(cutRevisions.success,JSON.stringify(cutRevisions));
+  assert.equal(cutRevisions.sequences.find(row=>row.id===sequence.sequence_id).cut_status,'Revision Requested');
+  const revisedCut=await api(editor,'assets.php',{action:'version',asset_id:cut.asset.id,link:'https://example.com/cut-v2.mp4'});
+  assert.ok(revisedCut.success,JSON.stringify(revisedCut));assert.equal(revisedCut.version.n,2);
+  assert.ok((await api(client,'assets.php',{asset_id:cut.asset.id,status:'Rejected'},'PUT')).success);
+  assert.equal((await api(editor,'assets.php',{action:'version',asset_id:cut.asset.id,link:'https://example.com/rejected.mp4'})).success,false);
+  assert.equal(await directRevisionDenied(editor,cut.asset.id,{uploaded_by:byRole('editor').id}),true,'Rejected versions cannot advance through direct writes');
   const assigned = await api(pm, 'projects.php', { action: 'assign_team', project_id: projectId,
     project_manager_id: byRole('project_manager').id, editor_id: byRole('editor').id,
     animator_id: byRole('animator').id, client_id: byRole('client').id });
   assert.ok(assigned.success, JSON.stringify(assigned));
   const sequenceRows = await api(editor, 'editor_sequences.php');
+  assert.ok(sequenceRows.success,JSON.stringify(sequenceRows));
   assert.equal(sequenceRows.sequences.find(s => s.id === sequence.sequence_id).cut_asset_id, cut.asset.id);
+  assert.equal(sequenceRows.sequences.find(s => s.id === sequence.sequence_id).cut_status,'Rejected');
   assert.equal((await api(editor, 'projects.php', { name: 'Unauthorized project', budget: 5000 })).success, false);
   const invalidReview = await api(editor, 'assets.php', { asset_id: submitted.asset.id, status: 'Approved' }, 'PUT');
   assert.equal(invalidReview.success, false);
@@ -146,16 +198,16 @@ try {
   await client.goto('http://127.0.0.1:4189/review/review.html');
   await client.waitForFunction(() => document.querySelector('#pageContent')?.children.length > 0);
   assert.deepEqual(runtimeErrors, [], 'Page runtime errors');
-  console.log('Passed: registration; admin team creation with preserved session; all 5 role dashboards; project creation/assignments; client-safe views; feedback/reviews; animator progress/version; editor sequence/cut; resource logging; completion validation; unauthorized operation denial; no PHP network requests.');
+  console.log('Passed: pending/approved/rejected direct-write revision locks; cross-project rejection; unassigned administrator asset denial; approval receipt rendering; registration; admin team creation with preserved session; all 5 role dashboards; project creation/assignments; client-safe views; feedback/reviews; animator progress/version; editor sequence/cut; resource logging; completion validation; unauthorized operation denial; no PHP network requests.');
 } finally {
   await browser.close(); server.close();
   for (const uid of testUserIds) { await adminAuth.deleteUser(uid); await db.collection('app_users').doc(uid).delete(); }
-  if (projectId) {
+  for(const cleanupProjectId of [projectId,secondaryProjectId].filter(Boolean)){
     // Remove only records created for this test project.
-    for (const name of ['projects', 'client_projects']) await db.collection(name).doc(projectId).delete();
+    for (const name of ['projects', 'client_projects']) await db.collection(name).doc(cleanupProjectId).delete();
     for (const name of ['assets', 'asset_versions', 'client_assets', 'comments', 'resources',
       'audit_logs', 'notifications', 'animation_shot_progress', 'animation_shot_workflow', 'editor_sequences']) {
-      const rows = await db.collection(name).where('project_id', '==', projectId).get();
+      const rows = await db.collection(name).where('project_id', '==', cleanupProjectId).get();
       for (let offset = 0; offset < rows.docs.length; offset += 100) {
         const batch = db.batch(); for (const row of rows.docs.slice(offset, offset + 100)) batch.delete(row.ref);
         await batch.commit();
