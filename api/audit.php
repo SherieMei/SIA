@@ -14,20 +14,9 @@ header('Content-Type: application/json; charset=utf-8');
 
 try {
 
-    $host = '127.0.0.1';
-    $db   = 'Atlas';
-    $user = 'root';
-    $pass = '';
 
-    $pdo = new PDO(
-        "mysql:host=$host;dbname=$db;charset=utf8mb4",
-        $user,
-        $pass,
-        [
-            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC
-        ]
-    );
+    require_once __DIR__ . '/../config/database.php';
+    $pdo = atlas_database_connection();
 
     require_once __DIR__ . '/../includes/api_auth.php';
     $currentUser = api_require_user($pdo);

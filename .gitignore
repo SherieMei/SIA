@@ -3,3 +3,8 @@
 
 videos/
 uploads/assets/*.mp4
+
+.env
+.env.*
+!.env.example
+.vercel/
