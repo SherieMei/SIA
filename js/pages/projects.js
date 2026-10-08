@@ -182,34 +182,49 @@ function pageProjects(){
 
 
               ${
-                can('manageProjects') &&
-                pct === 100
+              can('manageProjects')
+              ? `
+              <div
+              style="
+              margin-top:12px;
+              display:flex;
+              justify-content:flex-end;
+              gap:8px;
+            "
+          >
 
-                  ? `
-                    <div
-                      style="
-                        margin-top:12px;
-                        display:flex;
-                        justify-content:flex-end;
-                      "
-                    >
+            ${
+              pct === 100
+                ? `
+                  <button
+                    type="button"
+                    class="btn btn-primary btn-sm"
+                    onclick="
+                      event.stopPropagation();
+                      finishProject('${p.id}');
+                    "
+                  >
+                    Finish project
+                  </button>
+                `
+                : ''
+        }
 
-                      <button
-                        type="button"
-                        class="btn btn-primary btn-sm"
-                        onclick="
-                          event.stopPropagation();
-                          finishProject('${p.id}');
-                        "
-                      >
-                        Finish project
-                      </button>
+        <button
+          type="button"
+          class="btn btn-danger btn-sm"
+          onclick="
+            event.stopPropagation();
+            Studio.deleteProject('${p.id}');
+          "
+        >
+          ✕ Delete
+        </button>
 
-                    </div>
-                  `
-
-                  : ''
-              }
+      </div>
+    `
+    : ''
+}
 
             </div>
 

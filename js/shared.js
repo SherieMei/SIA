@@ -1026,6 +1026,88 @@ Object.assign(Studio,{
       )
     });
   },
+  async deleteProject(projectId){
+  if(!can('manageProjects')) return;
+
+  const project = DB.projects.find(
+    p => String(p.id) === String(projectId)
+  );
+
+  if(!project) return;
+
+  Studio.openConfirm({
+    title:'Delete project?',
+    body:'“'+esc(project.name)+'” will be moved to Trash.',
+    confirmLabel:'Delete',
+    danger:true,
+
+    onConfirm:async()=>{
+      try{
+
+        const response = await fetch(
+          'http://localhost/SIA/api/projects.php',
+          {
+            method:'POST',
+            credentials:'include',
+            headers:{
+              'Content-Type':'application/json'
+            },
+            body:JSON.stringify({
+              action:'delete_project',
+              project_id:String(projectId)
+            })
+          }
+        );
+
+        const data =
+          await parseApiResponse(response);
+
+        if(!response.ok || !data.success){
+          throw new Error(
+            data.error ||
+            data.message ||
+            'Unable to delete project.'
+          );
+        }
+
+        DB.projects =
+          DB.projects.filter(
+            p => String(p.id) !== String(projectId)
+          );
+
+        pushAudit(
+          'Deleted',
+          'Project',
+          project.name + ' moved to Trash'
+        );
+
+        toast(
+          project.name+' moved to Trash.',
+          'success'
+        );
+
+        Studio.persist();
+
+        if(typeof render === 'function'){
+          render();
+        }
+
+      }catch(error){
+
+        console.error(
+          'Delete project error:',
+          error
+        );
+
+        toast(
+          error.message ||
+          'Unable to delete project.',
+          'error'
+        );
+      }
+    }
+  });
+},
   _doCreateProject(
     name,
     client,
@@ -1663,26 +1745,146 @@ Object.assign(Studio,{
     if(typeof render==='function')render();
     Studio.persist();
   },
-  deleteUser(uid){
-    if(!can('manageUsers'))return;
-    if(DB.currentUser&&DB.currentUser.id===uid){
-      toast('You can’t remove your own account while signed in.','error');
-      return;
-    }
-    const u=userById(uid);
-    if(!u)return;
-    Studio.openConfirm({
-      title:'Remove team member?',
-      body:'“'+esc(u.name)+'” ('+esc(ROLE_LABELS[u.role]||u.role)+') will lose access to the studio. Their past uploads, comments, and approvals stay on record.',
-      confirmLabel:'Remove',
-      danger:true,
-      onConfirm:()=>{
-        DB.users=DB.users.filter(x=>x.id!==uid);
-        pushAudit('User',u.name,'Removed from team');
-        toast(u.name+' removed from the team.','success');
-        if(typeof render==='function')render();
+  async deleteUser(uid){
+  if(!can('manageUsers'))return;
+
+  if(DB.currentUser&&String(DB.currentUser.id)===String(uid)){
+    toast('You can’t remove your own account while signed in.','error');
+    return;
+  }
+
+  const u=userById(uid);
+  if(!u)return;
+
+  Studio.openConfirm({
+    title:'Remove team member?',
+    body:'“'+esc(u.name)+'” ('+
+      esc(ROLE_LABELS[u.role]||u.role)+
+      ') will lose access to the studio and their account will be deleted from the database.',
+    confirmLabel:'Remove',
+    danger:true,
+
+    onConfirm:async()=>{
+
+      try{
+
+        const response=await fetch('http://localhost/SIA/api/auth.php',{
+          method:'POST',
+          credentials:'include',
+          headers:{
+            'Content-Type':'application/json'
+          },
+          body:JSON.stringify({
+            action:'delete_team_member',
+            id:String(uid)
+          })
+        });
+
+        const data=await parseApiResponse(response);
+
+        if(!response.ok||!data.success){
+          throw new Error(
+            data.error||'Unable to delete team member.'
+          );
+        }
+
+        // Only remove from the frontend after
+        // the database deletion succeeds.
+        DB.users=DB.users.filter(
+          x=>String(x.id)!==String(uid)
+        );
+
+        pushAudit(
+          'User',
+          u.name,
+          'Removed from team and deleted from database'
+        );
+
+        toast(
+          u.name+' removed from the team.',
+          'success'
+        );
+
+        if(typeof render==='function'){
+          render();
+        }
+
+        // Save the updated local application state.
         Studio.persist();
+
+      }catch(error){
+
+        console.error(
+          'Delete team member error:',
+          error
+        );
+
+        toast(
+          error.message||
+          'Unable to delete team member.',
+          'error'
+        );
       }
-    });
-  },
+    }
+  });
+},
+
+async recoverUser(trashId){
+  if(!can('manageUsers')) return;
+
+  Studio.openConfirm({
+    title:'Recover team member?',
+    body:'This account will be restored and will be able to access the studio again.',
+    confirmLabel:'Recover',
+    danger:false,
+
+    onConfirm:async()=>{
+
+      try{
+
+        const response=await fetch('http://localhost/SIA/api/auth.php',{
+          method:'POST',
+          credentials:'include',
+          headers:{
+            'Content-Type':'application/json'
+          },
+          body:JSON.stringify({
+            action:'recover_team_member',
+            trash_id:String(trashId)
+          })
+        });
+
+        const data=await parseApiResponse(response);
+
+        if(!response.ok||!data.success){
+          throw new Error(
+            data.error||'Unable to recover team member.'
+          );
+        }
+
+        toast(
+          'Account recovered successfully.',
+          'success'
+        );
+
+        // Reload the page so the restored account
+        // is loaded again from the database.
+        window.location.reload(); 
+
+      }catch(error){
+
+        console.error(
+          'Recover team member error:',
+          error
+        );
+
+        toast(
+          error.message||
+          'Unable to recover team member.',
+          'error'
+        );
+      }
+    }
+  });
+},
 });

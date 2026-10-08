@@ -351,6 +351,192 @@ if(data.success && Array.isArray(data.projects)){
 
 }
 
+async function recoverDeletedProject(trashId){
+
+  if(!trashId) return;
+
+  const confirmed =
+    confirm('Recover this project from Trash?');
+
+  if(!confirmed) return;
+
+  try{
+
+    const response = await fetch(
+      'http://localhost/SIA/api/projects.php',
+      {
+        method:'POST',
+        credentials:'include',
+        headers:{
+          'Content-Type':'application/json'
+        },
+        body:JSON.stringify({
+          action:'recover_project',
+          trash_id:String(trashId)
+        })
+      }
+    );
+
+    const data =
+      await parseApiResponse(response);
+
+    if(!response.ok || !data.success){
+      throw new Error(
+        data.message ||
+        data.error ||
+        'Unable to recover project.'
+      );
+    }
+
+    toast(
+      'Project recovered successfully.',
+      'success'
+    );
+
+    await loadProjectsFromDB();
+
+    loadDeletedProjects();
+
+  }catch(error){
+
+    console.error(
+      'Recover project error:',
+      error
+    );
+
+    toast(
+      error.message ||
+      'Unable to recover project.',
+      'error'
+    );
+  }
+}
+
+async function loadDeletedProjects(){
+
+  const panel = document.getElementById('deletedProjectsPanel');
+
+  if(!panel) return;
+
+  try{
+
+    const response = await fetch(
+      'http://localhost/SIA/api/projects.php?action=trash_projects',
+      {
+        credentials:'include'
+      }
+    );
+
+    const data = await parseApiResponse(response);
+
+    if(!response.ok || !data.success){
+      throw new Error(
+        data.message ||
+        data.error ||
+        'Unable to load deleted projects.'
+      );
+    }
+
+    const deletedProjects =
+      Array.isArray(data.projects)
+        ? data.projects
+        : [];
+
+    if(!deletedProjects.length){
+
+      panel.innerHTML = `
+        <div class="empty">
+          No deleted projects.
+        </div>
+      `;
+
+      return;
+    }
+
+    panel.innerHTML = deletedProjects.map(item => {
+
+      const project = item.project || {};
+
+      return `
+      <div class="card" style="margin-bottom:12px;">
+
+      <div style="padding:18px;">
+
+          <div style="font-weight:700;">
+            ${esc(project.name || 'Unnamed Project')}
+          </div>
+
+          <div
+            style="
+              margin-top:6px;
+              font-size:13px;
+              color:var(--muted);
+            "
+          >
+            Client:
+            ${esc(project.client || '—')}
+          </div>
+
+          <div
+            style="
+              margin-top:4px;
+              font-size:13px;
+              color:var(--muted);
+            "
+          >
+            Status:
+            ${esc(project.status || '—')}
+          </div>
+
+          <div
+            style="
+              margin-top:4px;
+              font-size:12px;
+              color:var(--muted);
+            "
+          >
+            Deleted:
+            ${esc(item.deleted_at || '—')}
+          </div>
+          <div
+  style="
+    margin-top:14px;
+    display:flex;
+    justify-content:flex-end;
+  "
+>
+  <button
+    type="button"
+    class="btn btn-primary btn-sm"
+    onclick="
+      event.stopPropagation();
+      recoverDeletedProject('${item.trash_id}');
+    "
+  >
+    Recover
+  </button>
+</div>
+        </div>
+        </div>
+      `;
+
+    }).join('');
+
+  }catch(error){
+
+    console.error(
+      'Load deleted projects error:',
+      error
+    );
+
+    panel.innerHTML = `
+      <div class="empty">
+        Unable to load deleted projects.
+      </div>
+    `;
+  }
+}
+
 
 /* ==========================================================================
    PAGE — Projects
@@ -709,6 +895,7 @@ ${
           margin-top:12px;
           display:flex;
           justify-content:flex-end;
+          gap:8px;
         "
       >
 
@@ -720,16 +907,27 @@ ${
             finishProject('${p.id}');
           "
           title="${
-  completion.missingTypes.length
-    ? 'Missing asset types: ' + completion.missingTypes.join(', ')
-    : completion.pendingAssets.length
-      ? 'Resolve all For Review or Revision Requested assets first.'
-      : completion.unresolvedAssets>0
-        ? 'Review all project assets before finishing.'
-        : 'Finish project'
-}"
+            completion.missingTypes.length
+              ? 'Missing asset types: ' + completion.missingTypes.join(', ')
+              : completion.pendingAssets.length
+                ? 'Resolve all For Review or Revision Requested assets first.'
+                : completion.unresolvedAssets > 0
+                  ? 'Review all project assets before finishing.'
+                  : 'Finish project'
+          }"
         >
           Finish project
+        </button>
+
+        <button
+          type="button"
+          class="btn btn-danger btn-sm"
+          onclick="
+            event.stopPropagation();
+            Studio.deleteProject('${p.id}');
+          "
+        >
+          ✕ Delete
         </button>
 
       </div>
@@ -751,7 +949,47 @@ ${
 
     </div>
 
+    ${
+      can('manageProjects')
+        ? `
+          <div
+            style="
+              margin-top:24px;
+              padding-top:20px;
+              border-top:1px solid var(--border);
+            "
+          >
+            <div
+              style="
+                display:flex;
+                justify-content:space-between;
+                align-items:center;
+                margin-bottom:12px;
+              "
+            >
+              <h3 style="margin:0;">Recently Deleted</h3>
+
+              <button
+                type="button"
+                class="btn btn-secondary btn-sm"
+                onclick="loadDeletedProjects()"
+              >
+                Refresh
+              </button>
+            </div>
+
+            <div id="deletedProjectsPanel">
+              <div class="empty">
+                Loading deleted projects...
+              </div>
+            </div>
+          </div>
+        `
+        : ''
+    }
+
   `;
+
 
 }
 
@@ -1847,6 +2085,7 @@ function render(){
     case 'projects':
       el.innerHTML =
         pageProjects();
+      loadDeletedProjects();
       break;
 
     case 'tracker':
