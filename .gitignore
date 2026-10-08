@@ -8,3 +8,5 @@ uploads/assets/*.mp4
 .env.*
 !.env.example
 .vercel/
+
+atlas.sql
