@@ -5,7 +5,7 @@ import { getStorage } from 'https://www.gstatic.com/firebasejs/13.0.0/firebase-s
 
 // Public web configuration. Access is controlled by Firebase security rules.
 const firebaseConfig = {
-  apiKey: 'AIzaSyBE0aMaMs0QieDsruAVpfZxzl6GEFykH6Y',
+  apiKey: 'AIzaSyBEOaMaMs0QieDsruAVpfZxzl6GEFykH6Y',
   authDomain: 'bee-production-e1058.firebaseapp.com',
   projectId: 'bee-production-e1058',
   storageBucket: 'bee-production-e1058.firebasestorage.app',
