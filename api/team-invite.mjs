@@ -9,7 +9,7 @@ export function createTeamInviteHandler({ auth, db, sendMail, configured = true 
   return async (req, res) => {
     res.setHeader('Cache-Control', 'no-store');
     const origin = req.headers.origin;
-    const allowed = ['https://siaa-ten.vercel.app', 'https://siaa-20635.web.app'];
+    const allowed = ['https://siaa-ten.vercel.app', 'https://bee-production-e1058.web.app'];
     if (origin && (allowed.includes(origin) || (process.env.NODE_ENV !== 'production' && /^http:\/\/(localhost|127\.0\.0\.1):\d+$/.test(origin)))) {
       res.setHeader('Access-Control-Allow-Origin', origin);
       res.setHeader('Vary', 'Origin');
@@ -123,7 +123,7 @@ export default async function handler(req, res) {
       const { getAuth } = await import('firebase-admin/auth');
       const { getFirestore } = await import('firebase-admin/firestore');
       const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY || '{}');
-      if (serviceAccount.project_id !== 'siaa-20635') throw new Error('Missing server credential');
+      if (serviceAccount.project_id !== 'bee-production-e1058') throw new Error('Missing server credential');
       const app = getApps().find(app => app.name === 'team-invitations') || initializeApp({ credential: cert(serviceAccount) }, 'team-invitations');
       const configured = Boolean(process.env.EMAILJS_SERVICE_ID && process.env.EMAILJS_TEMPLATE_ID && process.env.EMAILJS_PUBLIC_KEY);
       cached = createTeamInviteHandler({ auth: getAuth(app), db: getFirestore(app), configured, sendMail: async params => {

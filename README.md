@@ -27,7 +27,7 @@ Serve this folder over HTTP while developing (for example, Live Server). The fro
 uses Firebase Authentication and Firestore directly through `js/firebase-api.js`.
 Opening HTML files through `file://` does not support this module workflow.
 
-Project: `siaa-20635`. Firebase web settings are in `js/firebase.js`.
+Project: `bee-production-e1058`. Firebase web settings are in `js/firebase.js`.
 Existing users were imported with their original IDs and bcrypt password hashes.
 New registrations receive the client role. Administrators can add team members,
 change roles, and disable access. Disabled users are rejected by the Firestore rules.
@@ -43,7 +43,7 @@ intended reviewers on the external service.
 
 ```sh
 node tools/firebase-migration/build-hosting.mjs
-tools/firebase-migration/node_modules/.bin/firebase deploy --only firestore,hosting --project siaa-20635
+tools/firebase-migration/node_modules/.bin/firebase deploy --only firestore,hosting --project bee-production-e1058
 ```
 
 `firebase-public` contains only the frontend. PHP files, SQL exports, administrator

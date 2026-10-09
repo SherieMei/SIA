@@ -1,6 +1,6 @@
 # Firebase migration status
 
-Target: siaa-20635.
+Target: bee-production-e1058.
 
 - Asset workflow: only Revision Requested allows another version. Pending, Approved,
   Final and Rejected versions are locked against new submissions in the app and rules.
@@ -20,13 +20,15 @@ Target: siaa-20635.
   Vercel's security checkpoint blocked automated live checks from this connection;
   live browser login verification remains unconfirmed.
 
-- Firestore: 723 records copied and read back for verification.
-- Authentication: six bcrypt accounts imported; IDs, normalized emails, display
-  names and password providers verified.
+- Firestore: the latest available backup was restored and read back for verification.
+  Required composite indexes were recreated in the new project.
+- Authentication: nine current accounts were imported with their password hashes;
+  IDs, emails, display names and password sign-in were verified. Historical profiles
+  missing from Authentication were retained as disabled records.
 - Local uploads/assets: only .gitkeep, no media files available to transfer.
 - Media: the user selected the free setup with external HTTPS links. Direct file
   uploads and Cloud Storage are not used.
-- Hosting: deployed at https://siaa-20635.web.app. Build with
+- Hosting project: https://bee-production-e1058.web.app. Build with
   `node tools/firebase-migration/build-hosting.mjs` before future deployments.
 - Application runtime: Firebase Authentication and direct Firestore operations
   replace the PHP API calls through js/firebase-api.js. The existing PHP endpoint

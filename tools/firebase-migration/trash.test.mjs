@@ -5,7 +5,7 @@ import {initializeApp,cert} from 'firebase-admin/app';
 import {getAuth} from 'firebase-admin/auth';
 import {getFirestore} from 'firebase-admin/firestore';
 import {createTrashHandler} from '../../api/trash.mjs';
-initializeApp({credential:cert(JSON.parse(readFileSync(process.env.GOOGLE_APPLICATION_CREDENTIALS,'utf8'))),projectId:'siaa-20635'});
+initializeApp({credential:cert(JSON.parse(readFileSync(process.env.GOOGLE_APPLICATION_CREDENTIALS,'utf8'))),projectId:'bee-production-e1058'});
 const auth=getAuth(),db=getFirestore(),id='trash-test-'+randomUUID(),uids=[],paths=new Set();
 const handler=createTrashHandler({auth,db});
 async function member(role){const u=await auth.createUser({email:role+'-'+id+'@example.com',password:randomUUID()+'Aa1!'});uids.push(u.uid);await put('app_users',u.uid,{id:u.uid,role,full_name:'Temporary '+role,disabled:false});return {uid:u.uid,token:await token(u.uid)};}

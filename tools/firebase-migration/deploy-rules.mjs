@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { initializeApp, applicationDefault } from 'firebase-admin/app';
 import { getSecurityRules } from 'firebase-admin/security-rules';
-initializeApp({ credential: applicationDefault(), projectId: 'siaa-20635' });
+initializeApp({ credential: applicationDefault(), projectId: 'bee-production-e1058' });
 const service = getSecurityRules();
 const source = readFileSync(new URL('../../firestore.rules', import.meta.url), 'utf8');
 if (process.argv.includes('--apply')) {

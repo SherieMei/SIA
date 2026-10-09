@@ -10,7 +10,7 @@ import { createTeamInviteHandler } from '../../api/team-invite.mjs';
 const invitationMessages=[];
 
 const credential = JSON.parse(await readFile(process.env.GOOGLE_APPLICATION_CREDENTIALS, 'utf8'));
-initializeApp({ credential: cert(credential), projectId: 'siaa-20635' });
+initializeApp({ credential: cert(credential), projectId: 'bee-production-e1058' });
 const db = getFirestore();
 const adminAuth = getAuth();
 const invitationHandler=createTeamInviteHandler({auth:adminAuth,db,sendMail:async params=>invitationMessages.push(params)});

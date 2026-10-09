@@ -3,7 +3,7 @@ import { initializeApp, applicationDefault } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 import { projectAccess, publicProject, publicAsset } from '../../js/firebase-model.js';
 
-initializeApp({ credential: applicationDefault(), projectId: 'siaa-20635' });
+initializeApp({ credential: applicationDefault(), projectId: 'bee-production-e1058' });
 const db = getFirestore();
 const names = ['projects', 'assets', 'asset_versions', 'app_users', 'audit_logs',
   'resources', 'animation_shot_progress', 'animation_shot_workflow', 'editor_sequences'];

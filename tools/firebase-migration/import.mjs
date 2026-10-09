@@ -51,11 +51,11 @@ if (!process.env.GOOGLE_APPLICATION_CREDENTIALS) {
   throw new Error('Set GOOGLE_APPLICATION_CREDENTIALS to a local administrator credential file outside the website.');
 }
 const credential = JSON.parse(readFileSync(process.env.GOOGLE_APPLICATION_CREDENTIALS, 'utf8'));
-if (credential.project_id !== 'siaa-20635') throw new Error('Credential must belong to siaa-20635.');
+if (credential.project_id !== 'bee-production-e1058') throw new Error('Credential must belong to bee-production-e1058.');
 const { initializeApp, cert } = await import('firebase-admin/app');
 const { getFirestore } = await import('firebase-admin/firestore');
 const { getAuth } = await import('firebase-admin/auth');
-initializeApp({ credential: cert(credential), projectId: 'siaa-20635' });
+initializeApp({ credential: cert(credential), projectId: 'bee-production-e1058' });
 const db = getFirestore();
 const auth = getAuth();
 // Preflight every destination before making changes. Never overwrite existing records.

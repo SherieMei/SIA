@@ -1,6 +1,6 @@
 # Atlas to Firebase migration
 
-Target project: `siaa-20635`. Each MySQL table becomes a Firestore collection.
+Target project: `bee-production-e1058`. Each MySQL table becomes a Firestore collection.
 Primary keys become document IDs; foreign key values and column types are preserved
 as returned by PDO. SQL JSON remains a string. Empty tables have no documents.
 This copies database records, not the media files referenced by their paths.

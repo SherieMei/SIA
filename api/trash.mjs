@@ -6,7 +6,7 @@ export function createTrashHandler({ auth, db }) {
   return async (req,res) => {
     res.setHeader('Cache-Control','no-store');
     const origin=req.headers.origin;
-    if(['https://siaa-ten.vercel.app','https://siaa-20635.web.app'].includes(origin)){
+    if(['https://siaa-ten.vercel.app','https://bee-production-e1058.web.app'].includes(origin)){
       res.setHeader('Access-Control-Allow-Origin',origin);res.setHeader('Vary','Origin');
       res.setHeader('Access-Control-Allow-Headers','Authorization, Content-Type');res.setHeader('Access-Control-Allow-Methods','POST, OPTIONS');
     }
@@ -114,7 +114,7 @@ let cached;
 export default async function handler(req,res){
   try{
     if(!cached){const {getApps,initializeApp,cert}=await import('firebase-admin/app');const {getAuth}=await import('firebase-admin/auth');const {getFirestore}=await import('firebase-admin/firestore');
-      const key=JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY||'{}');if(key.project_id!=='siaa-20635')throw Error();
+      const key=JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY||'{}');if(key.project_id!=='bee-production-e1058')throw Error();
       const app=getApps().find(a=>a.name==='trash')||initializeApp({credential:cert(key)},'trash');cached=createTrashHandler({auth:getAuth(app),db:getFirestore(app)});
     }return cached(req,res);
   }catch{return res.status(503).json({success:false,error:'Trash service is not configured.'});}

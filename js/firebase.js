@@ -5,13 +5,13 @@ import { getStorage } from 'https://www.gstatic.com/firebasejs/13.0.0/firebase-s
 
 // Public web configuration. Access is controlled by Firebase security rules.
 const firebaseConfig = {
-  apiKey: 'AIzaSyDUVCG5IX9nyWRKtbcHWDp5b0c9oJZqHWs',
-  authDomain: 'siaa-20635.firebaseapp.com',
-  projectId: 'siaa-20635',
-  storageBucket: 'siaa-20635.firebasestorage.app',
-  messagingSenderId: '500595547305',
-  appId: '1:500595547305:web:194941d02712d321f3ddb8',
-  measurementId: 'G-4RHRHCCWYS'
+  apiKey: 'AIzaSyBE0aMaMs0QieDsruAVpfZxzl6GEFykH6Y',
+  authDomain: 'bee-production-e1058.firebaseapp.com',
+  projectId: 'bee-production-e1058',
+  storageBucket: 'bee-production-e1058.firebasestorage.app',
+  messagingSenderId: '665768064835',
+  appId: '1:665768064835:web:cb917399f7e5c8737aa1f6',
+  measurementId: 'G-45JE4J2028'
 };
 
 export const app = initializeApp(firebaseConfig);
